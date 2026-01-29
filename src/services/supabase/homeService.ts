@@ -54,7 +54,7 @@ export const fetchFeaturedProducts = async (limit: number = 10): Promise<Product
     .eq('is_active', true)
     .eq('is_featured', true)
     .is('deleted_at', null)
-    .order('sort_order', { ascending: true })
+    .order('featured_sort_order', { ascending: true })
     .limit(limit);
 
   if (error) {
@@ -91,8 +91,8 @@ export const fetchActiveFlashSale = async (): Promise<{
   }
 
   // Fetch flash sale products with product details
-  const { data: flashSaleProducts, error: productsError } = await supabase
-    .from('flash_sale_products')
+  const { data: flashSaleItems, error: productsError } = await supabase
+    .from('flash_sale_items')
     .select(
       `
       *,
@@ -102,15 +102,15 @@ export const fetchActiveFlashSale = async (): Promise<{
     .eq('flash_sale_id', flashSaleData.id)
     .order('sort_order', { ascending: true });
 
-  if (productsError || !flashSaleProducts) {
+  if (productsError || !flashSaleItems) {
     return { flashSale: flashSaleData, products: [] };
   }
 
-  const products: ProductWithFlashSale[] = flashSaleProducts.map((item: any) => ({
+  const products: ProductWithFlashSale[] = flashSaleItems.map((item: any) => ({
     ...item.products,
     flash_sale_price: item.sale_price,
-    flash_sale_quantity_limit: item.quantity_limit,
-    flash_sale_quantity_sold: item.quantity_sold,
+    flash_sale_quantity_limit: item.stock_limit,
+    flash_sale_quantity_sold: item.sold_count,
   }));
 
   return { flashSale: flashSaleData, products };
@@ -148,7 +148,7 @@ export const fetchCategoriesWithProducts = async (
       .eq('category_id', category.id)
       .eq('is_active', true)
       .is('deleted_at', null)
-      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false })
       .limit(productLimit);
 
     if (!productsError && products) {
