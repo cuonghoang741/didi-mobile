@@ -22,7 +22,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version,
   slug: PROJECT_SLUG,
   orientation: 'portrait',
-  userInterfaceStyle: 'dark', // Force dark theme
+  userInterfaceStyle: 'light', // Force light theme
   newArchEnabled: true,
   extra: {
     eas: {
