@@ -1,0 +1,10 @@
+{
+  "react-native": {
+    "android_task": {
+      "google_services_file": "./google-services.json"
+    },
+    "ios_task": {
+      "google_services_file": "./GoogleService-Info.plist"
+    }
+  }
+}

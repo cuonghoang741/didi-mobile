@@ -1,0 +1,17 @@
+# Ignore config files
+*.config.js
+*.config.ts
+
+# Ignore build and node modules
+node_modules/
+dist/
+build/
+
+# Ignore OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
