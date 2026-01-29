@@ -1,4 +1,3 @@
-import { type User } from '@/models/user';
 import {
   LoginRequest,
   LoginResponse,
@@ -12,6 +11,8 @@ import {
 } from '@/types';
 
 import publicApi from '../config/publicApi.config';
+
+import { type User } from '@/models/user';
 
 const ACCOUNT = {
   account: 'quocquynguyen0311@gmail.com',

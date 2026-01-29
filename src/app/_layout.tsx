@@ -10,6 +10,7 @@ import {
   ThemeProvider as AppThemeProvider,
   AuthProvider,
   LanguageProvider,
+  CartProvider,
   useTheme,
 } from '@/contexts';
 import 'react-native-reanimated';
@@ -42,10 +43,12 @@ const RootLayout = () => {
           <LanguageProvider>
             <QueryClientProvider client={queryClient}>
               <AuthProvider>
-                <StatusBar translucent backgroundColor={theme.palette.transparent} />
-                <GestureHandlerRootView>
-                  <Slot />
-                </GestureHandlerRootView>
+                <CartProvider>
+                  <StatusBar translucent backgroundColor={theme.palette.transparent} />
+                  <GestureHandlerRootView>
+                    <Slot />
+                  </GestureHandlerRootView>
+                </CartProvider>
               </AuthProvider>
             </QueryClientProvider>
           </LanguageProvider>

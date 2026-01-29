@@ -1,0 +1,21 @@
+export const searchProducts = async (
+    queryText: string,
+    limit: number = 20
+): Promise<Product[]> => {
+    if (!queryText) return [];
+
+    const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .ilike('name', `%${queryText}%`)
+        .eq('is_active', true)
+        .is('deleted_at', null)
+        .limit(limit);
+
+    if (error) {
+        console.error('Error searching products:', error);
+        return [];
+    }
+
+    return data || [];
+};

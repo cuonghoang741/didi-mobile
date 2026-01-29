@@ -1,2 +1,1 @@
-// Hooks
-// TODO: Add hooks here
+export * from './useCurrency';

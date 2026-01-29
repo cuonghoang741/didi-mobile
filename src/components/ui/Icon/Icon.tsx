@@ -11,13 +11,7 @@ interface IconProps extends SvgProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const Icon: React.FC<IconProps> = ({
-  size,
-  icon: IconElement,
-  color,
-  style,
-  ...props
-}) => {
+const Icon: React.FC<IconProps> = ({ size, icon: IconElement, color, style, ...props }) => {
   const theme = useTheme();
 
   return (

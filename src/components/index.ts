@@ -29,4 +29,13 @@ export { default as Container } from './layout/Container';
 export { default as RootBackgroundGradient } from './layout/RootBackgroundGradient';
 
 // Auth
-export { default as AuthGuard } from './AuthGuard';
+export { AuthProtect } from './AuthProtect';
+
+// Home
+export * from './home';
+
+// Product
+export { default as ProductReviews } from './product/ProductReviews';
+
+// Search
+export { default as FilterModal } from './search/FilterModal';

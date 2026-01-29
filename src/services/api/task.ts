@@ -1,7 +1,8 @@
-import { Task } from '@/models/task';
 import { PaginationResponse } from '@/types/common';
 
 import authApi from '../config/authApi.config';
+
+import { Task } from '@/models/task';
 
 export const taskApi = {
   getTasks: async (): Promise<PaginationResponse<Task>> => {

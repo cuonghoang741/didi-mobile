@@ -83,7 +83,10 @@ export const useOTAUpdate = () => {
       progressIntervalRef.current = setInterval(() => {
         setUpdateInfo((prev) => {
           // Progress increases fast at start and slows near 90%
-          const next = Math.min(0.9, prev.downloadProgress + Math.max(0.01, (0.2 - prev.downloadProgress) * 0.08));
+          const next = Math.min(
+            0.9,
+            prev.downloadProgress + Math.max(0.01, (0.2 - prev.downloadProgress) * 0.08),
+          );
           return { ...prev, downloadProgress: next };
         });
       }, 100);

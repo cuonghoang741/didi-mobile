@@ -3,7 +3,6 @@ import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 
 import { STORAGE_KEYS } from '@/constants/storage-key';
-import { ROUTES } from '@/constants/routes';
 
 import publicApi from './publicApi.config';
 import BASE_URL from './baseUrl';
@@ -96,8 +95,6 @@ authApi.interceptors.response.use(
         await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
         await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
         await SecureStore.deleteItemAsync(USER_INFO_KEY);
-
-        // No redirect needed - auth-by-device will handle re-authentication
 
         return await Promise.reject(refreshError);
       } finally {

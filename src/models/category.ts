@@ -1,14 +1,17 @@
-import { Prompt } from './prompt';
-import { Task } from './task';
+import { BaseEntity } from './common';
 
-export interface Category {
-  id: number;
+export interface Category extends BaseEntity {
   name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt?: string;
-  deletedAt?: string;
-
-  prompts?: Prompt[]; // Prompt interface array
-  tasks?: Task[]; // Task interface array
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  parent_id: string | null;
+  sort_order: number;
+  is_active: boolean;
 }
+
+export type CategoryInsert = Omit<Category, 'id' | 'created_at' | 'updated_at' | 'deleted_at'> & {
+  id?: string;
+};
+
+export type CategoryUpdate = Partial<CategoryInsert>;

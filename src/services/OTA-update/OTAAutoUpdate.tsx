@@ -1,9 +1,11 @@
-import { Button } from '@/components/ui';
-import { purple } from '@/theme/palette';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Modal, StyleSheet, Text, View } from 'react-native';
+
 import { useOTAUpdate } from './useOTAUpdate';
+
+import { purple } from '@/theme/palette';
+import { Button } from '@/components/ui';
 
 interface OTAAutoUpdateProps {
   onDismiss?: () => void;
@@ -37,7 +39,7 @@ export const OTAAutoUpdate: React.FC<OTAAutoUpdateProps> = ({ onDismiss }) => {
             duration: 0,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
     } else {
       shimmerTranslate.stopAnimation();
@@ -59,27 +61,20 @@ export const OTAAutoUpdate: React.FC<OTAAutoUpdateProps> = ({ onDismiss }) => {
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={handleClose}
-    >
+    <Modal visible={visible} transparent animationType='fade' onRequestClose={handleClose}>
       <View style={styles.backdrop}>
         <View style={styles.container}>
           <Text style={styles.title}>New update available</Text>
-          <Text style={styles.message}>
-            Please update to enjoy the latest version.
-          </Text>
-          {(updateInfo.isDownloading || updateInfo.isInstalling) && (
+          <Text style={styles.message}>Please update to enjoy the latest version.</Text>
+          {updateInfo.isDownloading || updateInfo.isInstalling ? (
             <View style={styles.progressRow}>
-              <ActivityIndicator size="small" color="#0D004D" />
+              <ActivityIndicator size='small' color='#0D004D' />
               <Text style={styles.progressText}>
                 {updateInfo.isInstalling ? 'Installing update...' : 'Downloading update...'}
               </Text>
             </View>
-          )}
-          {isUpdating && updateInfo.downloadProgress === 0 && (
+          ) : null}
+          {isUpdating && updateInfo.downloadProgress === 0 ? (
             <View style={styles.progressBarContainer}>
               <View style={styles.progressBarTrack}>
                 <Animated.View
@@ -97,11 +92,16 @@ export const OTAAutoUpdate: React.FC<OTAAutoUpdateProps> = ({ onDismiss }) => {
                 </Animated.View>
               </View>
             </View>
-          )}
-          {isUpdating && updateInfo.downloadProgress > 0 && (
+          ) : null}
+          {isUpdating && updateInfo.downloadProgress > 0 ? (
             <View style={styles.progressBarContainer}>
               <View style={styles.progressBarTrack}>
-                <View style={[styles.progressBarFill, { width: `${Math.min(updateInfo.downloadProgress, 1) * 100}%` }]}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: `${Math.min(updateInfo.downloadProgress, 1) * 100}%` },
+                  ]}
+                >
                   <LinearGradient
                     start={{ x: 0, y: 0.5 }}
                     end={{ x: 1, y: 0.5 }}
@@ -111,7 +111,7 @@ export const OTAAutoUpdate: React.FC<OTAAutoUpdateProps> = ({ onDismiss }) => {
                 </View>
               </View>
             </View>
-          )}
+          ) : null}
           <View style={styles.actions}>
             <View style={styles.actionItem}>
               <Button

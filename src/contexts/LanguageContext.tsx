@@ -7,7 +7,7 @@ import { Language, STORAGE_KEYS } from '@/constants';
 interface LanguageContextType {
   language: Language;
   setLanguage: (language: Language) => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -23,7 +23,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     const loadLocale = async () => {
       try {
         const savedLocale = await SecureStore.getItemAsync(STORAGE_KEYS.LANGUAGE_KEY);
-        if (savedLocale && (savedLocale === 'vi' || savedLocale === 'en')) {
+        if (savedLocale && (savedLocale === 'vi' || savedLocale === 'en' || savedLocale === 'jp')) {
           setLanguageState(savedLocale as Language);
         }
       } catch (error) {
@@ -46,7 +46,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   const isRecord = (v: unknown): v is Record<string, unknown> =>
     typeof v === 'object' && v !== null;
 
-  const t = (key: string): string => {
+  const t = (key: string, params?: Record<string, string | number>): string => {
     const keys = key.split('.');
     let value: unknown = translations[language];
 
@@ -59,7 +59,16 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
       }
     }
 
-    return typeof value === 'string' ? value : key;
+    if (typeof value === 'string') {
+      if (params) {
+        return Object.entries(params).reduce((acc, [k, v]) => {
+          return acc.replace(new RegExp(`{{${k}}}`, 'g'), String(v));
+        }, value);
+      }
+      return value;
+    }
+
+    return key;
   };
 
   const value: LanguageContextType = {

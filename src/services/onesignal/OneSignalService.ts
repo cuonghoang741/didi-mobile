@@ -24,7 +24,6 @@ function getOneSignal(): any | null {
   }
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const mod = require('react-native-onesignal');
 
     if (!mod) {
@@ -107,7 +106,7 @@ class OneSignalService {
     if (OneSignal?.Notifications) {
       try {
         // Check current permission status first
-        const hasPermission = await OneSignal.Notifications.hasPermission();
+        const hasPermission = await OneSignal.Notifications.getPermissionAsync();
         console.log('OneSignal current permission status:', hasPermission);
 
         // Only request if we don't have permission yet
@@ -181,7 +180,7 @@ class OneSignalService {
 
     try {
       const playerId = await this.getPlayerId();
-      const hasPermission = await OneSignal.Notifications.hasPermission();
+      const hasPermission = await OneSignal.Notifications.getPermissionAsync();
       const isSubscribed = hasPermission && playerId !== null;
 
       return {
@@ -218,7 +217,7 @@ class OneSignalService {
       }
 
       // Request permission if not already granted
-      const hasPermission = await OneSignal.Notifications.hasPermission();
+      const hasPermission = await OneSignal.Notifications.getPermissionAsync();
       if (!hasPermission) {
         const permission = await OneSignal.Notifications.requestPermission();
         console.log('OneSignal subscription permission result:', permission);

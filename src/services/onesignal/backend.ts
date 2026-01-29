@@ -1,5 +1,6 @@
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+
 import authApi from '@/services/config/authApi.config';
 
 type RegisterPushTokenPayload = {
@@ -24,5 +25,3 @@ export const registerPushToken = async (oneSignalPlayerId: string) => {
 
   return authApi.post('/notifications/register-token', payload);
 };
-
-

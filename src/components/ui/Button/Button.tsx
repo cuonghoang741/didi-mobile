@@ -1,12 +1,12 @@
 import React from 'react';
 import { ActivityIndicator, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
 
 import { useTheme } from '@/contexts';
 
 import Icon from '../Icon/Icon';
 import Typography from '../Typography/Typography';
-import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
 import { HapticPressable } from '../haptic-pressable';
 
 export interface ButtonProps {
@@ -161,7 +161,7 @@ const Button: React.FC<ButtonProps> = ({
             pressed: !!pressed,
             shadow,
           }).button,
-          { backgroundColor: tintColor || "white" },
+          { backgroundColor: tintColor || 'white' },
           style,
         ]}
         onPress={onPress}
@@ -250,7 +250,14 @@ function makeButtonStyles(
   }: Required<
     Pick<
       ButtonProps,
-      'size' | 'variant' | 'colorScheme' | 'fullWidth' | 'disabled' | 'loading' | 'isIconOnly' | 'shadow'
+      | 'size'
+      | 'variant'
+      | 'colorScheme'
+      | 'fullWidth'
+      | 'disabled'
+      | 'loading'
+      | 'isIconOnly'
+      | 'shadow'
     >
   > & { pressed?: boolean },
 ) {
@@ -407,9 +414,7 @@ function makeButtonStyles(
       justifyContent: 'center',
       borderRadius: theme.radius.full,
       // Allow outer shadow for whiteShadow variant or when custom shadow is applied
-      overflow: isWhiteShadow || (shadow !== 'none' && !isWhiteShadow)
-        ? 'visible'
-        : 'hidden',
+      overflow: isWhiteShadow || (shadow !== 'none' && !isWhiteShadow) ? 'visible' : 'hidden',
       ...sizeStyles[size],
       // Only override padding for link variant, preserve sizeStyles padding for others
       ...(normalizedVariant === 'link'
@@ -438,9 +443,7 @@ function makeButtonStyles(
           }
         : {}),
       // Apply custom shadow when not whiteShadow variant and shadow is not 'none'
-      ...(!isWhiteShadow && shadow !== 'none'
-        ? shadowStyles[shadow]
-        : {}),
+      ...(!isWhiteShadow && shadow !== 'none' ? shadowStyles[shadow] : {}),
       ...pressedStyle,
       ...disabledStyle,
       ...fullWidthStyle,

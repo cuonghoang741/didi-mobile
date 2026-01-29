@@ -1,186 +1,208 @@
 import { Feather } from '@expo/vector-icons';
-import React from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  ActivityIndicator,
+  Pressable,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Typography } from '@/components';
-import { useTheme } from '@/contexts';
+import {
+  BannerCarousel,
+  CategoryList,
+  FlashSaleSection,
+  ProductSection,
+  Typography,
+} from '@/components';
+import { useTheme, useLanguage, useCart } from '@/contexts';
+import { fetchHomeData, HomeData } from '@/services/supabase';
+import type { Banner, Product } from '@/types/database.types';
 
 const Home = () => {
+  const router = useRouter();
   const theme = useTheme();
+  const { t } = useLanguage();
+  const { getItemCount } = useCart();
   const styles = createStyles(theme);
 
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [data, setData] = useState<HomeData | null>(null);
+
+  const loadData = async () => {
+    try {
+      const homeData = await fetchHomeData();
+      setData(homeData);
+    } catch (error) {
+      console.error('Failed to load home data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadData();
+  }, []);
+
+  const handleBannerPress = (banner: Banner) => {
+    if (banner.product_id) {
+      router.push(`/product/${banner.product_id}`);
+    }
+  };
+
+  const handleProductPress = (product: Product) => {
+    router.push(`/product/${product.id}`);
+  };
+
+  const handleCategoryPress = (category: any) => {
+    console.log('Category pressed:', category);
+  };
+
+  if (loading && !data) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size='large' color={theme.colors.text.brand_primary} />
+      </View>
+    );
+  }
+
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.safeAreaView}>
-        <View style={styles.header}>
-          <Typography variant='text' size='xl' weight='bold' style={styles.brandTitle}>
-            MASHI
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <Pressable style={styles.searchContainer} onPress={() => router.push('/search')}>
+          <Feather name='search' size={20} color={theme.colors.text.secondary} />
+          <Typography variant='text' size='md' style={styles.searchText}>
+            {t('home.searchPlaceholder')}
           </Typography>
-          <View style={styles.headerRight}>
-            <View style={styles.freeBadge}>
-              <Typography variant='text' size='sm' weight='bold' style={styles.freeBadgeText}>
-                FREE
+        </Pressable>
+        <Pressable style={styles.iconButton} onPress={() => router.push('/cart')}>
+          <Feather name='shopping-cart' size={24} color={theme.colors.text.primary} />
+          {getItemCount() > 0 && (
+            <View style={styles.badge}>
+              <Typography variant='text' size='xs' style={styles.badgeText}>
+                {getItemCount() > 9 ? '9+' : getItemCount()}
               </Typography>
             </View>
-            <Pressable style={styles.upgradeWrapper}>
-              <LinearGradient
-                colors={['#FFE789', '#FFD74D']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.upgradeGradient}
-              >
-                <View style={styles.upgradeContent}>
-                  <Feather name='award' size={20} color={'#1F2937'} />
-                  <Typography variant='text' size='md' weight='bold' style={styles.upgradeText}>
-                    Upgrade
-                  </Typography>
-                </View>
-              </LinearGradient>
-            </Pressable>
-          </View>
-        </View>
+          )}
+        </Pressable>
+      </View>
 
-        <LinearGradient
-          colors={['#FDE1E6', '#DDEBFF', '#FFF4DB']}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradient}
-        >
-          <View style={styles.mascotContainer}>
-            <Image
-              source={require('@/assets/images/Mascot.png')}
-              resizeMode='contain'
-              style={styles.mascot}
-            />
-          </View>
-        </LinearGradient>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
+      >
+        {data?.banners && data.banners.length > 0 && (
+          <BannerCarousel banners={data.banners} onBannerPress={handleBannerPress} />
+        )}
 
-        <View style={styles.footer}>
-          <Typography variant='text' size='md' weight='medium' style={styles.taglineCenter}>
-            Every great idea deserves a face.
-          </Typography>
-          <Typography variant='text' size='md' weight='medium' style={styles.taglineCenter}>
-            Create your mascot today!
-          </Typography>
+        {/* Categories from categoriesWithProducts + additional categories if any */}
+        {data?.categoriesWithProducts && (
+          <CategoryList
+            categories={data.categoriesWithProducts.map((c) => c.category)}
+            onCategoryPress={handleCategoryPress}
+          />
+        )}
 
-          <View style={{ height: theme.spacing(4) }} />
+        {data?.flashSale && data.flashSaleProducts.length > 0 && (
+          <FlashSaleSection
+            flashSale={data.flashSale}
+            products={data.flashSaleProducts}
+            onProductPress={handleProductPress}
+            onViewAll={() => console.log('View all flash sale')}
+          />
+        )}
 
-          <Pressable style={{ borderRadius: theme.radius.full, overflow: 'hidden' }}>
-            <LinearGradient
-              colors={['#5B7CFF', '#3D4DF4']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.primaryCta}
-            >
-              <View style={styles.ctaContent}>
-                <Feather name='plus' size={24} color={'#FFFFFF'} />
-                <Typography variant='text' size='lg' weight='bold' style={styles.ctaText}>
-                  New Mascot
-                </Typography>
-              </View>
-            </LinearGradient>
-          </Pressable>
+        {data?.featuredProducts && data.featuredProducts.length > 0 && (
+          <ProductSection
+            title={t('home.featuredProducts')}
+            products={data.featuredProducts}
+            onProductPress={handleProductPress}
+            onViewAll={() => console.log('View all featured')}
+          />
+        )}
 
-          <View style={{ height: theme.spacing(3) }} />
-          <View style={styles.randomRow}>
-            <Typography variant='text' size='lg' weight='bold' style={styles.randomEmoji}>
-              🎉
-            </Typography>
-            <Typography variant='text' size='md' weight='bold' style={styles.randomText}>
-              Random
-            </Typography>
-          </View>
-        </View>
-      </SafeAreaView>
-    </SafeAreaProvider>
+        {data?.categoriesWithProducts.map((item) => (
+          <ProductSection
+            key={item.category.id}
+            title={item.category.name}
+            products={item.products}
+            onProductPress={handleProductPress}
+            onViewAll={() => console.log(`View all ${item.category.name}`)}
+          />
+        ))}
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const createStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
-    safeAreaView: {
+    container: {
       flex: 1,
       backgroundColor: theme.colors.background.primary,
     },
+    center: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     header: {
-      paddingHorizontal: theme.spacing(4),
-      paddingTop: theme.spacing(4),
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      gap: 12,
     },
-    brandTitle: {
-      letterSpacing: 2,
-    },
-    headerRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing(3),
-    },
-    freeBadge: {
-      backgroundColor: '#EEF2FF',
-      paddingHorizontal: theme.spacing(2),
-      paddingVertical: theme.spacing(1),
-      borderRadius: theme.radius.full,
-      shadowColor: '#000',
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
-    },
-    freeBadgeText: { color: '#3B82F6' },
-    upgradeWrapper: { borderRadius: theme.radius.full },
-    upgradeGradient: {
-      paddingVertical: theme.spacing(2.5),
-      paddingHorizontal: theme.spacing(4),
-      borderRadius: theme.radius.full,
-      shadowColor: '#F59E0B',
-      shadowOpacity: 0.35,
-      shadowRadius: 14,
-      shadowOffset: { width: 0, height: 8 },
-    },
-    upgradeContent: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing(2) },
-    upgradeText: { color: '#1F2937' },
-    gradient: {
+    searchContainer: {
       flex: 1,
-      marginTop: theme.spacing(2),
-      marginHorizontal: theme.spacing(2),
-      borderRadius: theme.radius['3xl'],
-      overflow: 'hidden',
+      flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
+      backgroundColor: theme.colors.background.secondary,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 8,
+      gap: 8,
     },
-    mascotContainer: {
-      width: '100%',
+    searchText: {
+      color: theme.colors.text.tertiary,
+    },
+    iconButton: {
+      padding: 4,
+      position: 'relative',
+    },
+    badge: {
+      position: 'absolute',
+      top: -4,
+      right: -4,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: '#EF4444',
+      justifyContent: 'center',
       alignItems: 'center',
-      justifyContent: 'center',
+      paddingHorizontal: 4,
     },
-    mascot: {
-      width: '85%',
-      height: undefined,
-      aspectRatio: 0.6,
-      opacity: 0.95,
+    badgeText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '700',
     },
-    footer: {
-      paddingHorizontal: theme.spacing(6),
-      paddingVertical: theme.spacing(6),
+    scrollContent: {
+      paddingBottom: 24,
+      paddingTop: 12,
     },
-    taglineCenter: {
-      textAlign: 'center',
-      color: theme.colors.text.secondary,
-    },
-    primaryCta: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: theme.spacing(3.5),
-      borderRadius: theme.radius.full,
-    },
-    ctaContent: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing(2) },
-    ctaText: { color: '#FFFFFF' },
-    randomRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: theme.spacing(1) },
-    randomEmoji: { textAlign: 'center' },
-    randomText: { color: theme.colors.text.brand_secondary },
   });
 
 export default Home;

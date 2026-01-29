@@ -18,7 +18,11 @@ const RootBackgroundGradient: React.FC<RootBackgroundGradientProps> = ({ opacity
         <Defs>
           {/* Pink - moved to previous blue position */}
           <RadialGradient id='gradPink' cx='40%' cy='48%' r='58%'>
-            <Stop offset='0%' stopColor='rgba(255, 142, 166, 1)' stopOpacity={Math.min(1, opacity + 0.25)} />
+            <Stop
+              offset='0%'
+              stopColor='rgba(255, 142, 166, 1)'
+              stopOpacity={Math.min(1, opacity + 0.25)}
+            />
             <Stop offset='25%' stopColor='rgba(255, 142, 166, 1)' stopOpacity={opacity} />
             <Stop offset='80%' stopColor='rgba(255, 142, 166, 1)' stopOpacity={opacity * 0.2} />
             <Stop offset='100%' stopColor='rgba(255, 142, 166, 0)' stopOpacity={0} />
@@ -26,7 +30,11 @@ const RootBackgroundGradient: React.FC<RootBackgroundGradientProps> = ({ opacity
 
           {/* Light blue - moved to top-right to avoid pink */}
           <RadialGradient id='gradBlue' cx='72%' cy='28%' r='55%'>
-            <Stop offset='0%' stopColor='rgba(153, 189, 255, 1)' stopOpacity={Math.min(1, opacity + 0.25)} />
+            <Stop
+              offset='0%'
+              stopColor='rgba(153, 189, 255, 1)'
+              stopOpacity={Math.min(1, opacity + 0.25)}
+            />
             <Stop offset='28%' stopColor='rgba(153, 189, 255, 1)' stopOpacity={opacity} />
             <Stop offset='80%' stopColor='rgba(153, 189, 255, 1)' stopOpacity={opacity * 0.2} />
             <Stop offset='100%' stopColor='rgba(153, 189, 255, 0)' stopOpacity={0} />
@@ -34,7 +42,11 @@ const RootBackgroundGradient: React.FC<RootBackgroundGradientProps> = ({ opacity
 
           {/* Mint - moved to top area */}
           <RadialGradient id='gradMint' cx='55%' cy='22%' r='45%'>
-            <Stop offset='0%' stopColor='rgba(178, 234, 205, 1)' stopOpacity={Math.min(1, opacity + 0.2)} />
+            <Stop
+              offset='0%'
+              stopColor='rgba(178, 234, 205, 1)'
+              stopOpacity={Math.min(1, opacity + 0.2)}
+            />
             <Stop offset='28%' stopColor='rgba(178, 234, 205, 1)' stopOpacity={opacity} />
             <Stop offset='80%' stopColor='rgba(178, 234, 205, 1)' stopOpacity={opacity * 0.15} />
             <Stop offset='100%' stopColor='rgba(178, 234, 205, 0)' stopOpacity={0} />
@@ -42,7 +54,11 @@ const RootBackgroundGradient: React.FC<RootBackgroundGradientProps> = ({ opacity
 
           {/* Soft yellow - broader right-mid fill */}
           <RadialGradient id='gradYellow' cx='70%' cy='55%' r='55%'>
-            <Stop offset='0%' stopColor='rgba(255, 230, 150, 1)' stopOpacity={Math.min(1, opacity + 0.2)} />
+            <Stop
+              offset='0%'
+              stopColor='rgba(255, 230, 150, 1)'
+              stopOpacity={Math.min(1, opacity + 0.2)}
+            />
             <Stop offset='30%' stopColor='rgba(255, 230, 150, 1)' stopOpacity={opacity} />
             <Stop offset='85%' stopColor='rgba(255, 230, 150, 1)' stopOpacity={opacity * 0.2} />
             <Stop offset='100%' stopColor='rgba(255, 230, 150, 0)' stopOpacity={0} />
@@ -75,5 +91,3 @@ const styles = StyleSheet.create({
 });
 
 export default RootBackgroundGradient;
-
-

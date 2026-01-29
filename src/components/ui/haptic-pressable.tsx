@@ -1,6 +1,7 @@
-import { HapticType, triggerHaptic } from '@/services/haptics';
 import React from 'react';
 import { Pressable, PressableProps } from 'react-native';
+
+import { HapticType, triggerHaptic } from '@/services/haptics';
 
 export interface HapticPressableProps extends PressableProps {
   haptic?: HapticType;
