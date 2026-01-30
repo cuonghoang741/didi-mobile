@@ -9,6 +9,7 @@ import { useCart, useLanguage, useTheme } from '@/contexts';
 interface HeaderProps {
     onSearchPress?: () => void;
     showCart?: boolean;
+    showLanguageSwitcher?: boolean;
     searchPlaceholder?: string;
     isSearchInput?: boolean;
     searchValue?: string;
@@ -18,6 +19,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({
     onSearchPress,
     showCart = true,
+    showLanguageSwitcher = true,
     searchPlaceholder,
     isSearchInput = false,
     searchValue,
@@ -25,9 +27,15 @@ const Header: React.FC<HeaderProps> = ({
 }) => {
     const router = useRouter();
     const theme = useTheme();
-    const { t } = useLanguage();
+    const { t, language, setLanguage } = useLanguage();
     const { getItemCount } = useCart();
     const styles = createStyles(theme);
+
+    const handleLanguageToggle = () => {
+        const nextLanguage =
+            language === 'en' ? 'vi' : language === 'vi' ? 'jp' : 'en';
+        setLanguage(nextLanguage);
+    };
 
     return (
         <View style={styles.header}>
@@ -50,6 +58,14 @@ const Header: React.FC<HeaderProps> = ({
                     <Feather name='search' size={20} color={theme.colors.text.secondary} />
                     <Typography variant='text' size='md' style={styles.searchText}>
                         {searchPlaceholder || t('home.searchPlaceholder')}
+                    </Typography>
+                </Pressable>
+            )}
+
+            {showLanguageSwitcher && (
+                <Pressable style={styles.languageButton} onPress={handleLanguageToggle}>
+                    <Typography variant='text' size='sm' weight='bold' style={styles.languageText}>
+                        {language.toUpperCase()}
                     </Typography>
                 </Pressable>
             )}
@@ -103,6 +119,18 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
         iconButton: {
             padding: 4,
             position: 'relative',
+        },
+        languageButton: {
+            paddingHorizontal: 8,
+            paddingVertical: 6,
+            backgroundColor: theme.colors.background.secondary,
+            borderRadius: 6,
+            justifyContent: 'center',
+            alignItems: 'center',
+            minWidth: 36,
+        },
+        languageText: {
+            color: theme.colors.text.primary,
         },
         badge: {
             position: 'absolute',

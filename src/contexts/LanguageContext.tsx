@@ -3,6 +3,8 @@ import React, { createContext, ReactNode, useContext, useEffect, useState } from
 
 import { defaultLocale, translations } from '@/locales';
 import { Language, STORAGE_KEYS } from '@/constants';
+import { useAuth } from '@/services/auth';
+import { supabase } from '@/services/supabase';
 
 interface LanguageContextType {
   language: Language;
@@ -18,6 +20,7 @@ interface LanguageProviderProps {
 
 export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(defaultLocale);
+  const { user } = useAuth();
 
   useEffect(() => {
     const loadLocale = async () => {
@@ -34,12 +37,32 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     loadLocale();
   }, []);
 
+  // Sync with user metadata when user logs in or changes
+  useEffect(() => {
+    if (user?.user_metadata?.language) {
+      const userLang = user.user_metadata.language;
+      if (userLang === 'vi' || userLang === 'en' || userLang === 'jp') {
+        if (userLang !== language) {
+          setLanguageState(userLang as Language);
+          // Update local storage to match user profile
+          SecureStore.setItemAsync(STORAGE_KEYS.LANGUAGE_KEY, userLang as Language).catch(console.warn);
+        }
+      }
+    }
+  }, [user]);
+
   const setLanguage = async (newLocale: Language) => {
     try {
       setLanguageState(newLocale);
       await SecureStore.setItemAsync(STORAGE_KEYS.LANGUAGE_KEY, newLocale);
+
+      if (user) {
+        await supabase.auth.updateUser({
+          data: { language: newLocale }
+        });
+      }
     } catch (error) {
-      console.warn('Failed to save language to storage:', error);
+      console.warn('Failed to save language to storage or database:', error);
     }
   };
 
@@ -54,7 +77,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
       if (isRecord(value) && k in value) {
         value = (value as Record<string, unknown>)[k];
       } else {
-        console.warn(`Translation key "${key}" not found for locale "${language}"`);
+        // console.warn(`Translation key "${key}" not found for locale "${language}"`);
         return key; // Return key as fallback
       }
     }
