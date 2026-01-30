@@ -40,18 +40,18 @@ const RootLayout = () => {
     <View style={styles.container}>
       <ThemeProvider value={DefaultTheme}>
         <AppThemeProvider>
-          <LanguageProvider>
-            <QueryClientProvider client={queryClient}>
-              <AuthProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <LanguageProvider>
                 <CartProvider>
                   <StatusBar translucent backgroundColor={theme.palette.transparent} />
                   <GestureHandlerRootView style={{ flex: 1 }}>
                     <Stack screenOptions={{ headerShown: false }} />
                   </GestureHandlerRootView>
                 </CartProvider>
-              </AuthProvider>
-            </QueryClientProvider>
-          </LanguageProvider>
+              </LanguageProvider>
+            </AuthProvider>
+          </QueryClientProvider>
         </AppThemeProvider>
       </ThemeProvider>
     </View>
