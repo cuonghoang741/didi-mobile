@@ -71,6 +71,90 @@ export type Database = {
         }
         Relationships: []
       }
+      carts: {
+        Row: {
+          created_at: string
+          id: string
+          session_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          session_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          session_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "carts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      cart_items: {
+        Row: {
+          cart_id: string
+          created_at: string
+          id: string
+          product_id: string
+          quantity: number
+          updated_at: string
+          variant_id: string | null
+        }
+        Insert: {
+          cart_id: string
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity?: number
+          updated_at?: string
+          variant_id?: string | null
+        }
+        Update: {
+          cart_id?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          updated_at?: string
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cart_items_cart_id_fkey"
+            columns: ["cart_id"]
+            isOneToOne: false
+            referencedRelation: "carts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cart_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cart_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       categories: {
         Row: {
           created_at: string | null
@@ -797,6 +881,17 @@ export type ProductWithFlashSale = Product & {
   flash_sale_price: number | null;
   flash_sale_quantity_limit: number | null;
   flash_sale_quantity_sold: number | null;
+};
+
+export type CartItem = {
+  id?: string; // Optional for local optimistic
+  product: Product;
+  variant: ProductVariant | null;
+  quantity: number;
+  // For DB syncing
+  cart_id?: string;
+  product_id?: string;
+  variant_id?: string | null;
 };
 
 export type MultiLanguageContent = {

@@ -7,10 +7,13 @@ import React, {
   useEffect,
 } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import * as Crypto from 'expo-crypto';
 
+import { supabase } from '@/services/supabase/client';
+import { useAuth } from '@/services/auth';
 import type { CartItem, Product, ProductVariant } from '@/types/database.types';
 
-const CART_STORAGE_KEY = 'app_cart';
+const CART_SESSION_ID_KEY = 'cart_session_id';
 
 interface CartContextType {
   items: CartItem[];
@@ -33,91 +36,223 @@ interface CartProviderProps {
 }
 
 export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
+  const { user } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
+  const [cartId, setCartId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
-  // Load cart from storage on mount
+  // Initialize Session ID
   useEffect(() => {
-    const loadCart = async () => {
+    const initSession = async () => {
       try {
-        const savedCart = await SecureStore.getItemAsync(CART_STORAGE_KEY);
-        if (savedCart) {
-          setItems(JSON.parse(savedCart));
+        let sid = await SecureStore.getItemAsync(CART_SESSION_ID_KEY);
+        if (!sid) {
+          sid = Crypto.randomUUID();
+          await SecureStore.setItemAsync(CART_SESSION_ID_KEY, sid);
         }
+        setSessionId(sid);
       } catch (error) {
-        console.warn('Failed to load cart from storage:', error);
+        console.warn('Failed to init session id, using fallback', error);
+        // Fallback random ID if SecureStore/Crypto fails
+        const fallbackId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+        setSessionId(fallbackId);
       }
     };
-    loadCart();
+    initSession();
   }, []);
 
-  // Save cart to storage whenever it changes
-  useEffect(() => {
-    const saveCart = async () => {
-      try {
-        await SecureStore.setItemAsync(CART_STORAGE_KEY, JSON.stringify(items));
-      } catch (error) {
-        console.warn('Failed to save cart to storage:', error);
+  // Fetch or Create Cart in DB
+  const fetchCartAndItems = useCallback(async () => {
+    if (!sessionId) return;
+
+    try {
+      // 1. Find existing cart
+      let query = supabase.from('carts').select('id');
+
+      if (user) {
+        query = query.eq('user_id', user.id);
+      } else {
+        query = query.eq('session_id', sessionId).is('user_id', null);
       }
-    };
-    saveCart();
-  }, [items]);
+
+      let { data: cartData, error: cartError } = await query.maybeSingle();
+
+      // 2. Create if not found
+      if (!cartData) {
+        const { data: newCart, error: createError } = await supabase
+          .from('carts')
+          .insert({
+            user_id: user ? user.id : null,
+            session_id: sessionId,
+          })
+          .select('id')
+          .single();
+
+        if (createError) {
+          console.error('Error creating cart:', createError);
+          return;
+        }
+        cartData = newCart;
+      }
+
+      if (cartData) {
+        setCartId(cartData.id);
+
+        // 3. Fetch Items
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('cart_items')
+          .select(`
+            id,
+            quantity,
+            product:products(*),
+            variant:product_variants(*)
+          `)
+          .eq('cart_id', cartData.id)
+          .order('created_at', { ascending: true });
+
+        if (itemsError) {
+          console.error('Error fetching cart items:', itemsError);
+        } else {
+          // Map DB response to CartItem type
+          const mappedItems: CartItem[] = (itemsData || []).map((item: any) => ({
+            id: item.id,
+            quantity: item.quantity,
+            product: item.product,
+            variant: item.variant,
+            cart_id: cartData.id,
+            product_id: item.product.id,
+            variant_id: item.variant?.id || null,
+          })).filter(i => i.product); // Ensure product exists
+
+          setItems(mappedItems);
+        }
+      }
+    } catch (err) {
+      console.error('Cart operation failed:', err);
+    }
+  }, [user, sessionId]);
+
+  useEffect(() => {
+    fetchCartAndItems();
+  }, [fetchCartAndItems]);
 
   const addItem = useCallback(
-    (product: Product, variant?: ProductVariant | null, quantity: number = 1) => {
-      setItems((currentItems) => {
-        const existingIndex = currentItems.findIndex(
-          (item) =>
-            item.product.id === product.id && (item.variant?.id || null) === (variant?.id || null),
+    async (product: Product, variant?: ProductVariant | null, quantity: number = 1) => {
+      // Optimistic update
+      setItems((prev) => {
+        const existingIdx = prev.findIndex(
+          (i) => i.product.id === product.id && i.variant?.id === variant?.id
         );
-
-        if (existingIndex >= 0) {
-          // Update quantity if item exists
-          const newItems = [...currentItems];
-          newItems[existingIndex] = {
-            ...newItems[existingIndex],
-            quantity: newItems[existingIndex].quantity + quantity,
-          };
+        if (existingIdx >= 0) {
+          const newItems = [...prev];
+          newItems[existingIdx].quantity += quantity;
           return newItems;
         }
-
-        // Add new item
-        return [...currentItems, { product, variant: variant || null, quantity }];
+        return [...prev, { product, variant: variant || null, quantity }];
       });
+
+      if (!cartId) return;
+
+      try {
+        const variantId = variant?.id || null;
+
+        // Check if item exists
+        let query = supabase
+          .from('cart_items')
+          .select('id, quantity')
+          .eq('cart_id', cartId)
+          .eq('product_id', product.id);
+
+        if (variantId) {
+          query = query.eq('variant_id', variantId);
+        } else {
+          query = query.is('variant_id', null);
+        }
+
+        const { data: existing } = await query.maybeSingle();
+
+        if (existing) {
+          // Update
+          await supabase.from('cart_items').update({ quantity: existing.quantity + quantity }).eq('id', existing.id);
+        } else {
+          // Insert
+          await supabase.from('cart_items').insert({
+            cart_id: cartId,
+            product_id: product.id,
+            variant_id: variantId,
+            quantity: quantity
+          });
+        }
+      } catch (error) {
+        console.error('Failed to add item to DB:', error);
+      }
     },
-    [],
+    [cartId]
   );
 
-  const removeItem = useCallback((productId: string, variantId?: string | null) => {
-    setItems((currentItems) =>
-      currentItems.filter(
-        (item) =>
-          !(item.product.id === productId && (item.variant?.id || null) === (variantId || null)),
-      ),
-    );
-  }, []);
+  const removeItem = useCallback(
+    async (productId: string, variantId?: string | null) => {
+      setItems((prev) =>
+        prev.filter(
+          (item) => !(item.product.id === productId && (item.variant?.id || null) === (variantId || null))
+        )
+      );
+
+      if (!cartId) return;
+
+      try {
+        let query = supabase.from('cart_items').delete().eq('cart_id', cartId).eq('product_id', productId);
+        if (variantId) query = query.eq('variant_id', variantId);
+        else query = query.is('variant_id', null);
+
+        await query;
+      } catch (e) {
+        console.error('Error removing item from DB:', e);
+      }
+    },
+    [cartId]
+  );
 
   const updateQuantity = useCallback(
-    (productId: string, variantId: string | null | undefined, quantity: number) => {
+    async (productId: string, variantId: string | null | undefined, quantity: number) => {
       if (quantity <= 0) {
         removeItem(productId, variantId);
         return;
       }
 
-      setItems((currentItems) =>
-        currentItems.map((item) => {
+      setItems((prev) =>
+        prev.map((item) => {
           if (item.product.id === productId && (item.variant?.id || null) === (variantId || null)) {
             return { ...item, quantity };
           }
           return item;
-        }),
+        })
       );
+
+      if (!cartId) return;
+
+      try {
+        let query = supabase.from('cart_items').update({ quantity }).eq('cart_id', cartId).eq('product_id', productId);
+        if (variantId) query = query.eq('variant_id', variantId);
+        else query = query.is('variant_id', null);
+
+        await query;
+      } catch (e) {
+        console.error('Error updating quantity in DB:', e);
+      }
     },
-    [removeItem],
+    [cartId, removeItem]
   );
 
-  const clearCart = useCallback(() => {
+  const clearCart = useCallback(async () => {
     setItems([]);
-  }, []);
+    if (!cartId) return;
+    try {
+      await supabase.from('cart_items').delete().eq('cart_id', cartId);
+    } catch (e) {
+      console.error('Error clearing cart in DB:', e);
+    }
+  }, [cartId]);
 
   const getItemCount = useCallback(() => {
     return items.reduce((sum, item) => sum + item.quantity, 0);
@@ -125,7 +260,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
   const getSubtotal = useCallback(() => {
     return items.reduce((sum, item) => {
-      const price = item.variant?.sale_price || item.variant?.price || item.product.price;
+      const price = item.variant ? item.variant.price : (item.product.sale_price || item.product.base_price || 0);
       return sum + price * item.quantity;
     }, 0);
   }, [items]);
