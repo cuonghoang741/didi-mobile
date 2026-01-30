@@ -66,7 +66,7 @@ const Home = () => {
   };
 
   const handleCategoryPress = (category: any) => {
-    router.push({ pathname: '/category', params: { id: category.id } });
+    router.push({ pathname: '/(tabs)/categories', params: { id: category.id } });
   };
 
   if (loading && !data) {
