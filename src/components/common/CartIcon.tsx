@@ -38,9 +38,9 @@ export const CartIcon: React.FC<CartIconProps> = ({
         <Pressable onPress={handlePress} style={styles.container}>
             <Feather name='shopping-cart' size={size} color={iconColor} />
             {showBadge && itemCount > 0 && (
-                <View style={[styles.badge, { backgroundColor: theme.colors.text.brand_primary }]}>
+                <View style={styles.badge}>
                     <Typography variant='text' size='xs' weight='bold' style={styles.badgeText}>
-                        {itemCount > 99 ? '99+' : itemCount}
+                        {itemCount > 9 ? '9+' : itemCount}
                     </Typography>
                 </View>
             )}
@@ -60,6 +60,7 @@ const styles = StyleSheet.create({
         minWidth: 18,
         height: 18,
         borderRadius: 9,
+        backgroundColor: '#EF4444',
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: 4,

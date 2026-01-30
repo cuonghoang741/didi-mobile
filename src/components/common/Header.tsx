@@ -4,7 +4,8 @@ import React from 'react';
 import { View, StyleSheet, Pressable, TextInput } from 'react-native';
 
 import { Typography } from '@/components';
-import { useCart, useLanguage, useTheme } from '@/contexts';
+import { CartIcon } from '@/components/common/CartIcon';
+import { useLanguage, useTheme } from '@/contexts';
 
 interface HeaderProps {
     onSearchPress?: () => void;
@@ -28,7 +29,6 @@ const Header: React.FC<HeaderProps> = ({
     const router = useRouter();
     const theme = useTheme();
     const { t, language, setLanguage } = useLanguage();
-    const { getItemCount } = useCart();
     const styles = createStyles(theme);
     const [dropdownVisible, setDropdownVisible] = React.useState(false);
 
@@ -115,16 +115,7 @@ const Header: React.FC<HeaderProps> = ({
             )}
 
             {showCart && (
-                <Pressable style={styles.iconButton} onPress={() => router.push('/cart')}>
-                    <Feather name='shopping-cart' size={24} color={theme.colors.text.primary} />
-                    {getItemCount() > 0 && (
-                        <View style={styles.badge}>
-                            <Typography variant='text' size='xs' style={styles.badgeText}>
-                                {getItemCount() > 9 ? '9+' : getItemCount()}
-                            </Typography>
-                        </View>
-                    )}
-                </Pressable>
+                <CartIcon />
             )}
         </View>
     );
@@ -206,23 +197,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
         dropdownItemTextActive: {
             color: theme.colors.text.brand_primary,
             fontWeight: '600',
-        },
-        badge: {
-            position: 'absolute',
-            top: -4,
-            right: -4,
-            minWidth: 18,
-            height: 18,
-            borderRadius: 9,
-            backgroundColor: '#EF4444',
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingHorizontal: 4,
-        },
-        badgeText: {
-            color: '#FFFFFF',
-            fontSize: 10,
-            fontWeight: '700',
         },
     });
 
