@@ -239,6 +239,7 @@ export const jp = {
     color: 'カラー',
     storage: 'ストレージ',
     ram: 'RAM',
+    addedToCart: 'カートに追加しました！',
   },
   cart: {
     title: 'カート',

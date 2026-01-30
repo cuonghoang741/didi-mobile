@@ -242,6 +242,7 @@ export const en = {
     color: 'Color',
     storage: 'Storage',
     ram: 'RAM',
+    addedToCart: 'Added to cart!',
   },
   cart: {
     title: 'Cart',

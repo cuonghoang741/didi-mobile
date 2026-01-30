@@ -241,6 +241,7 @@ export const vi = {
     color: 'Màu sắc',
     storage: 'Dung lượng',
     ram: 'RAM',
+    addedToCart: 'Đã thêm vào giỏ hàng!',
   },
   cart: {
     title: 'Giỏ hàng',
