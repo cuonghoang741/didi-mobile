@@ -30,15 +30,23 @@ const Header: React.FC<HeaderProps> = ({
     const { t, language, setLanguage } = useLanguage();
     const { getItemCount } = useCart();
     const styles = createStyles(theme);
+    const [dropdownVisible, setDropdownVisible] = React.useState(false);
 
-    const handleLanguageToggle = () => {
-        const nextLanguage =
-            language === 'en' ? 'vi' : language === 'vi' ? 'jp' : 'en';
-        setLanguage(nextLanguage);
+    const getFlag = (lang: string) => {
+        switch (lang) {
+            case 'vi': return '🇻🇳';
+            case 'jp': return '🇯🇵';
+            case 'en': default: return '🇺🇸';
+        }
+    };
+
+    const handleLanguageSelect = (lang: any) => {
+        setLanguage(lang);
+        setDropdownVisible(false);
     };
 
     return (
-        <View style={styles.header}>
+        <View style={[styles.header, { zIndex: 10 }]}>
             {isSearchInput ? (
                 <View style={styles.searchContainer}>
                     <Feather name='search' size={20} color={theme.colors.text.secondary} />
@@ -63,11 +71,47 @@ const Header: React.FC<HeaderProps> = ({
             )}
 
             {showLanguageSwitcher && (
-                <Pressable style={styles.languageButton} onPress={handleLanguageToggle}>
-                    <Typography variant='text' size='sm' weight='bold' style={styles.languageText}>
-                        {language.toUpperCase()}
-                    </Typography>
-                </Pressable>
+                <View style={{ position: 'relative', zIndex: 20 }}>
+                    <Pressable
+                        style={styles.languageButton}
+                        onPress={() => setDropdownVisible(!dropdownVisible)}
+                    >
+                        <Typography variant='text' size='lg'>
+                            {getFlag(language)}
+                        </Typography>
+                    </Pressable>
+
+                    {dropdownVisible && (
+                        <View style={styles.dropdown}>
+                            {[
+                                { code: 'en', label: 'English', flag: '🇺🇸' },
+                                { code: 'vi', label: 'Tiếng Việt', flag: '🇻🇳' },
+                                { code: 'jp', label: '日本語', flag: '🇯🇵' }
+                            ].map((item) => (
+                                <Pressable
+                                    key={item.code}
+                                    style={[
+                                        styles.dropdownItem,
+                                        language === item.code && styles.dropdownItemActive
+                                    ]}
+                                    onPress={() => handleLanguageSelect(item.code)}
+                                >
+                                    <Typography variant='text' size='md'>{item.flag}</Typography>
+                                    <Typography
+                                        variant='text'
+                                        size='sm'
+                                        style={[
+                                            styles.dropdownItemText,
+                                            language === item.code && styles.dropdownItemTextActive
+                                        ]}
+                                    >
+                                        {item.label}
+                                    </Typography>
+                                </Pressable>
+                            ))}
+                        </View>
+                    )}
+                </View>
             )}
 
             {showCart && (
@@ -113,7 +157,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
             flex: 1,
             color: theme.colors.text.primary,
             fontSize: 14,
-            fontFamily: 'Inter_400Regular', // Assuming Inter font is available or fallback
+            fontFamily: 'Inter_400Regular',
             padding: 0,
         },
         iconButton: {
@@ -121,16 +165,47 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
             position: 'relative',
         },
         languageButton: {
-            paddingHorizontal: 8,
-            paddingVertical: 6,
+            padding: 8,
+            borderRadius: 8,
             backgroundColor: theme.colors.background.secondary,
-            borderRadius: 6,
             justifyContent: 'center',
             alignItems: 'center',
-            minWidth: 36,
         },
-        languageText: {
+        dropdown: {
+            position: 'absolute',
+            top: 45,
+            right: 0,
+            backgroundColor: theme.colors.background.primary,
+            borderRadius: 8,
+            padding: 4,
+            width: 150,
+            shadowColor: "#000",
+            shadowOffset: {
+                width: 0,
+                height: 2,
+            },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+            elevation: 5,
+            borderWidth: 1,
+            borderColor: theme.colors.border.secondary,
+        },
+        dropdownItem: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: 10,
+            borderRadius: 6,
+            gap: 8,
+        },
+        dropdownItemActive: {
+            backgroundColor: theme.colors.background.secondary,
+        },
+        dropdownItemText: {
             color: theme.colors.text.primary,
+        },
+        dropdownItemTextActive: {
+            color: theme.colors.text.brand_primary,
+            fontWeight: '600',
         },
         badge: {
             position: 'absolute',
