@@ -13,6 +13,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import GoogleIcon from '@/assets/logos/google.svg';
+import LineIcon from '@/assets/logos/line.svg';
+import AppleIcon from '@/assets/logos/apple.svg';
 import { Typography, Button } from '@/components';
 import { useTheme, useLanguage, useAuth } from '@/contexts';
 
@@ -321,8 +324,7 @@ const SignInScreen = () => {
                   onPress={handleLINELogin}
                   disabled={isLoading}
                 >
-                  <Feather name='message-circle' size={24} color='#FFFFFF' />
-                  {/* Make sure Icon is imported or use Image for LINE logo if strict */}
+                  <LineIcon width={24} height={24} />
                   <Typography variant='text' size='md' weight='medium' style={styles.lineText}>
                     Đăng nhập với LINE
                   </Typography>
@@ -333,8 +335,7 @@ const SignInScreen = () => {
                   onPress={handleGoogleLogin}
                   disabled={isLoading}
                 >
-                  {/* Google Icon would typically be an Image */}
-                  <Feather name='mail' size={24} color='#DB4437' />
+                  <GoogleIcon width={24} height={24} />
                   <Typography variant='text' size='md' weight='medium'>
                     Đăng nhập với Google
                   </Typography>
@@ -346,7 +347,7 @@ const SignInScreen = () => {
                     onPress={handleAppleLogin}
                     disabled={isLoading}
                   >
-                    <Feather name='command' size={24} color='#000000' />
+                    <AppleIcon width={24} height={24} />
                     <Typography variant='text' size='md' weight='medium' style={styles.appleText}>
                       Đăng nhập với Apple
                     </Typography>
