@@ -66,7 +66,7 @@ const Home = () => {
   };
 
   const handleCategoryPress = (category: any) => {
-    console.log('Category pressed:', category);
+    router.push({ pathname: '/category', params: { id: category.id } });
   };
 
   if (loading && !data) {
@@ -237,7 +237,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     secondaryBannersContainer: {
       gap: 16,
-      marginTop: 24,
+      marginBottom: 24,
       paddingHorizontal: 16,
     },
     globalBannerContainer: {
