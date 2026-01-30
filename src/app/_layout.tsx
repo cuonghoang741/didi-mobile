@@ -1,6 +1,6 @@
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Slot } from 'expo-router';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -29,11 +29,11 @@ const RootLayout = () => {
       .then(() => oneSignalService.getPlayerId())
       .then((playerId: string | null) => {
         if (playerId) {
-          registerPushToken(playerId).catch(() => {});
+          registerPushToken(playerId).catch(() => { });
         }
       })
-      .catch(() => {});
-    return () => {};
+      .catch(() => { });
+    return () => { };
   }, []);
 
   return (
@@ -45,8 +45,8 @@ const RootLayout = () => {
               <AuthProvider>
                 <CartProvider>
                   <StatusBar translucent backgroundColor={theme.palette.transparent} />
-                  <GestureHandlerRootView>
-                    <Slot />
+                  <GestureHandlerRootView style={{ flex: 1 }}>
+                    <Stack screenOptions={{ headerShown: false }} />
                   </GestureHandlerRootView>
                 </CartProvider>
               </AuthProvider>
