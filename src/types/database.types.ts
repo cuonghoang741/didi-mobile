@@ -9,9 +9,6 @@ export type Json =
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.1"
-  }
   public: {
     Tables: {
       banners: {
@@ -599,6 +596,36 @@ export type Database = {
           },
         ]
       }
+      settings: {
+        Row: {
+          bank_accounts: Json | null
+          branches: Json | null
+          created_at: string | null
+          fanpage_urls: Json | null
+          id: string
+          jpy_exchange_rate: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          bank_accounts?: Json | null
+          branches?: Json | null
+          created_at?: string | null
+          fanpage_urls?: Json | null
+          id?: string
+          jpy_exchange_rate?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          bank_accounts?: Json | null
+          branches?: Json | null
+          created_at?: string | null
+          fanpage_urls?: Json | null
+          id?: string
+          jpy_exchange_rate?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           avatar_url: string | null
@@ -755,3 +782,23 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
   ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
   : never
+
+export type Banner = Database['public']['Tables']['banners']['Row'];
+export type Category = Database['public']['Tables']['categories']['Row'];
+export type Product = Database['public']['Tables']['products']['Row'];
+export type FlashSale = Database['public']['Tables']['flash_sales']['Row'];
+export type ProductVariant = Database['public']['Tables']['product_variants']['Row'];
+export type ProductReview = Database['public']['Tables']['product_reviews']['Row'];
+export type User = Database['public']['Tables']['users']['Row'];
+export type AppSettings = Database['public']['Tables']['settings']['Row'];
+
+export type ProductWithFlashSale = Product & {
+  flash_sale_price: number | null;
+  flash_sale_quantity_limit: number | null;
+  flash_sale_quantity_sold: number | null;
+};
+
+export type ProductDetail = Product & {
+  product_variants: ProductVariant[];
+  product_reviews: ProductReview[];
+};

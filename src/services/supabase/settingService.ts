@@ -8,16 +8,17 @@ export interface AppSettings {
 export const fetchAppSettings = async (): Promise<AppSettings | null> => {
   try {
     const { data, error } = await supabase
-      .from('settings' as any)
+      .from('settings')
       .select('id, jpy_exchange_rate')
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching settings:', error);
       return null;
     }
 
-    return data as unknown as AppSettings | null;
+    // data can be null if no row found
+    return (data as unknown as AppSettings) || null;
   } catch (error) {
     console.error('Error in fetchAppSettings:', error);
     return null;
