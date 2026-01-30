@@ -435,7 +435,10 @@ const ProductDetailScreen = () => {
           </View>
 
           {/* Reviews */}
-          <ProductReviews product={product} />
+          <ProductReviews
+            product={product}
+            onViewAll={() => router.push(`/product/reviews/${id}`)}
+          />
 
           {/* Buy Along Products */}
           {buyAlongProducts.length > 0 && (
