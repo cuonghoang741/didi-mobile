@@ -99,11 +99,22 @@ const CartScreen = () => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Cart Items */}
         {items.map((item, index) => {
-          const price = item.variant?.sale_price || item.variant?.price || item.product.price;
-          const imageUrl = item.variant?.image_url || item.product.image_url;
-          const variantName =
-            item.variant?.name ||
-            (item.variant && `${item.variant.color || ''} ${item.variant.storage || ''}`.trim());
+          // Get price - variant has price, product has sale_price or base_price
+          const price = item.variant
+            ? item.variant.price
+            : (item.product.sale_price || item.product.base_price || 0);
+
+          // Get image - product has image_urls array or thumbnail_url
+          const imageUrl = item.product.image_urls?.[0] || item.product.thumbnail_url;
+
+          // Get variant display name from options JSON
+          let variantName = '';
+          if (item.variant) {
+            const options = typeof item.variant.options === 'object' && item.variant.options !== null
+              ? (item.variant.options as { name?: string; color?: string; storage?: string })
+              : {};
+            variantName = options.name || `${options.color || ''} ${options.storage || ''}`.trim() || item.variant.sku || '';
+          }
 
           const priceFormatted = formatPrice(price);
 
