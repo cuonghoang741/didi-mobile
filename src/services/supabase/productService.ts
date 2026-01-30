@@ -64,7 +64,6 @@ export const fetchProductDetail = async (productId: string): Promise<ProductDeta
     `,
     )
     .eq('product_id', productId)
-    .eq('is_approved', true)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(10);
