@@ -111,10 +111,15 @@ const Categories = () => {
         style={[styles.categoryItem, isSelected && styles.categoryItemSelected]}
         onPress={() => setSelectedCategory(item)}
       >
+        <Image
+          source={{ uri: item.image_url || 'https://via.placeholder.com/60' }}
+          style={styles.categoryItemImage}
+          contentFit='contain'
+        />
         <Typography
           variant='text'
-          size='sm'
-          weight={isSelected ? 'bold' : 'regular'}
+          size='xs'
+          weight={isSelected ? 'bold' : 'medium'}
           style={[styles.categoryName, isSelected && styles.categoryNameSelected]}
         >
           {item.name}
@@ -245,22 +250,31 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       backgroundColor: theme.colors.background.primary,
     },
     categoryList: {
-      paddingVertical: 0,
+      paddingVertical: 12,
+      paddingHorizontal: 8,
     },
     categoryItem: {
-      paddingVertical: 16,
-      paddingHorizontal: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border.tertiary,
+      alignItems: 'center',
+      padding: 8,
+      marginBottom: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: 'transparent',
     },
     categoryItemSelected: {
       backgroundColor: theme.colors.background.primary,
-      borderLeftWidth: 3,
-      borderLeftColor: theme.colors.text.brand_primary,
+      borderColor: theme.colors.text.brand_primary,
+    },
+    categoryItemImage: {
+      width: 48,
+      height: 48,
+      marginBottom: 4,
     },
     categoryName: {
-      color: theme.colors.text.secondary,
+      color: theme.colors.text.primary,
       textAlign: 'center',
+      fontSize: 11,
+      lineHeight: 14,
     },
     categoryNameSelected: {
       color: theme.colors.text.brand_primary,
