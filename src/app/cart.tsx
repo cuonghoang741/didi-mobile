@@ -188,57 +188,6 @@ const CartScreen = () => {
           );
         })}
 
-        {/* Order Summary */}
-        <View style={styles.summaryCard}>
-          <Typography variant='text' size='md' weight='bold' style={styles.summaryTitle}>
-            {t('checkout.orderSummary')}
-          </Typography>
-
-          <View style={styles.summaryRow}>
-            <Typography variant='text' size='md' style={styles.summaryLabel}>
-              {t('cart.subtotal')}
-            </Typography>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Typography variant='text' size='md' weight='medium'>
-                {subtotalFormatted.jpy}
-              </Typography>
-              <Typography variant='text' size='xs' style={{ color: theme.colors.text.tertiary }}>
-                {subtotalFormatted.vnd}
-              </Typography>
-            </View>
-          </View>
-
-          <View style={styles.summaryRow}>
-            <Typography variant='text' size='md' style={styles.summaryLabel}>
-              {t('cart.shipping')}
-            </Typography>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Typography variant='text' size='md' weight='medium'>
-                {shippingFormatted.jpy}
-              </Typography>
-              <Typography variant='text' size='xs' style={{ color: theme.colors.text.tertiary }}>
-                {shippingFormatted.vnd}
-              </Typography>
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.summaryRow}>
-            <Typography variant='text' size='lg' weight='bold'>
-              {t('cart.total')}
-            </Typography>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Typography variant='text' size='lg' weight='bold' style={styles.totalPrice}>
-                {totalFormatted.jpy}
-              </Typography>
-              <Typography variant='text' size='sm' style={{ color: theme.colors.text.tertiary }}>
-                {totalFormatted.vnd}
-              </Typography>
-            </View>
-          </View>
-        </View>
-
         <View style={{ height: 120 }} />
       </ScrollView>
 
