@@ -1,4 +1,4 @@
-import { Feather } from '@expo/vector-icons';
+import { Feather, FontAwesome } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
@@ -214,9 +214,9 @@ const ProductDetailScreen = () => {
     return (
       <View style={styles.starsContainer}>
         {[1, 2, 3, 4, 5].map((star) => (
-          <Feather
+          <FontAwesome
             key={star}
-            name='star'
+            name={star <= rating ? 'star' : 'star-o'}
             size={16}
             color={star <= rating ? '#FFB800' : '#E5E7EB'}
             style={{ marginRight: 2 }}

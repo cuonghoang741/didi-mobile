@@ -1,4 +1,4 @@
-import { Feather } from '@expo/vector-icons';
+import { Feather, FontAwesome } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/vi';
@@ -72,9 +72,9 @@ const ProductReviewsScreen = () => {
         return (
             <View style={styles.starsRow}>
                 {[1, 2, 3, 4, 5].map((star) => (
-                    <Feather
+                    <FontAwesome
                         key={star}
-                        name='star'
+                        name={star <= rating ? 'star' : 'star-o'}
                         size={size}
                         color={star <= rating ? '#FFB800' : '#E5E7EB'}
                         style={{ marginRight: 2 }}
