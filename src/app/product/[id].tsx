@@ -10,7 +10,9 @@ import {
   Dimensions,
   ActivityIndicator,
   FlatList,
+  useWindowDimensions,
 } from 'react-native';
+import RenderHtml from 'react-native-render-html';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -18,6 +20,7 @@ import { Typography, ProductCard, ProductReviews } from '@/components';
 import { useTheme, useLanguage, useCart } from '@/contexts';
 import { fetchProductDetail, fetchRelatedProducts, fetchProductsByIds } from '@/services/supabase';
 import type { ProductDetail, ProductVariant, Product } from '@/types/database.types';
+import { getLocalizedContent } from '@/utils/language';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -27,9 +30,10 @@ const ProductDetailScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const theme = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { addItem } = useCart();
   const { formatPrice } = useCurrency(); // Hook usage
+  const { width } = useWindowDimensions();
   const styles = createStyles(theme);
 
   const [product, setProduct] = useState<ProductDetail | null>(null);
@@ -111,8 +115,8 @@ const ProductDetailScreen = () => {
 
   const images: string[] = product?.images
     ? ((Array.isArray(product.images) ? product.images : [product.image_url]).filter(
-        Boolean,
-      ) as string[])
+      Boolean,
+    ) as string[])
     : product?.image_url
       ? [product.image_url]
       : [];
@@ -302,9 +306,38 @@ const ProductDetailScreen = () => {
             <Typography variant='text' size='md' weight='semiBold' style={styles.sectionTitle}>
               {t('product.description')}
             </Typography>
-            <Typography variant='text' size='sm' style={styles.description}>
-              {product.description || 'Chưa có mô tả'}
-            </Typography>
+            {product.description ? (
+              <RenderHtml
+                contentWidth={SCREEN_WIDTH - 32} // 16px padding on each side
+                source={{
+                  html: getLocalizedContent(
+                    product.language,
+                    'description',
+                    language,
+                    product.description || ''
+                  ),
+                }}
+                tagsStyles={{
+                  p: {
+                    fontSize: 14,
+                    color: theme.colors.text.secondary,
+                    lineHeight: 22,
+                    marginBottom: 8,
+                  },
+                  b: { fontWeight: 'bold' },
+                  strong: { fontWeight: 'bold' },
+                  h1: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
+                  h2: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+                  h3: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
+                  ul: { marginBottom: 8 },
+                  li: { fontSize: 14, color: theme.colors.text.secondary, marginBottom: 4 },
+                }}
+              />
+            ) : (
+              <Typography variant='text' size='sm' style={styles.description}>
+                Chưa có mô tả
+              </Typography>
+            )}
           </View>
 
           {/* Reviews */}
