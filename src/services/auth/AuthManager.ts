@@ -432,7 +432,7 @@ export class AuthManager {
     try {
       const redirectUri = this.buildRedirectUri();
       const state = Math.random().toString(36).substring(7);
-      const scope = 'profile openid email';
+      const scope = 'profile openid';
 
       // Construct logic URL manually
       const authUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${LINE_CHANNEL_ID}&redirect_uri=${encodeURIComponent(
