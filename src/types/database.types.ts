@@ -79,6 +79,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean | null
+          language: Json | null
           name: string
           parent_id: string | null
           slug: string
@@ -796,6 +797,19 @@ export type ProductWithFlashSale = Product & {
   flash_sale_price: number | null;
   flash_sale_quantity_limit: number | null;
   flash_sale_quantity_sold: number | null;
+};
+
+export type MultiLanguageContent = {
+  en?: string;
+  jp?: string;
+  vi?: string;
+  [key: string]: string | undefined;
+};
+
+export type MultiLanguageData = {
+  name?: MultiLanguageContent;
+  description?: MultiLanguageContent;
+  short_description?: MultiLanguageContent;
 };
 
 export type ProductDetail = Product & {

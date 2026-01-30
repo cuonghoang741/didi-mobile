@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Header, Typography } from '@/components';
 import { useTheme, useLanguage } from '@/contexts';
 import { useCurrency } from '@/hooks';
+import { getLocalizedContent } from '@/utils/language';
 import { fetchCategories, supabase } from '@/services/supabase';
 import type { Category, Product } from '@/types/database.types';
 
@@ -25,7 +26,7 @@ const RIGHT_PANEL_WIDTH = SCREEN_WIDTH * 0.7;
 const Categories = () => {
   const router = useRouter();
   const theme = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { id } = useLocalSearchParams();
   const styles = createStyles(theme);
   const { formatPrice } = useCurrency();
@@ -103,12 +104,14 @@ const Categories = () => {
     }
   };
 
-  const filteredCategories = categories.filter((c) =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCategories = categories.filter((c) => {
+    const name = getLocalizedContent(c.language, 'name', language, c.name);
+    return name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   const renderCategoryItem = ({ item }: { item: Category }) => {
     const isSelected = selectedCategory?.id === item.id;
+    const name = getLocalizedContent(item.language, 'name', language, item.name);
     return (
       <Pressable
         style={[styles.categoryItem, isSelected && styles.categoryItemSelected]}
@@ -125,7 +128,7 @@ const Categories = () => {
           weight={isSelected ? 'bold' : 'medium'}
           style={[styles.categoryName, isSelected && styles.categoryNameSelected]}
         >
-          {item.name}
+          {name}
         </Typography>
       </Pressable>
     );
@@ -133,6 +136,7 @@ const Categories = () => {
 
   const renderProductItem = ({ item }: { item: Product }) => {
     const { jpy } = formatPrice(item.sale_price || item.base_price || 0);
+    const name = getLocalizedContent(item.language, 'name', language, item.name);
     return (
       <Pressable
         style={styles.productItem}
@@ -145,7 +149,7 @@ const Categories = () => {
         />
         <View style={styles.productInfo}>
           <Typography variant='text' size='sm' numberOfLines={2} style={styles.productName}>
-            {item.name}
+            {name}
           </Typography>
           <Typography variant='text' size='sm' weight='bold' style={styles.productPrice}>
             {jpy}
@@ -162,6 +166,10 @@ const Categories = () => {
       </View>
     );
   }
+
+  const selectedCategoryName = selectedCategory
+    ? getLocalizedContent(selectedCategory.language, 'name', language, selectedCategory.name)
+    : '';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -195,7 +203,7 @@ const Categories = () => {
               />
               <View style={styles.categoryHeaderOverlay}>
                 <Typography variant='text' size='md' weight='bold' style={styles.categoryHeaderTitle}>
-                  {selectedCategory.name}
+                  {selectedCategoryName}
                 </Typography>
               </View>
             </View>
