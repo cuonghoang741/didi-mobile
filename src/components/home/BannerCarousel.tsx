@@ -18,6 +18,7 @@ import type { Banner } from '@/types/database.types';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_HEIGHT = 180;
 const BANNER_MARGIN = 16;
+const BANNER_GAP = 12;
 const BANNER_WIDTH = SCREEN_WIDTH - BANNER_MARGIN * 2;
 
 interface BannerCarouselProps {
@@ -60,7 +61,7 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onBannerPress 
 
   const handleScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / BANNER_WIDTH);
+    const index = Math.round(offsetX / (BANNER_WIDTH + BANNER_GAP));
     setCurrentIndex(index);
   };
 
@@ -114,16 +115,17 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onBannerPress 
         data={banners}
         renderItem={renderBanner}
         horizontal
-        pagingEnabled
+        pagingEnabled={false}
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={handleScrollEnd}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        snapToInterval={BANNER_WIDTH}
+        snapToInterval={BANNER_WIDTH + BANNER_GAP}
         decelerationRate='fast'
+        ItemSeparatorComponent={() => <View style={{ width: BANNER_GAP }} />}
         getItemLayout={(_, index) => ({
-          length: BANNER_WIDTH,
-          offset: BANNER_WIDTH * index,
+          length: BANNER_WIDTH + BANNER_GAP,
+          offset: (BANNER_WIDTH + BANNER_GAP) * index,
           index,
         })}
       />

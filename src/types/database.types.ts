@@ -908,13 +908,48 @@ export type MultiLanguageData = {
 };
 
 export type ProductDetail = Product & {
-  product_variants?: ProductVariant[];
-  product_reviews?: ProductReview[];
-  // Computed fields from fetchProductDetail
-  variants: ProductVariant[];
-  reviews: (ProductReview & { user?: User })[];
-  avg_rating: number;
-  review_count: number;
-  category_ids: string[];
-  related_ids: string[];
+  product_variants: ProductVariant[];
+  product_reviews: ProductReview[];
+};
+
+export type Order = {
+  id: string;
+  user_id: string;
+  order_number: string;
+  status: string;
+  payment_status: string;
+  payment_method: string | null;
+  subtotal: number;
+  shipping_fee: number;
+  discount_amount: number;
+  tax_amount: number;
+  total_amount: number;
+  shipping_name: string;
+  shipping_phone: string;
+  shipping_email?: string | null;
+  shipping_address: string;
+  shipping_city: string;
+  shipping_district: string;
+  shipping_ward: string;
+  shipping_note?: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string | null;
+  items?: OrderItem[];
+};
+
+export type OrderItem = {
+  id: string;
+  order_id: string;
+  product_id: string;
+  variant_id?: string | null;
+  product_name: string;
+  variant_name?: string | null;
+  sku?: string | null;
+  image_url?: string | null;
+  unit_price: number;
+  quantity: number;
+  discount_amount: number;
+  total_price: number;
+  created_at?: string;
 };

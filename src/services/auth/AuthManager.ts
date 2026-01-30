@@ -213,30 +213,182 @@ export class AuthManager {
   }
 
   /**
+   * Map Supabase phone auth errors to user-friendly Vietnamese messages
+   */
+  private getPhoneAuthErrorMessage(error: any): string {
+    const errorCode = error?.code || error?.error_code || '';
+    const errorMessage = error?.message || '';
+    const status = error?.status || 0;
+
+    // Log detailed error for debugging
+    console.error('[AuthManager] signInWithPhone error details:', {
+      code: errorCode,
+      status: status,
+      message: errorMessage,
+      fullError: JSON.stringify(error, null, 2),
+    });
+
+    // Rate limiting errors
+    if (
+      errorMessage.includes('rate limit') ||
+      errorMessage.includes('too many requests') ||
+      status === 429
+    ) {
+      return 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng đợi vài phút rồi thử lại.';
+    }
+
+    // Phone format errors
+    if (
+      errorMessage.includes('Invalid phone') ||
+      errorMessage.includes('phone number') ||
+      errorMessage.includes('Phone number is invalid')
+    ) {
+      return 'Số điện thoại không hợp lệ. Vui lòng kiểm tra lại.';
+    }
+
+    // Provider not enabled
+    if (
+      errorMessage.includes('Phone provider is not enabled') ||
+      errorMessage.includes('provider is not enabled')
+    ) {
+      return 'Tính năng đăng nhập bằng số điện thoại chưa được kích hoạt. Vui lòng liên hệ hỗ trợ.';
+    }
+
+    // SMS sending errors
+    if (
+      errorMessage.includes('failed to send') ||
+      errorMessage.includes('SMS') ||
+      errorMessage.includes('Unable to validate')
+    ) {
+      return 'Không thể gửi tin nhắn OTP. Vui lòng kiểm tra số điện thoại và thử lại.';
+    }
+
+    // Database error - check before generic 500 error
+    if (errorMessage.includes('database') || errorMessage.includes('Database')) {
+      return 'Có lỗi hệ thống. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.';
+    }
+
+    // Network/server errors
+    if (
+      errorMessage.includes('network') ||
+      errorMessage.includes('fetch') ||
+      errorMessage.includes('timeout') ||
+      status >= 500
+    ) {
+      return 'Lỗi kết nối. Vui lòng kiểm tra mạng Internet và thử lại.';
+    }
+
+    // Email signup disabled (wrong config)
+    if (errorMessage.includes('Email signups are disabled')) {
+      return 'Số điện thoại không hợp lệ. Vui lòng kiểm tra lại.';
+    }
+
+    // Validation error
+    if (errorMessage.includes('validation') || status === 422) {
+      return 'Thông tin không hợp lệ. Vui lòng kiểm tra số điện thoại.';
+    }
+
+    // Default fallback with original message for debugging
+    console.warn('[AuthManager] Unhandled phone auth error:', errorMessage);
+    return `Không thể gửi mã xác thực. ${errorMessage || 'Vui lòng thử lại.'}`;
+  }
+
+  /**
    * Sign in with Phone (OTP)
    */
   async signInWithPhone(phone: string): Promise<{ success: boolean; message: string }> {
     this.setState({ isLoading: true, errorMessage: null });
 
+    console.log('[AuthManager] signInWithPhone called with:', phone);
+
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { data, error } = await supabase.auth.signInWithOtp({
         phone,
       });
 
+      console.log('[AuthManager] signInWithOtp response:', {
+        hasData: !!data,
+        hasError: !!error,
+        data: data,
+      });
+
       if (error) {
-        this.setState({ errorMessage: error.message });
-        return { success: false, message: error.message };
+        const friendlyMessage = this.getPhoneAuthErrorMessage(error);
+        this.setState({ errorMessage: friendlyMessage, isLoading: false });
+        return { success: false, message: friendlyMessage };
       }
 
+      console.log('[AuthManager] OTP sent successfully to:', phone);
       this.setState({ isLoading: false });
       return { success: true, message: 'OTP sent successfully' };
     } catch (error: any) {
+      console.error('[AuthManager] signInWithPhone exception:', error);
+      const friendlyMessage = this.getPhoneAuthErrorMessage(error);
       this.setState({
         isLoading: false,
-        errorMessage: error.message || 'Failed to send OTP',
+        errorMessage: friendlyMessage,
       });
-      return { success: false, message: error.message || 'Failed to send OTP' };
+      return { success: false, message: friendlyMessage };
     }
+  }
+
+  /**
+   * Map OTP verification errors to user-friendly Vietnamese messages
+   */
+  private getOtpVerifyErrorMessage(error: any): string {
+    const errorCode = error?.code || error?.error_code || '';
+    const errorMessage = error?.message || '';
+    const status = error?.status || 0;
+
+    // Log detailed error for debugging
+    console.error('[AuthManager] verifyPhoneOtp error details:', {
+      code: errorCode,
+      status: status,
+      message: errorMessage,
+      fullError: JSON.stringify(error, null, 2),
+    });
+
+    // Invalid/expired OTP
+    if (
+      errorMessage.includes('Token has expired') ||
+      errorMessage.includes('expired') ||
+      errorMessage.includes('Expired')
+    ) {
+      return 'Mã xác thực đã hết hạn. Vui lòng yêu cầu mã mới.';
+    }
+
+    // Wrong OTP code
+    if (
+      errorMessage.includes('Invalid token') ||
+      errorMessage.includes('invalid') ||
+      errorMessage.includes('incorrect') ||
+      errorMessage.includes('Token has not been')
+    ) {
+      return 'Mã xác thực không đúng. Vui lòng kiểm tra lại.';
+    }
+
+    // Rate limiting
+    if (
+      errorMessage.includes('rate limit') ||
+      errorMessage.includes('too many') ||
+      status === 429
+    ) {
+      return 'Bạn đã thử quá nhiều lần. Vui lòng đợi vài phút rồi thử lại.';
+    }
+
+    // Network errors
+    if (
+      errorMessage.includes('network') ||
+      errorMessage.includes('fetch') ||
+      errorMessage.includes('timeout') ||
+      status >= 500
+    ) {
+      return 'Lỗi kết nối. Vui lòng kiểm tra mạng Internet và thử lại.';
+    }
+
+    // Default fallback
+    console.warn('[AuthManager] Unhandled OTP verify error:', errorMessage);
+    return `Xác thực thất bại. ${errorMessage || 'Vui lòng thử lại.'}`;
   }
 
   /**
@@ -248,6 +400,8 @@ export class AuthManager {
   ): Promise<{ session: Session; user: User } | null> {
     this.setState({ isLoading: true, errorMessage: null });
 
+    console.log('[AuthManager] verifyPhoneOtp called:', { phone, tokenLength: token.length });
+
     try {
       const { data, error } = await supabase.auth.verifyOtp({
         phone,
@@ -255,12 +409,21 @@ export class AuthManager {
         type: 'sms',
       });
 
+      console.log('[AuthManager] verifyOtp response:', {
+        hasData: !!data,
+        hasSession: !!data?.session,
+        hasUser: !!data?.user,
+        hasError: !!error,
+      });
+
       if (error) {
-        this.setState({ errorMessage: error.message, isLoading: false });
+        const friendlyMessage = this.getOtpVerifyErrorMessage(error);
+        this.setState({ errorMessage: friendlyMessage, isLoading: false });
         return null;
       }
 
       if (data.session && data.user) {
+        console.log('[AuthManager] OTP verified successfully, user:', data.user.id);
         this.setState({
           session: data.session,
           user: data.user,
@@ -269,12 +432,18 @@ export class AuthManager {
         return { session: data.session, user: data.user };
       }
 
-      this.setState({ isLoading: false });
-      return null;
-    } catch (error: any) {
+      console.warn('[AuthManager] verifyOtp returned no session/user');
       this.setState({
         isLoading: false,
-        errorMessage: error.message || 'Failed to verify OTP',
+        errorMessage: 'Xác thực thất bại. Vui lòng thử lại.',
+      });
+      return null;
+    } catch (error: any) {
+      console.error('[AuthManager] verifyPhoneOtp exception:', error);
+      const friendlyMessage = this.getOtpVerifyErrorMessage(error);
+      this.setState({
+        isLoading: false,
+        errorMessage: friendlyMessage,
       });
       return null;
     }

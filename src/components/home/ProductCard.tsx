@@ -1,30 +1,39 @@
-import { Feather } from '@expo/vector-icons';
+import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 
-import { Typography } from '@/components';
+import { Typography, Button } from '@/components';
 import { useTheme, useAuth } from '@/contexts';
 import { useCurrency } from '@/hooks';
 import { supabase } from '@/services/supabase';
 import type { Product, ProductWithFlashSale } from '@/types/database.types';
+import { IconHeart, IconHeartFilled } from '@tabler/icons-react-native';
 
-const CARD_WIDTH = 150;
-const CARD_HEIGHT = 200;
+import { Dimensions } from 'react-native';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_WIDTH = SCREEN_WIDTH * 0.42;
+const CARD_HEIGHT = CARD_WIDTH * 1.5; // Maintain ~2:3 aspect ratio (150/225 or similar)
+
 
 interface ProductCardProps {
   product: Product | ProductWithFlashSale;
   onPress?: (product: Product) => void;
   showFlashSalePrice?: boolean;
+  showHotBadge?: boolean;
+  width?: number; // Optional custom width for the card
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSalePrice }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSalePrice, showHotBadge, width }) => {
   const theme = useTheme();
   const router = useRouter();
   const { user } = useAuth();
-  const styles = createStyles(theme);
+  const cardWidth = width || CARD_WIDTH;
+  const cardHeight = cardWidth * 1.5;
+  const styles = createStyles(theme, cardWidth, cardHeight);
   const { formatPrice } = useCurrency();
 
   const [isFavorite, setIsFavorite] = useState(false);
@@ -121,32 +130,31 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSa
         />
 
         {/* Favorite Heart Button */}
-        <Pressable
-          style={styles.favoriteButton}
-          onPress={(e) => {
-            e.stopPropagation();
-            handleToggleFavorite();
-          }}
-          hitSlop={8}
-        >
-          {isToggling ? (
-            <ActivityIndicator size='small' color='#EF4444' />
-          ) : (
-            <Feather
-              name={isFavorite ? 'heart' : 'heart'}
-              size={18}
-              color={isFavorite ? '#EF4444' : '#9CA3AF'}
-              style={isFavorite ? styles.heartFilled : undefined}
-            />
-          )}
-        </Pressable>
+        <View style={styles.favoriteButton}>
+          <Button
+            variant='liquid'
+            size='sm'
+            isIconOnly
+            startIcon={isFavorite ? IconHeartFilled : IconHeart}
+            startIconSize={16}
+            startIconColor={isFavorite ? '#EF4444' : '#9CA3AF'}
+            onPress={handleToggleFavorite}
+            loading={isToggling}
+            tintColor='rgba(255, 255, 255, 0.9)'
+          />
+        </View>
 
-        {discountPercent > 0 && !hasFlashSale && (
-          <View style={styles.discountBadge}>
+        {showHotBadge && (
+          <LinearGradient
+            colors={['#FF6B6B', '#EE5A24']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.discountBadge}
+          >
             <Typography variant='text' size='xs' weight='bold' style={styles.discountText}>
-              -{discountPercent}%
+              HOT
             </Typography>
-          </View>
+          </LinearGradient>
         )}
         {hasFlashSale ? (
           <LinearGradient
@@ -155,9 +163,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSa
             end={{ x: 1, y: 0 }}
             style={styles.flashSaleBadge}
           >
-            <Typography variant='text' size='xs' weight='bold' style={styles.flashSaleText}>
-              ⚡ SALE
-            </Typography>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Image
+                source={require('@/assets/images/flash.png')}
+                style={{ width: 14, height: 14 }}
+                contentFit='contain'
+              />
+              <Typography variant='text' size='xs' weight='bold' style={styles.flashSaleText}>
+                SALE
+              </Typography>
+            </View>
           </LinearGradient>
         ) : null}
       </View>
@@ -190,21 +205,25 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSa
           ) : null}
         </View>
 
-        {product.brand ? (
-          <Typography variant='text' size='xs' style={styles.brand}>
-            {product.brand}
-          </Typography>
+        {/* Rating Section - moved to bottom */}
+        {product.rating_average ? (
+          <View style={styles.ratingContainer}>
+            <FontAwesome5 name='star' solid size={12} color='#F59E0B' style={styles.starIcon} />
+            <Typography variant='text' size='xs' style={styles.ratingText}>
+              {product.rating_average.toFixed(1)}
+            </Typography>
+          </View>
         ) : null}
       </View>
     </Pressable>
   );
 };
 
-const createStyles = (theme: ReturnType<typeof useTheme>) =>
+const createStyles = (theme: ReturnType<typeof useTheme>, cardWidth: number, cardHeight: number) =>
   StyleSheet.create({
     container: {
-      width: CARD_WIDTH,
-      backgroundColor: theme.colors.background.primary,
+      width: cardWidth,
+      backgroundColor: 'white',
       borderRadius: 12,
       overflow: 'hidden',
       shadowColor: '#000',
@@ -219,7 +238,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     imageContainer: {
       width: '100%',
-      height: CARD_HEIGHT * 0.55,
+      height: cardHeight * 0.55,
       backgroundColor: theme.colors.background.secondary,
       position: 'relative',
     },
@@ -301,6 +320,20 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     brand: {
       color: theme.colors.text.secondary,
       marginTop: 4,
+    },
+    ratingContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 4,
+      marginBottom: 4,
+      gap: 4,
+    },
+    starIcon: {
+      marginTop: -1, // Visual alignment
+    },
+    ratingText: {
+      color: theme.colors.text.secondary,
+      lineHeight: 14,
     },
   });
 

@@ -107,6 +107,9 @@ const SearchScreen = () => {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
+        <Pressable onPress={handleCancel} style={styles.backButton}>
+          <Feather name='arrow-left' size={24} color={theme.colors.text.primary} />
+        </Pressable>
         <View style={styles.searchBar}>
           <Feather name='search' size={20} color={theme.colors.text.tertiary} />
           <TextInput
@@ -129,11 +132,6 @@ const SearchScreen = () => {
             <Feather name='filter' size={20} color={theme.colors.text.primary} />
           </Pressable>
         </View>
-        <Pressable onPress={handleCancel} style={styles.cancelButton}>
-          <Typography variant='text' size='md' style={{ color: theme.colors.text.primary }}>
-            {t('common.cancel')}
-          </Typography>
-        </Pressable>
       </View>
 
       {/* Content */}
@@ -145,11 +143,15 @@ const SearchScreen = () => {
         <FlatList
           data={results}
           numColumns={COLUMN_count}
-          columnWrapperStyle={{ gap: GAP }}
+          columnWrapperStyle={styles.row}
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
-            <View style={{ width: ITEM_WIDTH }}>
-              <ProductCard product={item} onPress={() => router.push(`/product/${item.id}`)} />
+            <View style={styles.cardContainer}>
+              <ProductCard
+                product={item}
+                onPress={() => router.push(`/product/${item.id}`)}
+                width={ITEM_WIDTH}
+              />
             </View>
           )}
           keyExtractor={(item) => item.id}
@@ -210,7 +212,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       color: theme.colors.text.primary,
       padding: 0, // Remove default padding
     },
-    cancelButton: {
+    backButton: {
       padding: 4,
     },
     center: {
@@ -220,6 +222,13 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     listContent: {
       padding: 16,
+      gap: GAP,
+    },
+    row: {
+      gap: GAP,
+    },
+    cardContainer: {
+      width: ITEM_WIDTH,
     },
     emptyContainer: {
       flex: 1,

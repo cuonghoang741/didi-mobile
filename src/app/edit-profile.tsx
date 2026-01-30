@@ -281,7 +281,10 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       borderColor: theme.colors.background.primary,
     },
     fieldsContainer: {
-      backgroundColor: theme.colors.background.primary,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      marginBottom: 16,
     },
     fieldRow: {
       flexDirection: 'row',

@@ -14,6 +14,7 @@ interface ProductSectionProps {
   onViewAll?: () => void;
   onProductPress?: (product: Product) => void;
   showFlashSalePrice?: boolean;
+  showHotBadge?: boolean;
 }
 
 const ProductSection: React.FC<ProductSectionProps> = ({
@@ -22,6 +23,7 @@ const ProductSection: React.FC<ProductSectionProps> = ({
   onViewAll,
   onProductPress,
   showFlashSalePrice,
+  showHotBadge,
 }) => {
   const theme = useTheme();
   const { t } = useLanguage();
@@ -40,9 +42,9 @@ const ProductSection: React.FC<ProductSectionProps> = ({
         {onViewAll ? (
           <Pressable onPress={onViewAll} style={styles.viewAllButton}>
             <Typography variant='text' size='sm' weight='medium' style={styles.viewAllText}>
-              {t('common.viewAll')}
+              {t('common.seeMore')}
             </Typography>
-            <Feather name='chevron-right' size={16} color={theme.colors.text.brand_primary} />
+            <Feather name='chevron-right' size={16} color='#0088FF' />
           </Pressable>
         ) : null}
       </View>
@@ -54,6 +56,7 @@ const ProductSection: React.FC<ProductSectionProps> = ({
             product={item}
             onPress={onProductPress}
             showFlashSalePrice={showFlashSalePrice}
+            showHotBadge={showHotBadge}
           />
         )}
         horizontal
@@ -87,7 +90,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: 4,
     },
     viewAllText: {
-      color: theme.colors.text.brand_primary,
+      color: '#0088FF',
     },
     listContent: {
       paddingHorizontal: 16,

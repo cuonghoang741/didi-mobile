@@ -2,17 +2,17 @@ import { Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icon
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, FlatList, Pressable } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, Dimensions } from 'react-native';
 
 import { Typography } from '@/components';
-import { useTheme } from '@/contexts';
+import { useTheme, useLanguage } from '@/contexts';
 import type { FlashSale, ProductWithFlashSale, Product } from '@/types/database.types';
 
-// Helper to format price to VND
+// Helper to format price to JPY
 const formatPrice = (price: number) => {
-  return new Intl.NumberFormat('vi-VN', {
+  return new Intl.NumberFormat('ja-JP', {
     style: 'currency',
-    currency: 'VND',
+    currency: 'JPY',
   }).format(price);
 };
 
@@ -23,19 +23,23 @@ interface FlashSaleSectionProps {
   onProductPress?: (product: Product) => void;
 }
 
-const CARD_WIDTH = 140;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_WIDTH = SCREEN_WIDTH * 0.45;
 
 const FlashSaleCard = ({
   item,
   onPress,
   theme,
+  t,
 }: {
   item: ProductWithFlashSale;
   onPress?: (product: Product) => void;
   theme: any;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }) => {
-  const flashSalePrice = item.flash_sale_price ?? item.price;
-  const discountPercent = Math.round(((item.price - flashSalePrice) / item.price) * 100);
+  const originalPrice = item.base_price ?? 0;
+  const flashSalePrice = item.flash_sale_price ?? item.sale_price ?? originalPrice;
+  const discountPercent = originalPrice > 0 ? Math.round(((originalPrice - flashSalePrice) / originalPrice) * 100) : 0;
 
   // Mock sold count if not present (design shows "Đã bán 0/10")
   const sold = item.flash_sale_quantity_sold || 0;
@@ -46,7 +50,7 @@ const FlashSaleCard = ({
     <Pressable onPress={() => onPress?.(item)} style={styles.cardContainer}>
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: item.image_url ?? undefined }}
+          source={{ uri: item.thumbnail_url ?? undefined }}
           style={styles.productImage}
           contentFit='cover'
         />
@@ -68,24 +72,23 @@ const FlashSaleCard = ({
               size='xs'
               style={{ color: '#6B7280', textDecorationLine: 'line-through', fontSize: 10 }}
             >
-              {formatPrice(item.price)}
+              {formatPrice(originalPrice)}
             </Typography>
           </View>
 
           {/* Divider (Lightning) */}
           <View style={styles.lightningDivider}>
-            <FontAwesome5
-              name='bolt'
-              size={24}
-              color='#F59E0B'
-              style={{ transform: [{ rotate: '15deg' }] }}
+            <Image
+              source={require('@/assets/images/flash-2.png')}
+              style={{ width: 24, height: '100%' }}
+              contentFit='contain'
             />
           </View>
 
           {/* Right Discount Part (Red) */}
           <View style={styles.priceRight}>
             <Typography variant='text' size='xs' style={{ color: '#FFF' }}>
-              Giảm
+              {t('home.off')}
             </Typography>
             <Typography variant='text' size='md' weight='bold' style={{ color: '#FFF' }}>
               {discountPercent}%
@@ -112,7 +115,7 @@ const FlashSaleCard = ({
               size='xs'
               style={{ color: '#FFF', fontSize: 10, fontWeight: '600' }}
             >
-              Đã bán {sold}/{limit}
+              {t('home.soldCount', { count: sold, limit })}
             </Typography>
           </View>
         </View>
@@ -128,6 +131,7 @@ const FlashSaleSection: React.FC<FlashSaleSectionProps> = ({
   onProductPress,
 }) => {
   const theme = useTheme();
+  const { t } = useLanguage();
 
   const [timeLeft, setTimeLeft] = useState<{ h: number; m: number; s: number }>({
     h: 0,
@@ -171,12 +175,16 @@ const FlashSaleSection: React.FC<FlashSaleSectionProps> = ({
           <Typography variant='display' size='md' weight='bold' style={styles.title}>
             FLASH SALE
           </Typography>
-          <FontAwesome5 name='bolt' size={20} color='#FCD34D' style={{ marginLeft: 8 }} />
+          <Image
+            source={require('@/assets/images/flash.png')}
+            style={{ width: 20, height: 20, marginLeft: 8 }}
+            contentFit='contain'
+          />
         </View>
 
         <View style={styles.timerRow}>
           <Typography variant='text' size='xs' style={styles.endInText}>
-            Kết thúc trong
+            {t('home.endsIn')}
           </Typography>
           {/* Show Hours if > 0, otherwise standard M:S or H:M:S */}
           {timeLeft.h > 0 && (
@@ -212,7 +220,7 @@ const FlashSaleSection: React.FC<FlashSaleSectionProps> = ({
         horizontal
         showsHorizontalScrollIndicator={false}
         renderItem={({ item }) => (
-          <FlashSaleCard item={item} onPress={onProductPress} theme={theme} />
+          <FlashSaleCard item={item} onPress={onProductPress} theme={theme} t={t} />
         )}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
@@ -226,6 +234,7 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: 12,
     marginTop: 16,
+    marginBottom: 24,
   },
   header: {
     flexDirection: 'row',
@@ -275,13 +284,11 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     backgroundColor: '#FFF',
     borderRadius: 12,
-    padding: 6,
     overflow: 'hidden',
   },
   imageContainer: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: 8,
     overflow: 'hidden',
     marginBottom: 8,
     position: 'relative',
@@ -302,13 +309,15 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     gap: 8,
+    padding: 8,
+    paddingTop: 0
   },
   priceRow: {
     flexDirection: 'row',
     height: 48,
     borderRadius: 6,
     overflow: 'hidden',
-    backgroundColor: '#FDE047', // Yellow background for left side
+    backgroundColor: '#f9e573f3', // Yellow background for left side
   },
   priceLeft: {
     flex: 3,
@@ -327,8 +336,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#DC2626', // Red background
     alignItems: 'center',
     justifyContent: 'center',
-    borderTopLeftRadius: 16, // visual trick if needed, but the bolt covers it
-    borderBottomLeftRadius: 16,
     paddingLeft: 4,
   },
   soldContainer: {

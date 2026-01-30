@@ -46,17 +46,16 @@ const ProductDetailScreen = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const imageListRef = useRef<FlatList>(null);
 
-  // Toast animation state
-  const [showToast, setShowToast] = useState(false);
-  const toastAnimation = useRef(new Animated.Value(-100)).current;
-
-  // Button press animation
+  // Button animation states
+  const [isAdded, setIsAdded] = useState(false);
   const addToCartScale = useRef(new Animated.Value(1)).current;
+  const successScale = useRef(new Animated.Value(0)).current;
+  const buttonColorAnim = useRef(new Animated.Value(0)).current;
 
   // Button press animation handlers
   const handlePressIn = useCallback(() => {
     Animated.spring(addToCartScale, {
-      toValue: 0.95,
+      toValue: 0.92,
       useNativeDriver: true,
     }).start();
   }, [addToCartScale]);
@@ -70,23 +69,58 @@ const ProductDetailScreen = () => {
     }).start();
   }, [addToCartScale]);
 
-  // Show toast animation
-  const showAddToCartToast = useCallback(() => {
-    setShowToast(true);
-    Animated.sequence([
-      Animated.timing(toastAnimation, {
-        toValue: 60, // Position from top
-        duration: 300,
+  // Success animation when added to cart
+  const playSuccessAnimation = useCallback(() => {
+    setIsAdded(true);
+
+    // Animate button color and icon
+    Animated.parallel([
+      // Bounce effect
+      Animated.sequence([
+        Animated.spring(addToCartScale, {
+          toValue: 1.05,
+          friction: 3,
+          tension: 100,
+          useNativeDriver: true,
+        }),
+        Animated.spring(addToCartScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 80,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Success icon scale in
+      Animated.spring(successScale, {
+        toValue: 1,
+        friction: 4,
+        tension: 100,
         useNativeDriver: true,
       }),
-      Animated.delay(2000),
-      Animated.timing(toastAnimation, {
-        toValue: -100,
-        duration: 300,
-        useNativeDriver: true,
+      // Color transition
+      Animated.timing(buttonColorAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: false,
       }),
-    ]).start(() => setShowToast(false));
-  }, [toastAnimation]);
+    ]).start();
+
+    // Reset after 1.5 seconds
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(successScale, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(buttonColorAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: false,
+        }),
+      ]).start(() => setIsAdded(false));
+    }, 1500);
+  }, [addToCartScale, successScale, buttonColorAnim]);
 
   // ... (keep useEffect and handlers)
 
@@ -98,8 +132,8 @@ const ProductDetailScreen = () => {
       const productData = await fetchProductDetail(id);
       setProduct(productData);
 
-      if (productData?.variants && productData.variants.length > 0) {
-        setSelectedVariant(productData.variants[0]);
+      if (productData?.product_variants && productData.product_variants.length > 0) {
+        setSelectedVariant(productData.product_variants[0]);
       }
 
       const pDataAny = productData as any;
@@ -128,8 +162,8 @@ const ProductDetailScreen = () => {
           name: productData.name,
           image_urls: productData.image_urls,
           thumbnail_url: productData.thumbnail_url,
-          variants: productData.variants?.length || 0,
-          variants_data: productData.variants,
+          variants: productData.product_variants?.length || 0,
+          variants_data: productData.product_variants,
         });
       }
     };
@@ -138,9 +172,9 @@ const ProductDetailScreen = () => {
   }, [id]);
 
   const handleAddToCart = () => {
-    if (!product) return;
+    if (!product || isAdded) return;
     addItem(product, selectedVariant, quantity);
-    showAddToCartToast();
+    playSuccessAnimation();
   };
 
   const handleBuyNow = () => {
@@ -172,7 +206,7 @@ const ProductDetailScreen = () => {
   const originalPrice = getOriginalPrice();
   const originalPriceFormatted = originalPrice ? formatPrice(originalPrice) : null;
 
-  // Build images array - handle various data shapes
+  // Build images array - handle various data shapes + variant images
   const images: string[] = React.useMemo(() => {
     const result: string[] = [];
 
@@ -184,6 +218,15 @@ const ProductDetailScreen = () => {
     // Fall back to thumbnail_url if no images
     if (result.length === 0 && product?.thumbnail_url) {
       result.push(product.thumbnail_url);
+    }
+
+    // Add variant images
+    if (product?.product_variants && Array.isArray(product.product_variants)) {
+      product.product_variants.forEach((variant: any) => {
+        if (variant.image_url && !result.includes(variant.image_url)) {
+          result.push(variant.image_url);
+        }
+      });
     }
 
     // Debug
@@ -226,26 +269,19 @@ const ProductDetailScreen = () => {
     );
   };
 
+  // Interpolate button colors
+  const buttonBorderColor = buttonColorAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [theme.colors.text.brand_primary, '#10B981'],
+  });
+
+  const buttonBgColor = buttonColorAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['transparent', 'rgba(16, 185, 129, 0.1)'],
+  });
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Add to Cart Toast */}
-      {showToast && (
-        <Animated.View
-          style={[
-            styles.toast,
-            {
-              transform: [{ translateY: toastAnimation }],
-            },
-          ]}
-        >
-          <View style={styles.toastContent}>
-            <Feather name='check-circle' size={20} color='#10B981' />
-            <Typography variant='text' size='sm' weight='medium' style={styles.toastText}>
-              {t('product.addedToCart') || 'Đã thêm vào giỏ hàng!'}
-            </Typography>
-          </View>
-        </Animated.View>
-      )}
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
@@ -330,41 +366,65 @@ const ProductDetailScreen = () => {
           </View>
 
           {/* Variants */}
-          {product.variants && product.variants.length > 0 && (
+          {product.product_variants && product.product_variants.length > 0 && (
             <View style={styles.variantsSection}>
               <Typography variant='text' size='md' weight='semiBold' style={styles.sectionTitle}>
                 {t('product.selectVariant')}
               </Typography>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.variantsRow}>
-                  {product.variants.map((variant: ProductVariant) => {
-                    // Parse options JSON
-                    const options = typeof variant.options === 'object' && variant.options !== null
-                      ? (variant.options as { color_code?: string; name?: string; color?: string; storage?: string })
-                      : {};
+                  {product.product_variants.map((variant: ProductVariant) => {
+                    // Data is directly on variant object, not in options
+                    const variantAny = variant as any;
+                    const colorCode = variantAny.color_code;
+                    const imageUrl = variantAny.image_url;
+                    const variantName = variantAny.name || variantAny.color || variantAny.storage || variant.sku || 'Variant';
+
+                    const isSelected = selectedVariant?.id === variant.id;
 
                     return (
                       <Pressable
                         key={variant.id}
                         style={[
                           styles.variantChip,
-                          selectedVariant?.id === variant.id && styles.variantChipActive,
+                          isSelected && styles.variantChipActive,
                         ]}
                         onPress={() => setSelectedVariant(variant)}
                       >
-                        {options.color_code && (
-                          <View style={[styles.colorDot, { backgroundColor: options.color_code }]} />
+                        {/* Variant Image */}
+                        {imageUrl && (
+                          <Image
+                            source={{ uri: imageUrl }}
+                            style={styles.variantImage}
+                            contentFit='cover'
+                          />
                         )}
+
+                        {/* Color dot with code */}
+                        {colorCode && (
+                          <View style={styles.colorInfo}>
+                            <View style={[styles.colorDot, { backgroundColor: colorCode }]} />
+                            <Typography
+                              variant='text'
+                              size='xs'
+                              style={[styles.colorCode, isSelected && styles.colorCodeActive]}
+                            >
+                              {colorCode.toUpperCase()}
+                            </Typography>
+                          </View>
+                        )}
+
+                        {/* Variant Name */}
                         <Typography
                           variant='text'
                           size='sm'
-                          weight={selectedVariant?.id === variant.id ? 'semiBold' : 'regular'}
+                          weight={isSelected ? 'semiBold' : 'regular'}
                           style={[
                             styles.variantText,
-                            selectedVariant?.id === variant.id && styles.variantTextActive,
+                            isSelected && styles.variantTextActive,
                           ]}
                         >
-                          {options.name || `${options.color || ''} ${options.storage || ''}`.trim() || variant.sku || 'Variant'}
+                          {variantName}
                         </Typography>
                       </Pressable>
                     );
@@ -484,17 +544,50 @@ const ProductDetailScreen = () => {
 
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
-        <Animated.View style={{ flex: 1, transform: [{ scale: addToCartScale }] }}>
+        <Animated.View
+          style={{
+            flex: 1,
+            transform: [{ scale: addToCartScale }],
+          }}
+        >
           <Pressable
-            style={styles.addToCartButton}
             onPress={handleAddToCart}
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
+            disabled={isAdded}
           >
-            <Feather name='shopping-cart' size={20} color={theme.colors.text.brand_primary} />
-            <Typography variant='text' size='md' weight='semiBold' style={styles.addToCartText}>
-              {t('product.addToCart')}
-            </Typography>
+            <Animated.View
+              style={[
+                styles.addToCartButton,
+                {
+                  borderColor: buttonBorderColor,
+                  backgroundColor: buttonBgColor,
+                },
+              ]}
+            >
+              {isAdded ? (
+                <Animated.View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    transform: [{ scale: successScale }],
+                  }}
+                >
+                  <Feather name='check' size={20} color='#10B981' />
+                  <Typography variant='text' size='md' weight='semiBold' style={{ color: '#10B981' }}>
+                    {t('product.addedToCart') || 'Đã thêm!'}
+                  </Typography>
+                </Animated.View>
+              ) : (
+                <>
+                  <Feather name='shopping-cart' size={20} color={theme.colors.text.brand_primary} />
+                  <Typography variant='text' size='md' weight='semiBold' style={styles.addToCartText}>
+                    {t('product.addToCart')}
+                  </Typography>
+                </>
+              )}
+            </Animated.View>
           </Pressable>
         </Animated.View>
         <Pressable style={styles.buyNowButton} onPress={handleBuyNow}>
@@ -622,12 +715,30 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       borderColor: theme.colors.text.brand_primary,
       backgroundColor: '#EEF2FF',
     },
+    variantImage: {
+      width: 40,
+      height: 40,
+      borderRadius: 6,
+      backgroundColor: theme.colors.background.secondary,
+    },
+    colorInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
     colorDot: {
       width: 16,
       height: 16,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: '#E5E7EB',
+    },
+    colorCode: {
+      color: theme.colors.text.tertiary,
+      fontSize: 10,
+    },
+    colorCodeActive: {
+      color: theme.colors.text.brand_primary,
     },
     variantText: {
       color: theme.colors.text.secondary,
@@ -706,31 +817,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     buyNowText: {
       color: '#FFFFFF',
-    },
-    toast: {
-      position: 'absolute',
-      top: 0,
-      left: 16,
-      right: 16,
-      zIndex: 1000,
-      backgroundColor: '#FFFFFF',
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 8,
-    },
-    toastContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-    },
-    toastText: {
-      color: theme.colors.text.primary,
-      flex: 1,
     },
   });
 

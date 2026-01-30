@@ -173,7 +173,7 @@ const OrderItemCard = ({ order, onPress }: { order: OrderWithItems; onPress: () 
 
         <View style={styles.actionButtons}>
           {order.status === 'pending' && (
-            <Button size='sm' variant='outline' colorScheme='error' onPress={() => {}}>
+            <Button size='sm' variant='outline' colorScheme='error' onPress={() => { }}>
               {t('order.action.cancel')}
             </Button>
           )}
@@ -305,7 +305,7 @@ const OrdersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5', // Light gray background
+    backgroundColor: '#f2f4f7', // theme.colors.background.primary
   },
   header: {
     flexDirection: 'row',

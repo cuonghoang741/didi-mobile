@@ -124,6 +124,7 @@ const Home = () => {
             }))}
             onProductPress={handleProductPress}
             onViewAll={() => console.log('View all featured')}
+            showHotBadge={true}
           />
         )}
 

@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Switch, Linking } from 'react-native';
@@ -6,6 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Typography, Button, AuthProtect } from '@/components';
 import { useTheme, useLanguage, useAuth } from '@/contexts';
+
+// Social Logos
+const LineLogo = require('@/assets/logos/line.svg');
+const FacebookLogo = require('@/assets/logos/facebook.svg');
+const MessengerLogo = require('@/assets/logos/messenger.svg');
 
 interface MenuItem {
   icon: React.ReactNode;
@@ -54,6 +60,11 @@ const Profile = () => {
       title: t('profile.account'),
       items: [
         {
+          icon: <Feather name='map-pin' size={20} color={theme.colors.text.secondary} />,
+          label: t('addresses.title'),
+          onPress: () => router.push('/addresses' as any),
+        },
+        {
           icon: <Feather name='gift' size={20} color={theme.colors.text.secondary} />,
           label: t('profile.voucherWallet'),
           onPress: () => console.log('Voucher wallet'),
@@ -97,17 +108,17 @@ const Profile = () => {
           onPress: () => handleOpenLink('tel:19003147'),
         },
         {
-          icon: <Feather name='message-circle' size={20} color='#00C300' />,
+          icon: <Image source={LineLogo} style={{ width: 20, height: 20 }} contentFit='contain' />,
           label: t('profile.chatLine'),
           onPress: () => console.log('LINE'),
         },
         {
-          icon: <Feather name='message-circle' size={20} color='#0084FF' />,
+          icon: <Image source={MessengerLogo} style={{ width: 20, height: 20 }} contentFit='contain' />,
           label: t('profile.chatMessenger'),
           onPress: () => console.log('Messenger'),
         },
         {
-          icon: <Feather name='facebook' size={20} color='#1877F2' />,
+          icon: <Image source={FacebookLogo} style={{ width: 20, height: 20 }} contentFit='contain' />,
           label: t('profile.visitFacebook'),
           onPress: () => handleOpenLink('https://facebook.com'),
         },
@@ -282,7 +293,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background.secondary,
+      backgroundColor: theme.colors.background.primary,
     },
     scrollContent: {
       padding: 16,
@@ -291,7 +302,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       flexDirection: 'row',
       alignItems: 'center',
       padding: 16,
-      backgroundColor: theme.colors.background.primary,
+      backgroundColor: '#FFFFFF',
       borderRadius: 16,
       gap: 12,
       marginBottom: 12,
@@ -325,7 +336,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       padding: 12,
-      backgroundColor: theme.colors.background.primary,
+      backgroundColor: '#FFFFFF',
       borderRadius: 12,
     },
     statsCardLeft: {
@@ -358,7 +369,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       marginLeft: 4,
     },
     menuCard: {
-      backgroundColor: theme.colors.background.primary,
+      backgroundColor: '#FFFFFF',
       borderRadius: 12,
       overflow: 'hidden',
     },

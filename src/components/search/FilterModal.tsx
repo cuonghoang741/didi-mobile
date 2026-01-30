@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -14,23 +14,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Typography from '@/components/ui/Typography/Typography';
 import Button from '@/components/ui/Button/Button';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme, useLanguage } from '@/contexts';
 import { Category } from '@/types/database.types';
 import { fetchCategories } from '@/services/supabase/homeService';
 import { fetchBrands, SearchFilter } from '@/services/supabase/productService';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
-const PRICE_RANGES = [
-  { label: 'Dưới 1 triệu', min: 0, max: 1000000 },
-  { label: 'Từ 1 triệu đến 3 triệu', min: 1000000, max: 3000000 },
-  { label: 'Từ 3 triệu đến 5 triệu', min: 3000000, max: 5000000 },
-  { label: 'Từ 5 triệu đến 10 triệu', min: 5000000, max: 10000000 },
-  { label: 'Từ 10 triệu đến 20 triệu', min: 10000000, max: 20000000 },
-  { label: 'Trên 20 triệu', min: 20000000, max: undefined },
-];
+// Price range data (labels will be translated dynamically)
+const PRICE_RANGE_DATA = [
+  { key: 'under1m', min: 0, max: 1000000 },
+  { key: 'from1mTo3m', min: 1000000, max: 3000000 },
+  { key: 'from3mTo5m', min: 3000000, max: 5000000 },
+  { key: 'from5mTo10m', min: 5000000, max: 10000000 },
+  { key: 'from10mTo20m', min: 10000000, max: 20000000 },
+  { key: 'over20m', min: 20000000, max: undefined },
+] as const;
 
-const BRANCHES = ['Chi nhánh Namba Osaka', 'Chi nhanh Otsuka Tokyo', 'Chi nhánh Omiya Saitama'];
+// Branch keys for translation
+const BRANCH_KEYS = ['namba', 'otsuka', 'omiya'] as const;
 
 interface FilterModalProps {
   visible: boolean;
@@ -41,8 +43,26 @@ interface FilterModalProps {
 
 const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose, onApply, initialFilter }) => {
   const theme = useTheme();
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const styles = createStyles(theme, insets);
+
+  // Create translated price ranges
+  const PRICE_RANGES = useMemo(
+    () =>
+      PRICE_RANGE_DATA.map((range) => ({
+        label: t(`filter.priceRanges.${range.key}`),
+        min: range.min,
+        max: range.max,
+      })),
+    [t],
+  );
+
+  // Create translated branches
+  const BRANCHES = useMemo(
+    () => BRANCH_KEYS.map((key) => t(`filter.branches.${key}`)),
+    [t],
+  );
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
@@ -125,7 +145,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose, onApply, in
           <View style={styles.header}>
             <View style={{ width: 24 }} />
             <Typography variant='text' size='lg' weight='bold'>
-              Bộ lọc
+              {t('filter.title')}
             </Typography>
             <TouchableOpacity onPress={onClose}>
               <Feather name='x' size={24} color={theme.colors.text.primary} />
@@ -136,7 +156,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose, onApply, in
             {/* Categories */}
             <View style={styles.section}>
               <Typography variant='text' size='md' weight='bold' style={styles.sectionTitle}>
-                Danh mục
+                {t('filter.category')}
               </Typography>
               <View style={styles.grid}>
                 {categories.map((category) => {
@@ -176,7 +196,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose, onApply, in
             {brands.length > 0 && (
               <View style={styles.section}>
                 <Typography variant='text' size='md' weight='bold' style={styles.sectionTitle}>
-                  Thương hiệu
+                  {t('filter.brand')}
                 </Typography>
                 <View style={styles.chipContainer}>
                   {brands.map((brand) => {
@@ -204,7 +224,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose, onApply, in
             {/* Price */}
             <View style={styles.section}>
               <Typography variant='text' size='md' weight='bold' style={styles.sectionTitle}>
-                Mức giá
+                {t('filter.priceRange')}
               </Typography>
               <View style={styles.chipContainer}>
                 {PRICE_RANGES.map((range, index) => {
@@ -231,14 +251,14 @@ const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose, onApply, in
             {/* Branch (Static) */}
             <View style={styles.section}>
               <Typography variant='text' size='md' weight='bold' style={styles.sectionTitle}>
-                Chi nhánh
+                {t('filter.branch')}
               </Typography>
               <View style={styles.chipContainer}>
                 {BRANCHES.map((branch, index) => (
                   <TouchableOpacity
                     key={index}
                     style={styles.chip}
-                    // No functionality for now
+                  // No functionality for now
                   >
                     <Typography variant='text' size='sm' style={styles.text}>
                       {branch}
@@ -255,12 +275,12 @@ const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose, onApply, in
           <View style={styles.footer}>
             <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
               <Typography variant='text' size='md' weight='medium'>
-                Xoá bộ lọc
+                {t('filter.clearFilter')}
               </Typography>
             </TouchableOpacity>
             <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
               <Typography variant='text' size='md' weight='bold' style={{ color: '#FFF' }}>
-                Áp dụng
+                {t('filter.apply')}
               </Typography>
             </TouchableOpacity>
           </View>
