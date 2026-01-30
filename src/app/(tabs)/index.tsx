@@ -18,15 +18,17 @@ import {
   FlashSaleSection,
   ProductSection,
   Typography,
+  Header,
 } from '@/components';
 import { useTheme, useLanguage, useCart } from '@/contexts';
 import { fetchHomeData, HomeData } from '@/services/supabase';
 import type { Banner, Product } from '@/types/database.types';
+import { getLocalizedContent } from '@/utils/language';
 
 const Home = () => {
   const router = useRouter();
   const theme = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { getItemCount } = useCart();
   const styles = createStyles(theme);
 
@@ -79,24 +81,7 @@ const Home = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Pressable style={styles.searchContainer} onPress={() => router.push('/search')}>
-          <Feather name='search' size={20} color={theme.colors.text.secondary} />
-          <Typography variant='text' size='md' style={styles.searchText}>
-            {t('home.searchPlaceholder')}
-          </Typography>
-        </Pressable>
-        <Pressable style={styles.iconButton} onPress={() => router.push('/cart')}>
-          <Feather name='shopping-cart' size={24} color={theme.colors.text.primary} />
-          {getItemCount() > 0 && (
-            <View style={styles.badge}>
-              <Typography variant='text' size='xs' style={styles.badgeText}>
-                {getItemCount() > 9 ? '9+' : getItemCount()}
-              </Typography>
-            </View>
-          )}
-        </Pressable>
-      </View>
+      <Header searchPlaceholder={t('home.searchPlaceholder')} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -110,7 +95,10 @@ const Home = () => {
         {/* Categories from categoriesWithProducts + additional categories if any */}
         {data?.categoriesWithProducts && (
           <CategoryList
-            categories={data.categoriesWithProducts.map((c) => c.category)}
+            categories={data.categoriesWithProducts.map((c) => ({
+              ...c.category,
+              name: getLocalizedContent(c.category.language, 'name', language, c.category.name),
+            }))}
             onCategoryPress={handleCategoryPress}
           />
         )}
@@ -118,7 +106,10 @@ const Home = () => {
         {data?.flashSale && data.flashSaleProducts.length > 0 && (
           <FlashSaleSection
             flashSale={data.flashSale}
-            products={data.flashSaleProducts}
+            products={data.flashSaleProducts.map((p) => ({
+              ...p,
+              name: getLocalizedContent(p.language, 'name', language, p.name),
+            }))}
             onProductPress={handleProductPress}
             onViewAll={() => console.log('View all flash sale')}
           />
@@ -127,7 +118,10 @@ const Home = () => {
         {data?.featuredProducts && data.featuredProducts.length > 0 && (
           <ProductSection
             title={t('home.featuredProducts')}
-            products={data.featuredProducts}
+            products={data.featuredProducts.map((p) => ({
+              ...p,
+              name: getLocalizedContent(p.language, 'name', language, p.name),
+            }))}
             onProductPress={handleProductPress}
             onViewAll={() => console.log('View all featured')}
           />
@@ -136,8 +130,11 @@ const Home = () => {
         {data?.categoriesWithProducts.slice(0, 2).map((item) => (
           <ProductSection
             key={item.category.id}
-            title={item.category.name}
-            products={item.products}
+            title={getLocalizedContent(item.category.language, 'name', language, item.category.name)}
+            products={item.products.map((p) => ({
+              ...p,
+              name: getLocalizedContent(p.language, 'name', language, p.name),
+            }))}
             onProductPress={handleProductPress}
             onViewAll={() => console.log(`View all ${item.category.name}`)}
           />
@@ -167,8 +164,11 @@ const Home = () => {
         {data?.categoriesWithProducts.slice(2, 5).map((item) => (
           <ProductSection
             key={item.category.id}
-            title={item.category.name}
-            products={item.products}
+            title={getLocalizedContent(item.category.language, 'name', language, item.category.name)}
+            products={item.products.map((p) => ({
+              ...p,
+              name: getLocalizedContent(p.language, 'name', language, p.name),
+            }))}
             onProductPress={handleProductPress}
             onViewAll={() => console.log(`View all ${item.category.name}`)}
           />
@@ -189,47 +189,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     center: {
       justifyContent: 'center',
       alignItems: 'center',
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      gap: 12,
-    },
-    searchContainer: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: theme.colors.background.secondary,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      borderRadius: 8,
-      gap: 8,
-    },
-    searchText: {
-      color: theme.colors.text.tertiary,
-    },
-    iconButton: {
-      padding: 4,
-      position: 'relative',
-    },
-    badge: {
-      position: 'absolute',
-      top: -4,
-      right: -4,
-      minWidth: 18,
-      height: 18,
-      borderRadius: 9,
-      backgroundColor: '#EF4444',
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: 4,
-    },
-    badgeText: {
-      color: '#FFFFFF',
-      fontSize: 10,
-      fontWeight: '700',
     },
     scrollContent: {
       paddingBottom: 24,
