@@ -324,6 +324,11 @@ const ProductDetailScreen = () => {
               ))}
             </View>
           )}
+          <View style={styles.imageCounter}>
+            <Typography variant='text' size='xs' style={styles.imageCounterText}>
+              {currentImageIndex + 1}/{images.length}
+            </Typography>
+          </View>
         </View>
 
         {/* Product Info */}
@@ -454,6 +459,38 @@ const ProductDetailScreen = () => {
               </Pressable>
             </View>
           </View>
+
+
+          {/* Specifications */}
+          {product.specifications && Object.keys(product.specifications).length > 0 && (
+            <View style={styles.specificationsSection}>
+              <Typography variant='text' size='md' weight='semiBold' style={styles.sectionTitle}>
+                {t('product.specifications') || 'Thông số kỹ thuật'}
+              </Typography>
+              <View style={styles.specsContainer}>
+                {Object.entries(product.specifications as Record<string, string | number>).map(
+                  ([key, value], index) => (
+                    <View
+                      key={key}
+                      style={[styles.specRow, index % 2 === 0 && styles.specRowEven]}
+                    >
+                      <Typography variant='text' size='sm' style={styles.specKey}>
+                        {key.charAt(0).toUpperCase() + key.slice(1)}
+                      </Typography>
+                      <Typography
+                        variant='text'
+                        size='sm'
+                        weight='semiBold'
+                        style={styles.specValue}
+                      >
+                        {String(value)}
+                      </Typography>
+                    </View>
+                  )
+                )}
+              </View>
+            </View>
+          )}
 
           {/* Description */}
           <View style={styles.descriptionSection}>
@@ -771,10 +808,57 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     descriptionSection: {
       marginBottom: 24,
+      backgroundColor: '#FFFFFF',
+      padding: 16,
+      borderRadius: 12,
     },
     description: {
       color: theme.colors.text.secondary,
       lineHeight: 22,
+    },
+    specificationsSection: {
+      marginBottom: 24,
+      backgroundColor: '#FFFFFF',
+      padding: 16,
+      borderRadius: 12,
+    },
+    specsContainer: {
+      marginTop: 8,
+      borderWidth: 1,
+      borderColor: '#F3F4F6',
+      borderRadius: 8,
+      overflow: 'hidden',
+    },
+    specRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      padding: 12,
+      backgroundColor: '#FFFFFF',
+    },
+    specRowEven: {
+      backgroundColor: '#F9FAFB',
+    },
+    specKey: {
+      color: theme.colors.text.secondary,
+      flex: 1,
+    },
+    specValue: {
+      color: theme.colors.text.primary,
+      flex: 1,
+      textAlign: 'right',
+    },
+    imageCounter: {
+      position: 'absolute',
+      bottom: 16,
+      right: 16,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+    },
+    imageCounterText: {
+      color: '#FFFFFF',
+      fontWeight: '600',
     },
 
     relatedSection: {
