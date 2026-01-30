@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
@@ -142,6 +143,26 @@ const Home = () => {
           />
         ))}
 
+        {/* Display first 2 banners after top categories */}
+        {data?.banners && data.banners.length > 0 && (
+          <View style={styles.secondaryBannersContainer}>
+            {data.banners.slice(0, 2).map((banner) => (
+              <Pressable
+                key={`secondary-banner-${banner.id}`}
+                onPress={() => handleBannerPress(banner)}
+                style={styles.globalBannerContainer}
+              >
+                <Image
+                  source={{ uri: banner.mobile_image_url || banner.image_url }}
+                  style={styles.globalBannerImage}
+                  contentFit='cover'
+                  transition={200}
+                />
+              </Pressable>
+            ))}
+          </View>
+        )}
+
         <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
@@ -202,6 +223,21 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     scrollContent: {
       paddingBottom: 24,
       paddingTop: 12,
+    },
+    secondaryBannersContainer: {
+      gap: 16,
+      marginTop: 24,
+      paddingHorizontal: 16,
+    },
+    globalBannerContainer: {
+      width: '100%',
+      height: 150,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    globalBannerImage: {
+      width: '100%',
+      height: '100%',
     },
   });
 
