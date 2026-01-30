@@ -1,4 +1,4 @@
-export const APP_SCHEME = 'didi-mobile';
+export const APP_SCHEME = 'didi';
 export const AUTH_REDIRECT_PATH = 'auth/callback';
 
 export const LINE_CHANNEL_ID = '2009005123';
