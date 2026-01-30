@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Typography } from '@/components';
+import { Header, Typography } from '@/components';
 import { useTheme, useLanguage } from '@/contexts';
 import { useCurrency } from '@/hooks';
 import { fetchCategories, supabase } from '@/services/supabase';
@@ -35,6 +35,7 @@ const Categories = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadCategories();
@@ -50,8 +51,6 @@ const Categories = () => {
         }
       }
       // Default to first if no id or not found, but only if selectedCategory is not set
-      // (avoid resetting user selection if id param didn't change but re-render happened? No, id comes from params)
-      // Actually if user navigates to tab without params, id is undefined.
       if (!selectedCategory) {
         setSelectedCategory(categories[0]);
       }
@@ -103,6 +102,10 @@ const Categories = () => {
       setLoadingProducts(false);
     }
   };
+
+  const filteredCategories = categories.filter((c) =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const renderCategoryItem = ({ item }: { item: Category }) => {
     const isSelected = selectedCategory?.id === item.id;
@@ -162,17 +165,18 @@ const Categories = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Typography variant='display' size='sm' weight='bold'>
-          {t('tabs.categories')}
-        </Typography>
-      </View>
+      <Header
+        isSearchInput
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder={t('tabs.categories')}
+      />
 
       <View style={styles.content}>
         {/* Left Panel: Categories */}
         <View style={styles.leftPanel}>
           <FlatList
-            data={categories}
+            data={filteredCategories}
             renderItem={renderCategoryItem}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}

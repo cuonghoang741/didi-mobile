@@ -39,3 +39,6 @@ export { default as ProductReviews } from './product/ProductReviews';
 
 // Search
 export { default as FilterModal } from './search/FilterModal';
+
+// Common
+export * from './common';
