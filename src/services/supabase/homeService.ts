@@ -142,16 +142,26 @@ export const fetchCategoriesWithProducts = async (
   const result: CategoryWithProducts[] = [];
 
   for (const category of categories) {
+    // Fetch subcategories
+    const { data: subCategories } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('parent_id', category.id)
+      .is('deleted_at', null)
+      .eq('is_active', true);
+
+    const categoryIds = [category.id, ...(subCategories?.map((c) => c.id) || [])];
+
     const { data: products, error: productsError } = await supabase
       .from('products')
       .select('*')
-      .eq('category_id', category.id)
+      .in('category_id', categoryIds)
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(productLimit);
 
-    if (!productsError && products) {
+    if (!productsError && products && products.length > 0) {
       result.push({
         category,
         products,
