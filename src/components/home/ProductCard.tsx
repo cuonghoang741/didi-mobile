@@ -1,11 +1,14 @@
+import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import React from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 
 import { Typography } from '@/components';
-import { useTheme } from '@/contexts';
+import { useTheme, useAuth } from '@/contexts';
 import { useCurrency } from '@/hooks';
+import { supabase } from '@/services/supabase';
 import type { Product, ProductWithFlashSale } from '@/types/database.types';
 
 const CARD_WIDTH = 150;
@@ -19,8 +22,13 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSalePrice }) => {
   const theme = useTheme();
+  const router = useRouter();
+  const { user } = useAuth();
   const styles = createStyles(theme);
   const { formatPrice } = useCurrency();
+
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
 
   const flashSaleProduct = product as ProductWithFlashSale;
   const hasFlashSale = showFlashSalePrice && !!flashSaleProduct.flash_sale_price;
@@ -40,6 +48,65 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSa
     ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
     : 0;
 
+  // Check if product is in favorites
+  useEffect(() => {
+    if (!user) {
+      setIsFavorite(false);
+      return;
+    }
+
+    const checkFavorite = async () => {
+      const { data } = await (supabase as any)
+        .from('favorites')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('product_id', product.id)
+        .maybeSingle();
+
+      setIsFavorite(!!data);
+    };
+
+    checkFavorite();
+  }, [user, product.id]);
+
+  const handleToggleFavorite = async () => {
+    // If not logged in, redirect to signin
+    if (!user) {
+      router.push('/signin');
+      return;
+    }
+
+    if (isToggling) return;
+    setIsToggling(true);
+
+    try {
+      if (isFavorite) {
+        // Remove from favorites
+        await (supabase as any)
+          .from('favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('product_id', product.id);
+
+        setIsFavorite(false);
+      } else {
+        // Add to favorites
+        await (supabase as any)
+          .from('favorites')
+          .insert({
+            user_id: user.id,
+            product_id: product.id,
+          });
+
+        setIsFavorite(true);
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    } finally {
+      setIsToggling(false);
+    }
+  };
+
   return (
     <Pressable
       onPress={() => onPress?.(product)}
@@ -52,6 +119,28 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSa
           contentFit='cover'
           transition={200}
         />
+
+        {/* Favorite Heart Button */}
+        <Pressable
+          style={styles.favoriteButton}
+          onPress={(e) => {
+            e.stopPropagation();
+            handleToggleFavorite();
+          }}
+          hitSlop={8}
+        >
+          {isToggling ? (
+            <ActivityIndicator size='small' color='#EF4444' />
+          ) : (
+            <Feather
+              name={isFavorite ? 'heart' : 'heart'}
+              size={18}
+              color={isFavorite ? '#EF4444' : '#9CA3AF'}
+              style={isFavorite ? styles.heartFilled : undefined}
+            />
+          )}
+        </Pressable>
+
         {discountPercent > 0 && !hasFlashSale && (
           <View style={styles.discountBadge}>
             <Typography variant='text' size='xs' weight='bold' style={styles.discountText}>
@@ -138,10 +227,29 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       width: '100%',
       height: '100%',
     },
-    discountBadge: {
+    favoriteButton: {
       position: 'absolute',
       top: 8,
       right: 8,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    heartFilled: {
+      // For filled heart effect - Feather doesn't have filled, so we simulate with color
+    },
+    discountBadge: {
+      position: 'absolute',
+      top: 8,
+      left: 8,
       backgroundColor: '#FF6B6B',
       paddingHorizontal: 8,
       paddingVertical: 4,
@@ -197,3 +305,4 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
   });
 
 export default ProductCard;
+
