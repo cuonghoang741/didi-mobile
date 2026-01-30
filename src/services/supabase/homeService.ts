@@ -180,7 +180,7 @@ export const fetchHomeData = async (): Promise<HomeData> => {
     fetchBanners(),
     fetchFeaturedProducts(),
     fetchActiveFlashSale(),
-    fetchCategoriesWithProducts(3, 5),
+    fetchCategoriesWithProducts(5, 5),
   ]);
 
   return {

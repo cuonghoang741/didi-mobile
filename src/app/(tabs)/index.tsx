@@ -133,7 +133,7 @@ const Home = () => {
           />
         )}
 
-        {data?.categoriesWithProducts.map((item) => (
+        {data?.categoriesWithProducts.slice(0, 2).map((item) => (
           <ProductSection
             key={item.category.id}
             title={item.category.name}
@@ -143,7 +143,7 @@ const Home = () => {
           />
         ))}
 
-        {/* Display first 2 banners after top categories */}
+        {/* Display first 2 banners after top 2 categories */}
         {data?.banners && data.banners.length > 0 && (
           <View style={styles.secondaryBannersContainer}>
             {data.banners.slice(0, 2).map((banner) => (
@@ -162,6 +162,17 @@ const Home = () => {
             ))}
           </View>
         )}
+
+        {/* Display remaining categories */}
+        {data?.categoriesWithProducts.slice(2, 5).map((item) => (
+          <ProductSection
+            key={item.category.id}
+            title={item.category.name}
+            products={item.products}
+            onProductPress={handleProductPress}
+            onViewAll={() => console.log(`View all ${item.category.name}`)}
+          />
+        ))}
 
         <View style={{ height: 100 }} />
       </ScrollView>
