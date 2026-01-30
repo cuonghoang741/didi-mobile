@@ -85,8 +85,8 @@ const foreground = {
 } as const;
 
 const background = {
-  primary: '#787878',
-  primary_alt: '#787878',
+  primary: '#f2f4f7',
+  primary_alt: '#f2f4f7',
   primary_hover: palette.grayLight[50],
   primary_solid: palette.grayLight[950],
 

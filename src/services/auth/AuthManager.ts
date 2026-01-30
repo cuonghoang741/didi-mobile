@@ -13,6 +13,7 @@ import {
   AUTH_REDIRECT_PATH,
   LINE_CHANNEL_ID,
   PersistKeys,
+  SUPABASE_URL,
 } from '../config/auth.config';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -430,16 +431,20 @@ export class AuthManager {
     this.setState({ isLoading: true, errorMessage: null });
 
     try {
-      const redirectUri = this.buildRedirectUri();
+      // LINE callback URL must be HTTPS - use edge function as intermediary
+      // The edge function will redirect back to the app with the code
+      const lineCallbackUrl = `${SUPABASE_URL}/functions/v1/line-callback`;
+      const appRedirectUri = this.buildRedirectUri(); // didi://auth/callback
       const state = Math.random().toString(36).substring(7);
       const scope = 'profile openid';
 
-      // Construct logic URL manually
+      // Construct LINE auth URL with HTTPS callback
       const authUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${LINE_CHANNEL_ID}&redirect_uri=${encodeURIComponent(
-        redirectUri,
+        lineCallbackUrl,
       )}&state=${state}&scope=${encodeURIComponent(scope)}`;
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      // Open browser - LINE will redirect to edge function, which redirects to app
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, appRedirectUri);
 
       if (result.type !== 'success' || !result.url) {
         console.log(`[AuthManager] LINE login aborted with result type: ${result.type}`);
@@ -453,11 +458,11 @@ export class AuthManager {
         throw new Error('No authorization code found');
       }
 
-      // Call Supabase Edge Function to exchange code
+      // Call Supabase Edge Function to exchange code for session
       const { data, error: fnError } = await supabase.functions.invoke('line-login', {
         body: {
           code: authCode,
-          redirectUri: redirectUri,
+          redirectUri: lineCallbackUrl, // Must match what was sent to LINE
         },
       });
 
