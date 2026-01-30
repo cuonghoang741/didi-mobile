@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   FlatList,
   useWindowDimensions,
+  Animated,
 } from 'react-native';
 import RenderHtml from 'react-native-render-html';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -44,6 +45,28 @@ const ProductDetailScreen = () => {
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const imageListRef = useRef<FlatList>(null);
+
+  // Toast animation state
+  const [showToast, setShowToast] = useState(false);
+  const toastAnimation = useRef(new Animated.Value(-100)).current;
+
+  // Show toast animation
+  const showAddToCartToast = useCallback(() => {
+    setShowToast(true);
+    Animated.sequence([
+      Animated.timing(toastAnimation, {
+        toValue: 60, // Position from top
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.delay(2000),
+      Animated.timing(toastAnimation, {
+        toValue: -100,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setShowToast(false));
+  }, [toastAnimation]);
 
   // ... (keep useEffect and handlers)
 
@@ -86,7 +109,7 @@ const ProductDetailScreen = () => {
   const handleAddToCart = () => {
     if (!product) return;
     addItem(product, selectedVariant, quantity);
-    // Show toast or feedback
+    showAddToCartToast();
   };
 
   const handleBuyNow = () => {
@@ -97,28 +120,31 @@ const ProductDetailScreen = () => {
 
   const getCurrentPrice = (): number => {
     if (selectedVariant) {
-      return selectedVariant.sale_price || selectedVariant.price;
+      return selectedVariant.price;
     }
-    return product?.price || 0;
+    return product?.sale_price || product?.base_price || 0;
   };
 
   const getOriginalPrice = (): number | null => {
-    if (selectedVariant?.sale_price) {
-      return selectedVariant.price;
+    if (selectedVariant) {
+      // Variant only has price, no original distinction
+      return null;
     }
-    return product?.compare_at_price || null;
+    // If product has sale_price, base_price is the original
+    if (product?.sale_price && product?.base_price && product.sale_price < product.base_price) {
+      return product.base_price;
+    }
+    return null;
   };
 
   const currentPriceFormatted = formatPrice(getCurrentPrice());
   const originalPrice = getOriginalPrice();
   const originalPriceFormatted = originalPrice ? formatPrice(originalPrice) : null;
 
-  const images: string[] = product?.images
-    ? ((Array.isArray(product.images) ? product.images : [product.image_url]).filter(
-      Boolean,
-    ) as string[])
-    : product?.image_url
-      ? [product.image_url]
+  const images: string[] = product?.image_urls
+    ? (product.image_urls.filter(Boolean) as string[])
+    : product?.thumbnail_url
+      ? [product.thumbnail_url]
       : [];
 
   if (loading) {
@@ -157,6 +183,24 @@ const ProductDetailScreen = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Add to Cart Toast */}
+      {showToast && (
+        <Animated.View
+          style={[
+            styles.toast,
+            {
+              transform: [{ translateY: toastAnimation }],
+            },
+          ]}
+        >
+          <View style={styles.toastContent}>
+            <Feather name='check-circle' size={20} color='#10B981' />
+            <Typography variant='text' size='sm' weight='medium' style={styles.toastText}>
+              {t('product.addedToCart') || 'Đã thêm vào giỏ hàng!'}
+            </Typography>
+          </View>
+        </Animated.View>
+      )}
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
@@ -250,31 +294,38 @@ const ProductDetailScreen = () => {
               </Typography>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.variantsRow}>
-                  {product.variants.map((variant) => (
-                    <Pressable
-                      key={variant.id}
-                      style={[
-                        styles.variantChip,
-                        selectedVariant?.id === variant.id && styles.variantChipActive,
-                      ]}
-                      onPress={() => setSelectedVariant(variant)}
-                    >
-                      {variant.color_code && (
-                        <View style={[styles.colorDot, { backgroundColor: variant.color_code }]} />
-                      )}
-                      <Typography
-                        variant='text'
-                        size='sm'
-                        weight={selectedVariant?.id === variant.id ? 'semiBold' : 'regular'}
+                  {product.variants.map((variant: ProductVariant) => {
+                    // Parse options JSON
+                    const options = typeof variant.options === 'object' && variant.options !== null
+                      ? (variant.options as { color_code?: string; name?: string; color?: string; storage?: string })
+                      : {};
+
+                    return (
+                      <Pressable
+                        key={variant.id}
                         style={[
-                          styles.variantText,
-                          selectedVariant?.id === variant.id && styles.variantTextActive,
+                          styles.variantChip,
+                          selectedVariant?.id === variant.id && styles.variantChipActive,
                         ]}
+                        onPress={() => setSelectedVariant(variant)}
                       >
-                        {variant.name || `${variant.color || ''} ${variant.storage || ''}`.trim()}
-                      </Typography>
-                    </Pressable>
-                  ))}
+                        {options.color_code && (
+                          <View style={[styles.colorDot, { backgroundColor: options.color_code }]} />
+                        )}
+                        <Typography
+                          variant='text'
+                          size='sm'
+                          weight={selectedVariant?.id === variant.id ? 'semiBold' : 'regular'}
+                          style={[
+                            styles.variantText,
+                            selectedVariant?.id === variant.id && styles.variantTextActive,
+                          ]}
+                        >
+                          {options.name || `${options.color || ''} ${options.storage || ''}`.trim() || variant.sku || 'Variant'}
+                        </Typography>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               </ScrollView>
             </View>
@@ -603,6 +654,31 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     buyNowText: {
       color: '#FFFFFF',
+    },
+    toast: {
+      position: 'absolute',
+      top: 0,
+      left: 16,
+      right: 16,
+      zIndex: 1000,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    toastContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    toastText: {
+      color: theme.colors.text.primary,
+      flex: 1,
     },
   });
 

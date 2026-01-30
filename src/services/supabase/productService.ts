@@ -158,7 +158,7 @@ export const fetchRelatedProducts = async (
     query = query.eq('category_id', categoryId);
   }
 
-  const { data, error } = await query.order('sort_order', { ascending: true });
+  const { data, error } = await query.order('created_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching related products:', error);

@@ -908,6 +908,13 @@ export type MultiLanguageData = {
 };
 
 export type ProductDetail = Product & {
-  product_variants: ProductVariant[];
-  product_reviews: ProductReview[];
+  product_variants?: ProductVariant[];
+  product_reviews?: ProductReview[];
+  // Computed fields from fetchProductDetail
+  variants: ProductVariant[];
+  reviews: (ProductReview & { user?: User })[];
+  avg_rating: number;
+  review_count: number;
+  category_ids: string[];
+  related_ids: string[];
 };
