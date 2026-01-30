@@ -50,6 +50,26 @@ const ProductDetailScreen = () => {
   const [showToast, setShowToast] = useState(false);
   const toastAnimation = useRef(new Animated.Value(-100)).current;
 
+  // Button press animation
+  const addToCartScale = useRef(new Animated.Value(1)).current;
+
+  // Button press animation handlers
+  const handlePressIn = useCallback(() => {
+    Animated.spring(addToCartScale, {
+      toValue: 0.95,
+      useNativeDriver: true,
+    }).start();
+  }, [addToCartScale]);
+
+  const handlePressOut = useCallback(() => {
+    Animated.spring(addToCartScale, {
+      toValue: 1,
+      friction: 3,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  }, [addToCartScale]);
+
   // Show toast animation
   const showAddToCartToast = useCallback(() => {
     setShowToast(true);
@@ -101,6 +121,17 @@ const ProductDetailScreen = () => {
       }
 
       setLoading(false);
+
+      // Debug logging
+      if (productData) {
+        console.log('[ProductDetail] Loaded:', {
+          name: productData.name,
+          image_urls: productData.image_urls,
+          thumbnail_url: productData.thumbnail_url,
+          variants: productData.variants?.length || 0,
+          variants_data: productData.variants,
+        });
+      }
     };
 
     loadProduct();
@@ -141,11 +172,25 @@ const ProductDetailScreen = () => {
   const originalPrice = getOriginalPrice();
   const originalPriceFormatted = originalPrice ? formatPrice(originalPrice) : null;
 
-  const images: string[] = product?.image_urls
-    ? (product.image_urls.filter(Boolean) as string[])
-    : product?.thumbnail_url
-      ? [product.thumbnail_url]
-      : [];
+  // Build images array - handle various data shapes
+  const images: string[] = React.useMemo(() => {
+    const result: string[] = [];
+
+    // Try image_urls first (array)
+    if (product?.image_urls && Array.isArray(product.image_urls)) {
+      result.push(...product.image_urls.filter(Boolean) as string[]);
+    }
+
+    // Fall back to thumbnail_url if no images
+    if (result.length === 0 && product?.thumbnail_url) {
+      result.push(product.thumbnail_url);
+    }
+
+    // Debug
+    console.log('[ProductDetail] Images:', result);
+
+    return result;
+  }, [product]);
 
   if (loading) {
     return (
@@ -438,12 +483,19 @@ const ProductDetailScreen = () => {
 
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
-        <Pressable style={styles.addToCartButton} onPress={handleAddToCart}>
-          <Feather name='shopping-cart' size={20} color={theme.colors.text.brand_primary} />
-          <Typography variant='text' size='md' weight='semiBold' style={styles.addToCartText}>
-            {t('product.addToCart')}
-          </Typography>
-        </Pressable>
+        <Animated.View style={{ flex: 1, transform: [{ scale: addToCartScale }] }}>
+          <Pressable
+            style={styles.addToCartButton}
+            onPress={handleAddToCart}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+          >
+            <Feather name='shopping-cart' size={20} color={theme.colors.text.brand_primary} />
+            <Typography variant='text' size='md' weight='semiBold' style={styles.addToCartText}>
+              {t('product.addToCart')}
+            </Typography>
+          </Pressable>
+        </Animated.View>
         <Pressable style={styles.buyNowButton} onPress={handleBuyNow}>
           <LinearGradient
             colors={['#5B7CFF', '#3D4DF4']}
@@ -630,7 +682,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: 12,
     },
     addToCartButton: {
-      flex: 1,
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
