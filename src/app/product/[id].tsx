@@ -17,7 +17,7 @@ import RenderHtml from 'react-native-render-html';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { Typography, ProductCard, ProductReviews } from '@/components';
+import { Typography, ProductCard, ProductReviews, CartIcon } from '@/components';
 import { useTheme, useLanguage, useCart } from '@/contexts';
 import { fetchProductDetail, fetchRelatedProducts, fetchProductsByIds } from '@/services/supabase';
 import type { ProductDetail, ProductVariant, Product } from '@/types/database.types';
@@ -251,9 +251,7 @@ const ProductDetailScreen = () => {
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Feather name='arrow-left' size={24} color={theme.colors.text.primary} />
         </Pressable>
-        <Pressable onPress={() => router.push('/cart')} style={styles.cartButton}>
-          <Feather name='shopping-cart' size={24} color={theme.colors.text.primary} />
-        </Pressable>
+        <CartIcon />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
