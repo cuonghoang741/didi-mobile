@@ -20,18 +20,24 @@ interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSalePrice }) => {
   const theme = useTheme();
   const styles = createStyles(theme);
-  const { formatPrice } = useCurrency(); // Import useCurrency
+  const { formatPrice } = useCurrency();
 
   const flashSaleProduct = product as ProductWithFlashSale;
-  const hasFlashSale = showFlashSalePrice && flashSaleProduct.flash_sale_price;
-  const displayPrice = hasFlashSale ? flashSaleProduct.flash_sale_price! : product.price;
-  const originalPrice = product.compare_at_price || (hasFlashSale ? product.price : null);
+  const hasFlashSale = showFlashSalePrice && !!flashSaleProduct.flash_sale_price;
 
-  const { jpy: displayJpy, vnd: displayVnd } = formatPrice(displayPrice);
+  // Use sale_price as the main price, fallback to base_price if sale_price is missing
+  const currentPrice = hasFlashSale
+    ? flashSaleProduct.flash_sale_price!
+    : (product.sale_price || product.base_price || 0);
+
+  // Use base_price as the original price
+  const originalPrice = product.base_price || (hasFlashSale ? product.sale_price : null);
+
+  const { jpy: displayJpy } = formatPrice(currentPrice);
   const originalPriceFormatted = originalPrice ? formatPrice(originalPrice) : null;
 
-  const discountPercent = originalPrice
-    ? Math.round(((originalPrice - displayPrice) / originalPrice) * 100)
+  const discountPercent = originalPrice && originalPrice > currentPrice
+    ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
     : 0;
 
   return (
@@ -41,12 +47,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSa
     >
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: product.image_url || 'https://via.placeholder.com/150' }}
+          source={{ uri: product.thumbnail_url || product.image_urls?.[0] || 'https://via.placeholder.com/150' }}
           style={styles.image}
           contentFit='cover'
           transition={200}
         />
-        {discountPercent > 0 && (
+        {discountPercent > 0 && !hasFlashSale && (
           <View style={styles.discountBadge}>
             <Typography variant='text' size='xs' weight='bold' style={styles.discountText}>
               -{discountPercent}%
@@ -78,24 +84,18 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSa
           {product.name}
         </Typography>
 
-        <View style={styles.priceContainer}>
-          <View>
-            <Typography variant='text' size='md' weight='bold' style={styles.price}>
-              {displayJpy}
-            </Typography>
-            <Typography
-              variant='text'
-              size='xs'
-              style={{ color: theme.colors.text.tertiary, marginTop: 2 }}
-            >
-              {displayVnd}
-            </Typography>
-          </View>
+        <View style={styles.priceWrapper}>
+          <Typography variant='text' size='md' weight='bold' style={styles.price}>
+            {displayJpy}
+          </Typography>
 
-          {originalPriceFormatted ? (
-            <View style={{ alignItems: 'flex-end' }}>
+          {(originalPriceFormatted && discountPercent > 0) ? (
+            <View style={styles.originalPriceContainer}>
               <Typography variant='text' size='xs' style={styles.originalPrice}>
                 {originalPriceFormatted.jpy}
+              </Typography>
+              <Typography variant='text' size='xs' weight='medium' style={styles.discountPercentText}>
+                -{discountPercent}%
               </Typography>
             </View>
           ) : null}
@@ -169,23 +169,30 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     productName: {
       color: theme.colors.text.primary,
       lineHeight: 18,
+      marginBottom: 8,
     },
-    priceContainer: {
+    priceWrapper: {
+      gap: 2,
+    },
+    price: {
+      color: theme.colors.text.error_primary,
+      fontSize: 16,
+    },
+    originalPriceContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      marginTop: 4,
-    },
-    price: {
-      color: theme.colors.text.brand_primary,
     },
     originalPrice: {
       color: theme.colors.text.tertiary,
       textDecorationLine: 'line-through',
     },
+    discountPercentText: {
+      color: theme.colors.text.error_primary,
+    },
     brand: {
       color: theme.colors.text.secondary,
-      marginTop: 2,
+      marginTop: 4,
     },
   });
 
