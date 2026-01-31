@@ -1,17 +1,19 @@
 import { Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Switch, Linking } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Switch, Linking, Alert, Modal, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Typography, Button, AuthProtect } from '@/components';
+import { Typography, Button } from '@/components';
 import { useTheme, useLanguage, useAuth } from '@/contexts';
+import { useSettings } from '@/hooks';
+import { Language, LANGUAGE } from '@/constants';
 
-// Social Logos
-const LineLogo = require('@/assets/logos/line.svg');
-const FacebookLogo = require('@/assets/logos/facebook.svg');
-const MessengerLogo = require('@/assets/logos/messenger.svg');
+// Social Logos - import as components with react-native-svg-transformer
+import LineLogo from '@/assets/logos/line.svg';
+import FacebookLogo from '@/assets/logos/facebook.svg';
+import MessengerLogo from '@/assets/logos/messenger.svg';
+import VoucherIcon from '@/assets/icons/voucher.svg';
 
 interface MenuItem {
   icon: React.ReactNode;
@@ -26,16 +28,38 @@ interface MenuItem {
 interface MenuSection {
   title: string;
   items: MenuItem[];
+  requiresAuth?: boolean;
 }
 
 const Profile = () => {
   const router = useRouter();
   const theme = useTheme();
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const { user, logout, isLoggedIn, getDisplayName, getEmail, getAvatarUrl } = useAuth();
+  const { branches, fanpageUrls, contactPhone, isLoading: isLoadingSettings } = useSettings();
   const styles = createStyles(theme);
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
+
+  // Language options
+  const languageOptions = [
+    { code: LANGUAGE.VI as Language, label: 'Tiếng Việt', flag: '🇻🇳' },
+    { code: LANGUAGE.EN as Language, label: 'English', flag: '🇬🇧' },
+    { code: LANGUAGE.JP as Language, label: '日本語', flag: '🇯🇵' },
+  ];
+
+  // Get current language label
+  const getCurrentLanguageLabel = () => {
+    const option = languageOptions.find(opt => opt.code === language);
+    return option ? `${option.flag} ${option.label}` : language;
+  };
+
+  // Handle language change
+  const handleLanguageChange = (newLanguage: Language) => {
+    setLanguage(newLanguage);
+    setLanguageModalVisible(false);
+  };
 
   // Get user initials for avatar
   const getInitials = (name: string) => {
@@ -46,18 +70,164 @@ const Profile = () => {
     return name.substring(0, 2).toUpperCase();
   };
 
-  const handleLogout = async () => {
-    await logout();
+  const handleLogout = () => {
+    Alert.alert(
+      t('profile.logoutTitle') || 'Đăng xuất',
+      t('profile.logoutMessage') || 'Bạn có chắc chắn muốn đăng xuất?',
+      [
+        { text: t('common.cancel') || 'Hủy', style: 'cancel' },
+        {
+          text: t('profile.logout') || 'Đăng xuất',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/signin');
+          },
+        },
+      ]
+    );
   };
 
   const handleOpenLink = (url: string) => {
     Linking.openURL(url);
   };
 
+  // Get branch address for display
+  const getBranchAddress = () => {
+    if (branches.length === 0) return t('profile.noBranch');
+    return branches[0].name;
+  };
+
+  // Handle branch press
+  const handleBranchPress = () => {
+    if (branches.length === 0) return;
+    const branch = branches[0];
+    // Open Google Maps with the address
+    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(branch.address)}`;
+    Linking.openURL(mapUrl);
+  };
+
+  // Get Facebook fanpage URL
+  const getFacebookUrl = () => {
+    const facebookPage = fanpageUrls.find(f => f.platform === 'facebook');
+    return facebookPage?.url || 'https://facebook.com';
+  };
+
+  // Get Messenger URL from Facebook URL
+  const getMessengerUrl = () => {
+    // First check if there's a direct messenger URL in settings
+    const messengerPage = fanpageUrls.find(f => f.platform === 'messenger');
+    if (messengerPage?.url) {
+      return messengerPage.url;
+    }
+
+    // Otherwise, derive from Facebook URL
+    const facebookUrl = getFacebookUrl();
+
+    try {
+      // Handle profile.php?id=xxx format
+      if (facebookUrl.includes('profile.php')) {
+        const urlObj = new URL(facebookUrl);
+        const id = urlObj.searchParams.get('id');
+        if (id) {
+          return `https://m.me/${id}`;
+        }
+      }
+
+      // Handle facebook.com/xxx or facebook.com/pagename format
+      const urlObj = new URL(facebookUrl);
+      const pathname = urlObj.pathname;
+      // Remove leading slash and get the page id/name
+      const pageId = pathname.replace(/^\//, '').split('/')[0];
+      if (pageId) {
+        return `https://m.me/${pageId}`;
+      }
+    } catch (error) {
+      console.warn('Error parsing Facebook URL:', error);
+    }
+
+    return 'https://m.me/';
+  };
+
+  // Get social platform menu items dynamically
+  const getSocialMenuItems = (): MenuItem[] => {
+    const items: MenuItem[] = [];
+
+    // Check each platform and add if URL exists
+    fanpageUrls.forEach(({ platform, url }) => {
+      if (!url) return;
+
+      switch (platform) {
+        case 'facebook':
+          items.push({
+            icon: <FacebookLogo width={20} height={20} />,
+            label: t('profile.visitFacebook'),
+            onPress: () => handleOpenLink(url),
+          });
+          // Also add Messenger if Facebook exists
+          items.push({
+            icon: <MessengerLogo width={20} height={20} />,
+            label: t('profile.chatMessenger'),
+            onPress: () => handleOpenLink(getMessengerUrl()),
+          });
+          break;
+        case 'messenger':
+          // Already added via Facebook, skip if separate
+          break;
+        case 'line':
+          items.push({
+            icon: <LineLogo width={20} height={20} />,
+            label: t('profile.chatLine'),
+            onPress: () => handleOpenLink(url),
+          });
+          break;
+        case 'tiktok':
+          items.push({
+            icon: <Feather name='video' size={20} color={theme.colors.text.secondary} />,
+            label: 'TikTok',
+            onPress: () => handleOpenLink(url),
+          });
+          break;
+        case 'instagram':
+          items.push({
+            icon: <Feather name='instagram' size={20} color={theme.colors.text.secondary} />,
+            label: 'Instagram',
+            onPress: () => handleOpenLink(url),
+          });
+          break;
+        case 'zalo':
+          items.push({
+            icon: <Feather name='message-circle' size={20} color={theme.colors.text.secondary} />,
+            label: 'Zalo OA',
+            onPress: () => handleOpenLink(url),
+          });
+          break;
+        case 'youtube':
+          items.push({
+            icon: <Feather name='youtube' size={20} color={theme.colors.text.secondary} />,
+            label: 'YouTube',
+            onPress: () => handleOpenLink(url),
+          });
+          break;
+        default:
+          // For other platforms
+          items.push({
+            icon: <Feather name='link' size={20} color={theme.colors.text.secondary} />,
+            label: platform.charAt(0).toUpperCase() + platform.slice(1),
+            onPress: () => handleOpenLink(url),
+          });
+          break;
+      }
+    });
+
+    return items;
+  };
+
   // Menu sections configuration
   const menuSections: MenuSection[] = [
     {
       title: t('profile.account'),
+      requiresAuth: true,
       items: [
         {
           icon: <Feather name='map-pin' size={20} color={theme.colors.text.secondary} />,
@@ -65,9 +235,9 @@ const Profile = () => {
           onPress: () => router.push('/addresses' as any),
         },
         {
-          icon: <Feather name='gift' size={20} color={theme.colors.text.secondary} />,
+          icon: <VoucherIcon width={20} height={20} color={theme.colors.text.secondary} />,
           label: t('profile.voucherWallet'),
-          onPress: () => console.log('Voucher wallet'),
+          onPress: () => router.push('/vouchers' as any),
         },
         {
           icon: <Feather name='file-text' size={20} color={theme.colors.text.secondary} />,
@@ -89,7 +259,8 @@ const Profile = () => {
         {
           icon: <Feather name='globe' size={20} color={theme.colors.text.secondary} />,
           label: t('profile.language'),
-          onPress: () => console.log('Language'),
+          rightText: getCurrentLanguageLabel(),
+          onPress: () => setLanguageModalVisible(true),
         },
       ],
     },
@@ -99,29 +270,18 @@ const Profile = () => {
         {
           icon: <Feather name='map-pin' size={20} color={theme.colors.text.secondary} />,
           label: t('profile.branchAddress'),
-          onPress: () => console.log('Branch address'),
+          rightText: getBranchAddress(),
+          onPress: handleBranchPress,
         },
-        {
+        // Only show hotline if phone exists
+        ...(contactPhone ? [{
           icon: <Feather name='phone' size={20} color={theme.colors.text.secondary} />,
           label: t('profile.hotline'),
-          rightText: '1900 3147',
-          onPress: () => handleOpenLink('tel:19003147'),
-        },
-        {
-          icon: <Image source={LineLogo} style={{ width: 20, height: 20 }} contentFit='contain' />,
-          label: t('profile.chatLine'),
-          onPress: () => console.log('LINE'),
-        },
-        {
-          icon: <Image source={MessengerLogo} style={{ width: 20, height: 20 }} contentFit='contain' />,
-          label: t('profile.chatMessenger'),
-          onPress: () => console.log('Messenger'),
-        },
-        {
-          icon: <Image source={FacebookLogo} style={{ width: 20, height: 20 }} contentFit='contain' />,
-          label: t('profile.visitFacebook'),
-          onPress: () => handleOpenLink('https://facebook.com'),
-        },
+          rightText: contactPhone,
+          onPress: () => handleOpenLink(`tel:${contactPhone.replace(/\s/g, '')}`),
+        }] : []),
+        // Dynamic social platform items
+        ...getSocialMenuItems(),
       ],
     },
     {
@@ -130,17 +290,19 @@ const Profile = () => {
         {
           icon: <Feather name='edit-3' size={20} color={theme.colors.text.secondary} />,
           label: t('profile.feedback'),
-          onPress: () => console.log('Feedback'),
+          onPress: () => Linking.openURL('mailto:pdmmobile2020@gmail.com?subject=Góp ý từ ứng dụng DiDi'),
         },
         {
           icon: <Feather name='file' size={20} color={theme.colors.text.secondary} />,
           label: t('profile.termsPolicy'),
-          onPress: () => console.log('Terms'),
+          onPress: () => router.push('/terms'),
         },
         {
           icon: <Feather name='help-circle' size={20} color={theme.colors.text.secondary} />,
           label: t('profile.helpCenter'),
-          onPress: () => console.log('Help'),
+          onPress: () => contactPhone
+            ? Linking.openURL(`tel:${contactPhone.replace(/\s/g, '')}`)
+            : Alert.alert('Thông báo', 'Hotline chưa được cập nhật'),
         },
       ],
     },
@@ -182,34 +344,53 @@ const Profile = () => {
     </Pressable>
   );
 
-  return (
-    <AuthProtect>
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* User Info Section */}
-          <Pressable style={styles.userSection} onPress={() => router.push('/edit-profile' as any)}>
-            <View style={styles.avatar}>
-              <Typography variant='display' size='sm' weight='bold' style={styles.avatarText}>
-                {getInitials(getDisplayName())}
-              </Typography>
-            </View>
-            <View style={styles.userInfo}>
-              <Typography variant='text' size='lg' weight='bold'>
-                {getDisplayName()}
-              </Typography>
-              <Typography variant='text' size='sm' style={styles.email}>
-                {getEmail() || getDisplayName()}
-              </Typography>
-            </View>
-            <Feather name='edit-2' size={20} color={theme.colors.text.tertiary} />
-          </Pressable>
+  // Render login card when not logged in
+  const renderLoginCard = () => (
+    <Pressable style={styles.userSection} onPress={() => router.push('/signin' as any)}>
+      <View style={[styles.avatar, { backgroundColor: theme.colors.background.tertiary }]}>
+        <Feather name='user' size={28} color={theme.colors.text.tertiary} />
+      </View>
+      <View style={styles.userInfo}>
+        <Typography variant='text' size='lg' weight='bold'>
+          {t('profile.loginNow')}
+        </Typography>
+        <Typography variant='text' size='sm' style={styles.email}>
+          {t('profile.loginDescription')}
+        </Typography>
+      </View>
+      <Feather name='chevron-right' size={20} color={theme.colors.text.tertiary} />
+    </Pressable>
+  );
 
-          {/* Stats Cards */}
+  // Render user card when logged in
+  const renderUserCard = () => (
+    <Pressable style={styles.userSection} onPress={() => router.push('/edit-profile' as any)}>
+      <Image source={{ uri: getAvatarUrl() }} style={styles.avatarImage} />
+      <View style={styles.userInfo}>
+        <Typography variant='text' size='lg' weight='bold'>
+          {getDisplayName()}
+        </Typography>
+        <Typography variant='text' size='sm' style={styles.email}>
+          {getEmail() || getDisplayName()}
+        </Typography>
+      </View>
+      <Feather name='edit-2' size={20} color={theme.colors.text.tertiary} />
+    </Pressable>
+  );
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* User Info Section */}
+        {isLoggedIn ? renderUserCard() : renderLoginCard()}
+
+        {/* Stats Cards - Only show when logged in */}
+        {isLoggedIn && (
           <View style={styles.statsContainer}>
-            <Pressable style={styles.statsCard}>
+            <Pressable style={styles.statsCard} onPress={() => router.push('/membership' as any)}>
               <View style={styles.statsCardLeft}>
                 <View style={[styles.statsIcon, { backgroundColor: '#FFF4E5' }]}>
                   <View
@@ -242,7 +423,7 @@ const Profile = () => {
               <Feather name='chevron-right' size={18} color={theme.colors.text.tertiary} />
             </Pressable>
 
-            <Pressable style={styles.statsCard}>
+            <Pressable style={styles.statsCard} onPress={() => router.push('/membership' as any)}>
               <View style={styles.statsCardLeft}>
                 <View style={[styles.statsIcon, { backgroundColor: '#E5F6FF' }]}>
                   <Feather name='award' size={18} color='#007AFF' />
@@ -259,9 +440,12 @@ const Profile = () => {
               <Feather name='chevron-right' size={18} color={theme.colors.text.tertiary} />
             </Pressable>
           </View>
+        )}
 
-          {/* Menu Sections */}
-          {menuSections.map((section, sectionIndex) => (
+        {/* Menu Sections */}
+        {menuSections
+          .filter((section) => !section.requiresAuth || isLoggedIn)
+          .map((section, sectionIndex) => (
             <View key={sectionIndex} style={styles.menuSection}>
               <Typography variant='text' size='sm' style={styles.sectionTitle}>
                 {section.title}
@@ -274,18 +458,72 @@ const Profile = () => {
             </View>
           ))}
 
-          {/* Logout Button */}
+        {/* Logout Button - Only show when logged in */}
+        {isLoggedIn && (
           <Pressable style={styles.logoutButton} onPress={handleLogout}>
             <Feather name='log-out' size={20} color='#EF4444' />
             <Typography variant='text' size='md' weight='medium' style={styles.logoutText}>
               {t('profile.logout')}
             </Typography>
           </Pressable>
+        )}
 
-          <View style={{ height: 100 }} />
-        </ScrollView>
-      </SafeAreaView>
-    </AuthProtect>
+        <View style={{ height: 100 }} />
+      </ScrollView>
+
+      {/* Language Selection Modal */}
+      <Modal
+        visible={languageModalVisible}
+        transparent
+        animationType='fade'
+        onRequestClose={() => setLanguageModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setLanguageModalVisible(false)}
+        >
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <Typography variant='text' size='lg' weight='bold'>
+                {t('profile.language')}
+              </Typography>
+              <Pressable onPress={() => setLanguageModalVisible(false)}>
+                <Feather name='x' size={24} color={theme.colors.text.primary} />
+              </Pressable>
+            </View>
+
+            <View style={styles.languageOptions}>
+              {languageOptions.map((option) => (
+                <Pressable
+                  key={option.code}
+                  style={[
+                    styles.languageOption,
+                    language === option.code && styles.languageOptionSelected,
+                  ]}
+                  onPress={() => handleLanguageChange(option.code)}
+                >
+                  <View style={styles.languageOptionLeft}>
+                    <Typography variant='text' size='xl' style={styles.languageFlag}>
+                      {option.flag}
+                    </Typography>
+                    <Typography
+                      variant='text'
+                      size='md'
+                      weight={language === option.code ? 'bold' : 'regular'}
+                    >
+                      {option.label}
+                    </Typography>
+                  </View>
+                  {language === option.code && (
+                    <Feather name='check' size={20} color={theme.colors.text.brand_primary} />
+                  )}
+                </Pressable>
+              ))}
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </SafeAreaView>
   );
 };
 
@@ -314,6 +552,11 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       backgroundColor: '#4A90D9',
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    avatarImage: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
     },
     avatarText: {
       color: '#FFFFFF',
@@ -410,6 +653,51 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     logoutText: {
       color: '#EF4444',
+    },
+    // Modal styles
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    modalContent: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: 16,
+      width: '100%',
+      maxWidth: 340,
+      overflow: 'hidden',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border.tertiary,
+    },
+    languageOptions: {
+      paddingVertical: 8,
+    },
+    languageOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+    },
+    languageOptionSelected: {
+      backgroundColor: theme.colors.background.secondary,
+    },
+    languageOptionLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    languageFlag: {
+      fontSize: 24,
     },
   });
 

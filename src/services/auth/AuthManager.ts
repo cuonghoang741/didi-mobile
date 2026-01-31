@@ -15,6 +15,7 @@ import {
   PersistKeys,
   SUPABASE_URL,
 } from '../config/auth.config';
+import { oneSignalService } from '../onesignal/OneSignalService';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -197,6 +198,9 @@ export class AuthManager {
     this.setState({ isLoading: true, errorMessage: null });
 
     try {
+      // Unregister user from OneSignal (remove tags and external ID)
+      await oneSignalService.unregisterUser();
+
       await supabase.auth.signOut();
       await AsyncStorage.multiRemove([
         PersistKeys.accessToken,
@@ -424,6 +428,10 @@ export class AuthManager {
 
       if (data.session && data.user) {
         console.log('[AuthManager] OTP verified successfully, user:', data.user.id);
+
+        // Register user with OneSignal (set external ID and tags)
+        await oneSignalService.registerUser(data.user.id, 'customer');
+
         this.setState({
           session: data.session,
           user: data.user,
@@ -494,6 +502,11 @@ export class AuthManager {
         throw error;
       }
 
+      // Register user with OneSignal after Apple sign in
+      if (data.user) {
+        await oneSignalService.registerUser(data.user.id, 'customer');
+      }
+
       this.setState({
         session: data.session ?? null,
         user: data.user ?? null,
@@ -521,6 +534,7 @@ export class AuthManager {
 
     try {
       const redirectUri = this.buildRedirectUri();
+      console.log('[AuthManager] Google OAuth redirect URI:', redirectUri);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -551,6 +565,11 @@ export class AuthManager {
           throw exchangeError;
         }
 
+        // Register user with OneSignal after Google sign in (code flow)
+        if (sessionData.user) {
+          await oneSignalService.registerUser(sessionData.user.id, 'customer');
+        }
+
         this.setState({
           session: sessionData.session ?? null,
           user: sessionData.user ?? null,
@@ -566,6 +585,11 @@ export class AuthManager {
 
         if (setSessionError) {
           throw setSessionError;
+        }
+
+        // Register user with OneSignal after Google sign in (token flow)
+        if (sessionData.user) {
+          await oneSignalService.registerUser(sessionData.user.id, 'customer');
         }
 
         this.setState({
@@ -648,6 +672,11 @@ export class AuthManager {
 
       if (setSessionError) throw setSessionError;
 
+      // Register user with OneSignal after LINE sign in
+      if (user) {
+        await oneSignalService.registerUser(user.id, 'customer');
+      }
+
       // Success
       this.setState({
         session: { ...data.session, user }, // Ensure structure matches
@@ -717,10 +746,15 @@ export class AuthManager {
   }
 
   /**
-   * Get user avatar URL
+   * Get user avatar URL - returns DiceBear avatar as default
    */
-  getAvatarUrl(): string | null {
-    return this._state.user?.user_metadata?.avatar_url || null;
+  getAvatarUrl(): string {
+    const avatarUrl = this._state.user?.user_metadata?.avatar_url;
+    if (avatarUrl) return avatarUrl;
+
+    // Generate default avatar using DiceBear API with user's display name as seed
+    const seed = encodeURIComponent(this.getDisplayName());
+    return `https://api.dicebear.com/7.x/avataaars/png?seed=${seed}`;
   }
 }
 

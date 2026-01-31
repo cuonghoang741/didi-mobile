@@ -263,3 +263,88 @@ export const fetchBrands = async (): Promise<string[]> => {
   const brands = Array.from(new Set(data?.map((item) => item.brand).filter(Boolean))) as string[];
   return brands;
 };
+
+/**
+ * Submit product review
+ */
+export interface SubmitReviewParams {
+  productId: string;
+  userId: string;
+  orderId: string;
+  rating: number;
+  comment: string | null;
+}
+
+export const submitProductReview = async (params: SubmitReviewParams): Promise<boolean> => {
+  const { productId, userId, orderId, rating, comment } = params;
+
+  // Check if user already reviewed this product for this order
+  const { data: existing } = await supabase
+    .from('product_reviews')
+    .select('id')
+    .eq('product_id', productId)
+    .eq('user_id', userId)
+    .eq('order_id', orderId)
+    .is('deleted_at', null)
+    .single();
+
+  if (existing) {
+    // Update existing review
+    const { error } = await supabase
+      .from('product_reviews')
+      .update({
+        rating,
+        content: comment,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id);
+
+    if (error) {
+      console.error('Error updating review:', error);
+      throw error;
+    }
+  } else {
+    // Create new review
+    const { error } = await supabase.from('product_reviews').insert({
+      product_id: productId,
+      user_id: userId,
+      order_id: orderId,
+      rating,
+      content: comment,
+      is_verified_purchase: true,
+    });
+
+    if (error) {
+      console.error('Error creating review:', error);
+      throw error;
+    }
+  }
+
+  return true;
+};
+
+/**
+ * Check if user has reviewed products in an order
+ */
+export const checkOrderReviewed = async (
+  orderId: string,
+  userId: string,
+): Promise<{ reviewed: boolean; reviewedProductIds: string[] }> => {
+  const { data, error } = await supabase
+    .from('product_reviews')
+    .select('product_id')
+    .eq('order_id', orderId)
+    .eq('user_id', userId)
+    .is('deleted_at', null);
+
+  if (error) {
+    console.error('Error checking reviews:', error);
+    return { reviewed: false, reviewedProductIds: [] };
+  }
+
+  const reviewedProductIds = data?.map((r) => r.product_id).filter(Boolean) as string[];
+  return {
+    reviewed: reviewedProductIds.length > 0,
+    reviewedProductIds,
+  };
+};

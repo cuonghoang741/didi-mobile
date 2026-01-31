@@ -1,10 +1,16 @@
 import { Image } from 'expo-image';
 import React from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, Dimensions } from 'react-native';
 
 import { Typography } from '@/components';
 import { useTheme } from '@/contexts';
 import type { Category } from '@/types/database.types';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CONTAINER_PADDING = 16;
+const GAP = 12;
+// Calculate item width for 4 columns per row
+const ITEM_WIDTH = (SCREEN_WIDTH - CONTAINER_PADDING * 2 - GAP * 3) / 4;
 
 interface CategoryListProps {
   categories: Category[];
@@ -17,11 +23,7 @@ const CategoryList: React.FC<CategoryListProps> = ({ categories, onCategoryPress
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.contentContainer}
-      >
+      <View style={styles.gridContainer}>
         {categories.map((category) => (
           <Pressable
             key={category.id}
@@ -54,7 +56,7 @@ const CategoryList: React.FC<CategoryListProps> = ({ categories, onCategoryPress
             </Typography>
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
     </View>
   );
 };
@@ -63,19 +65,21 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     container: {
       marginBottom: 24,
+      paddingHorizontal: CONTAINER_PADDING,
     },
-    contentContainer: {
-      paddingHorizontal: 16,
-      gap: 16,
+    gridContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: GAP,
     },
     categoryItem: {
       alignItems: 'center',
-      width: 70,
+      width: ITEM_WIDTH,
     },
     imageContainer: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
+      width: ITEM_WIDTH - 10,
+      height: ITEM_WIDTH - 10,
+      borderRadius: (ITEM_WIDTH - 10) / 2,
       backgroundColor: theme.colors.background.secondary,
       marginBottom: 8,
       overflow: 'hidden',

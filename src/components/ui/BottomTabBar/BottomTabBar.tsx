@@ -83,7 +83,7 @@ const BottomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
           style={[
             styles.indicator,
             {
-              backgroundColor: theme.colors.foreground.brand_primary,
+              backgroundColor: theme.colors.text.primary,
               left: indicatorAnim.interpolate({
                 inputRange: tabPositions.map((_, i) => i),
                 outputRange: tabPositions,

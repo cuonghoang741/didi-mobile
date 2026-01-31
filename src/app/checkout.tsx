@@ -11,16 +11,22 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Modal,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
+import * as Clipboard from 'expo-clipboard';
+import { Image } from 'expo-image';
 
 import { Typography } from '@/components';
 import { useTheme, useLanguage, useCart, useAuth } from '@/contexts';
 import { createOrder } from '@/services/supabase';
 import type { PaymentMethod, CheckoutForm } from '@/types/database.types';
 
-import { useCurrency } from '@/hooks';
+import { useCurrency, useSettings } from '@/hooks';
+
 
 const PAYMENT_METHODS: { id: PaymentMethod; icon: keyof typeof Feather.glyphMap }[] = [
   { id: 'at_store', icon: 'home' },
@@ -35,6 +41,7 @@ const CheckoutScreen = () => {
   const { items, getSubtotal, clearCart } = useCart();
   const { user } = useAuth();
   const { formatPrice } = useCurrency();
+  const { bankAccounts } = useSettings();
   const styles = createStyles(theme);
 
   const [loading, setLoading] = useState(false);
@@ -49,6 +56,12 @@ const CheckoutScreen = () => {
     shipping_note: '',
     payment_method: 'daibiki',
   });
+
+  // Payment proof states
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentProofImage, setPaymentProofImage] = useState<string | null>(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [pendingOrder, setPendingOrder] = useState<{ id: string; order_number: string } | null>(null);
 
   const subtotal = getSubtotal();
   const shipping = form.payment_method === 'at_store' ? 0 : 500; // 500 JPY shipping
@@ -131,11 +144,19 @@ const CheckoutScreen = () => {
         return;
       }
 
-      clearCart();
-      router.replace({
-        pathname: '/order-success',
-        params: { orderId: order.id, orderNumber: order.order_number },
-      });
+      // If bank transfer, show payment proof modal
+      if (form.payment_method === 'bank_transfer') {
+        setPendingOrder({ id: order.id, order_number: order.order_number });
+        clearCart();
+        setShowPaymentModal(true);
+      } else {
+        // For other payment methods, go directly to success
+        clearCart();
+        router.replace({
+          pathname: '/order-success',
+          params: { orderId: order.id, orderNumber: order.order_number },
+        });
+      }
     } catch (err) {
       console.error('Order error:', err);
       Alert.alert('Lỗi', 'Có lỗi xảy ra khi đặt hàng');
@@ -143,6 +164,94 @@ const CheckoutScreen = () => {
       setLoading(false);
     }
   };
+
+  // Copy bank account number to clipboard
+  const handleCopyAccount = async (accountNumber: string) => {
+    await Clipboard.setStringAsync(accountNumber);
+    Alert.alert(t('checkout.copied'), t('checkout.accountCopied'));
+  };
+
+  // Pick payment proof image
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setPaymentProofImage(result.assets[0].uri);
+    }
+  };
+
+  // Take photo of payment proof
+  const handleTakePhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(t('common.error'), t('addresses.errors.cameraPermissionDenied'));
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setPaymentProofImage(result.assets[0].uri);
+    }
+  };
+
+  // Confirm payment proof and go to success
+  const handleConfirmPayment = async () => {
+    if (!paymentProofImage) {
+      Alert.alert(t('common.error'), t('checkout.pleaseUploadProof'));
+      return;
+    }
+
+    if (!pendingOrder) return;
+
+    setUploadingProof(true);
+
+    try {
+      // TODO: Upload image to storage and update order with payment_proof_url
+      // For now, we'll just proceed to success
+
+      // Close modal and navigate to success
+      setShowPaymentModal(false);
+      router.replace({
+        pathname: '/order-success',
+        params: {
+          orderId: pendingOrder.id,
+          orderNumber: pendingOrder.order_number,
+          pendingPayment: 'true',
+        },
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert(t('common.error'), t('addresses.errors.uploadFailed'));
+    } finally {
+      setUploadingProof(false);
+    }
+  };
+
+  // Skip payment proof (can upload later)
+  const handleSkipPaymentProof = () => {
+    if (!pendingOrder) return;
+
+    setShowPaymentModal(false);
+    router.replace({
+      pathname: '/order-success',
+      params: {
+        orderId: pendingOrder.id,
+        orderNumber: pendingOrder.order_number,
+        pendingPayment: 'true',
+      },
+    });
+  };
+
 
   const getPaymentMethodLabel = (method: PaymentMethod): string => {
     switch (method) {
@@ -369,6 +478,55 @@ const CheckoutScreen = () => {
                 </View>
               </Pressable>
             ))}
+
+            {/* Bank Account Info - Show when bank_transfer selected */}
+            {form.payment_method === 'bank_transfer' && bankAccounts.length > 0 && (
+              <View style={styles.bankAccountsSection}>
+                <Typography variant='text' size='sm' weight='medium' style={styles.bankAccountsTitle}>
+                  {t('checkout.transferTo')}
+                </Typography>
+                {bankAccounts.map((account) => (
+                  <View key={account.id} style={styles.bankAccountCard}>
+                    <View style={styles.bankAccountHeader}>
+                      <Feather name='credit-card' size={20} color={theme.colors.text.brand_primary} />
+                      <Typography variant='text' size='md' weight='bold' style={{ marginLeft: 8 }}>
+                        {account.bank_name}
+                      </Typography>
+                    </View>
+                    {account.branch_name && (
+                      <Typography variant='text' size='sm' style={styles.bankBranch}>
+                        {account.branch_name}
+                      </Typography>
+                    )}
+                    <View style={styles.bankAccountRow}>
+                      <Typography variant='text' size='sm' style={styles.bankLabel}>
+                        {t('checkout.accountName')}
+                      </Typography>
+                      <Typography variant='text' size='sm' weight='medium'>
+                        {account.account_name}
+                      </Typography>
+                    </View>
+                    <View style={styles.bankAccountRow}>
+                      <Typography variant='text' size='sm' style={styles.bankLabel}>
+                        {t('checkout.accountNumber')}
+                      </Typography>
+                      <TouchableOpacity
+                        style={styles.copyButton}
+                        onPress={() => handleCopyAccount(account.account_number)}
+                      >
+                        <Typography variant='text' size='sm' weight='bold' style={styles.accountNumber}>
+                          {account.account_number}
+                        </Typography>
+                        <Feather name='copy' size={16} color={theme.colors.text.brand_primary} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+                <Typography variant='text' size='xs' style={styles.bankNote}>
+                  {t('checkout.bankTransferNote')}
+                </Typography>
+              </View>
+            )}
           </View>
 
           {/* Order Summary */}
@@ -479,6 +637,150 @@ const CheckoutScreen = () => {
           </LinearGradient>
         </Pressable>
       </View>
+
+      {/* Payment Proof Modal */}
+      <Modal
+        visible={showPaymentModal}
+        animationType='slide'
+        presentationStyle='pageSheet'
+        onRequestClose={() => { }}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Typography variant='text' size='lg' weight='bold'>
+              {t('checkout.paymentProof')}
+            </Typography>
+          </View>
+
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            {/* Bank Accounts in Modal */}
+            <View style={styles.modalSection}>
+              <Typography variant='text' size='md' weight='medium' style={{ marginBottom: 12 }}>
+                {t('checkout.transferTo')}
+              </Typography>
+              {bankAccounts.map((account) => (
+                <View key={account.id} style={styles.bankAccountCard}>
+                  <View style={styles.bankAccountHeader}>
+                    <Feather name='credit-card' size={20} color={theme.colors.text.brand_primary} />
+                    <Typography variant='text' size='md' weight='bold' style={{ marginLeft: 8 }}>
+                      {account.bank_name}
+                    </Typography>
+                  </View>
+                  {account.branch_name && (
+                    <Typography variant='text' size='sm' style={styles.bankBranch}>
+                      {account.branch_name}
+                    </Typography>
+                  )}
+                  <View style={styles.bankAccountRow}>
+                    <Typography variant='text' size='sm' style={styles.bankLabel}>
+                      {t('checkout.accountName')}
+                    </Typography>
+                    <Typography variant='text' size='sm' weight='medium'>
+                      {account.account_name}
+                    </Typography>
+                  </View>
+                  <View style={styles.bankAccountRow}>
+                    <Typography variant='text' size='sm' style={styles.bankLabel}>
+                      {t('checkout.accountNumber')}
+                    </Typography>
+                    <TouchableOpacity
+                      style={styles.copyButton}
+                      onPress={() => handleCopyAccount(account.account_number)}
+                    >
+                      <Typography variant='text' size='sm' weight='bold' style={styles.accountNumber}>
+                        {account.account_number}
+                      </Typography>
+                      <Feather name='copy' size={16} color={theme.colors.text.brand_primary} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* Transfer Amount */}
+            <View style={styles.modalSection}>
+              <Typography variant='text' size='md' weight='medium'>
+                {t('checkout.transferAmount')}
+              </Typography>
+              <Typography variant='text' size='xl' weight='bold' style={styles.transferAmount}>
+                {totalFormatted.jpy}
+              </Typography>
+              <Typography variant='text' size='sm' style={{ color: theme.colors.text.tertiary }}>
+                {totalFormatted.vnd}
+              </Typography>
+            </View>
+
+            {/* Upload Proof */}
+            <View style={styles.modalSection}>
+              <Typography variant='text' size='md' weight='medium' style={{ marginBottom: 12 }}>
+                {t('checkout.uploadProof')}
+              </Typography>
+
+              {paymentProofImage ? (
+                <View style={styles.proofImageContainer}>
+                  <Image
+                    source={{ uri: paymentProofImage }}
+                    style={styles.proofImage}
+                    contentFit='cover'
+                  />
+                  <Pressable
+                    style={styles.removeImageButton}
+                    onPress={() => setPaymentProofImage(null)}
+                  >
+                    <Feather name='x' size={20} color='#FFF' />
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.uploadButtons}>
+                  <Pressable style={styles.uploadButton} onPress={handlePickImage}>
+                    <Feather name='image' size={24} color={theme.colors.text.brand_primary} />
+                    <Typography variant='text' size='sm' weight='medium' style={{ marginTop: 8 }}>
+                      {t('addresses.form.chooseFromLibrary')}
+                    </Typography>
+                  </Pressable>
+                  <Pressable style={styles.uploadButton} onPress={handleTakePhoto}>
+                    <Feather name='camera' size={24} color={theme.colors.text.brand_primary} />
+                    <Typography variant='text' size='sm' weight='medium' style={{ marginTop: 8 }}>
+                      {t('addresses.form.takePhoto')}
+                    </Typography>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+
+            <View style={{ height: 100 }} />
+          </ScrollView>
+
+          {/* Modal Bottom Buttons */}
+          <View style={styles.modalBottomBar}>
+            <Pressable style={styles.skipButton} onPress={handleSkipPaymentProof}>
+              <Typography variant='text' size='md' weight='medium'>
+                {t('checkout.uploadLater')}
+              </Typography>
+            </Pressable>
+            <Pressable
+              style={[styles.confirmButton, uploadingProof && styles.orderButtonDisabled]}
+              onPress={handleConfirmPayment}
+              disabled={uploadingProof}
+            >
+              <LinearGradient
+                colors={['#5B7CFF', '#3D4DF4']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.confirmGradient}
+              >
+                {uploadingProof ? (
+                  <ActivityIndicator color='#FFF' />
+                ) : (
+                  <Typography variant='text' size='md' weight='bold' style={{ color: '#FFF' }}>
+                    {t('checkout.confirmPayment')}
+                  </Typography>
+                )}
+              </LinearGradient>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -648,6 +950,147 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     orderText: {
       color: '#FFFFFF',
+    },
+    // Bank Accounts Styles
+    bankAccountsSection: {
+      marginTop: 8,
+      padding: 16,
+      backgroundColor: '#FFF7ED',
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: '#FED7AA',
+    },
+    bankAccountsTitle: {
+      color: theme.colors.text.secondary,
+      marginBottom: 12,
+    },
+    bankAccountCard: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: 10,
+      padding: 14,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+    },
+    bankAccountHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    bankBranch: {
+      color: theme.colors.text.tertiary,
+      marginBottom: 8,
+    },
+    bankAccountRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 6,
+    },
+    bankLabel: {
+      color: theme.colors.text.tertiary,
+    },
+    copyButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    accountNumber: {
+      color: theme.colors.text.brand_primary,
+    },
+    bankNote: {
+      color: theme.colors.text.tertiary,
+      marginTop: 8,
+      fontStyle: 'italic',
+    },
+    // Modal Styles
+    modalContainer: {
+      flex: 1,
+      backgroundColor: theme.colors.background.primary,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: '#E5E7EB',
+    },
+    modalContent: {
+      flex: 1,
+      padding: 16,
+    },
+    modalSection: {
+      marginBottom: 24,
+    },
+    transferAmount: {
+      color: theme.colors.text.brand_primary,
+      marginTop: 4,
+    },
+    proofImageContainer: {
+      position: 'relative',
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    proofImage: {
+      width: '100%',
+      height: 200,
+      borderRadius: 12,
+    },
+    removeImageButton: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    uploadButtons: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    uploadButton: {
+      flex: 1,
+      height: 100,
+      backgroundColor: theme.colors.background.secondary,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: '#E5E7EB',
+      borderStyle: 'dashed',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalBottomBar: {
+      flexDirection: 'row',
+      gap: 12,
+      padding: 16,
+      paddingBottom: 32,
+      borderTopWidth: 1,
+      borderTopColor: '#E5E7EB',
+      backgroundColor: theme.colors.background.primary,
+    },
+    skipButton: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    confirmButton: {
+      flex: 1,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    confirmGradient: {
+      paddingVertical: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
   });
 

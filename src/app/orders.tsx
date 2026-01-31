@@ -14,9 +14,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Typography, Button, AuthProtect, Skeleton } from '@/components';
+import OrderReviewModal from '@/components/order/OrderReviewModal';
 import { useTheme, useLanguage, useAuth } from '@/contexts';
 import { fetchUserOrders } from '@/services/supabase/orderService';
 import { Order, OrderItem } from '@/types/database.types';
+
+const EmptyStateImage = require('@/assets/images/empty-state.png');
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
@@ -53,7 +56,7 @@ const OrderStatusTab = ({
 
 import { useCurrency } from '@/hooks';
 
-const OrderItemCard = ({ order, onPress }: { order: OrderWithItems; onPress: () => void }) => {
+const OrderItemCard = ({ order, onPress, onReview }: { order: OrderWithItems; onPress: () => void; onReview?: () => void }) => {
   const theme = useTheme();
   const { t } = useLanguage();
   const { formatPrice } = useCurrency(); // Hook usage
@@ -177,6 +180,11 @@ const OrderItemCard = ({ order, onPress }: { order: OrderWithItems; onPress: () 
               {t('order.action.cancel')}
             </Button>
           )}
+          {order.status === 'completed' && onReview && (
+            <Button size='sm' variant='solid' colorScheme='brand' onPress={onReview}>
+              {t('order.action.review')}
+            </Button>
+          )}
           <Button size='sm' variant='outline' colorScheme='gray' onPress={onPress}>
             {t('order.action.viewDetail')}
           </Button>
@@ -197,6 +205,18 @@ const OrdersScreen = () => {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null);
+
+  const handleOpenReview = (order: OrderWithItems) => {
+    setSelectedOrder(order);
+    setReviewModalVisible(true);
+  };
+
+  const handleCloseReview = () => {
+    setReviewModalVisible(false);
+    setSelectedOrder(null);
+  };
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -274,13 +294,17 @@ const OrdersScreen = () => {
             data={filteredOrders}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <OrderItemCard order={item} onPress={() => console.log('View detail', item.id)} />
+              <OrderItemCard
+                order={item}
+                onPress={() => router.push(`/order/${item.id}`)}
+                onReview={item.status === 'completed' ? () => handleOpenReview(item) : undefined}
+              />
             )}
             contentContainerStyle={styles.listContent}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Feather name='shopping-bag' size={64} color={theme.colors.text.tertiary} />
+                <Image source={EmptyStateImage} style={styles.emptyImage} resizeMode='contain' />
                 <Typography variant='text' size='md' style={styles.emptyText}>
                   {t('order.empty')}
                 </Typography>
@@ -295,6 +319,17 @@ const OrdersScreen = () => {
                 </Button>
               </View>
             }
+          />
+        )}
+
+        {/* Review Modal */}
+        {selectedOrder && (
+          <OrderReviewModal
+            visible={reviewModalVisible}
+            onClose={handleCloseReview}
+            orderId={selectedOrder.id}
+            items={selectedOrder.items}
+            onReviewSubmitted={fetchData}
           />
         )}
       </SafeAreaView>
@@ -416,6 +451,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 60,
+  },
+  emptyImage: {
+    width: 180,
+    height: 180,
   },
   emptyText: {
     color: '#8E8E93',

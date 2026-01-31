@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
@@ -19,6 +20,7 @@ import {
   ProductSection,
   Typography,
   Header,
+  FloatingContactButton,
 } from '@/components';
 import { useTheme, useLanguage, useCart } from '@/contexts';
 import { fetchHomeData, HomeData } from '@/services/supabase';
@@ -58,8 +60,14 @@ const Home = () => {
   }, []);
 
   const handleBannerPress = (banner: Banner) => {
+    // Priority: product_id > category_id > link_url
     if (banner.product_id) {
       router.push(`/product/${banner.product_id}`);
+    } else if (banner.category_id) {
+      router.push({ pathname: '/(tabs)/categories', params: { id: banner.category_id } });
+    } else if (banner.link_url) {
+      // For external links, you might want to use Linking.openURL
+      console.log('External link:', banner.link_url);
     }
   };
 
@@ -156,6 +164,30 @@ const Home = () => {
                   contentFit='cover'
                   transition={200}
                 />
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.7)']}
+                  style={styles.bannerOverlay}
+                >
+                  <View style={styles.bannerTextContainer}>
+                    {banner.subtitle ? (
+                      <Typography variant='text' size='sm' style={styles.bannerSubtitle}>
+                        {banner.subtitle}
+                      </Typography>
+                    ) : null}
+                    {banner.title ? (
+                      <Typography variant='text' size='lg' weight='bold' style={styles.bannerTitle}>
+                        {banner.title}
+                      </Typography>
+                    ) : null}
+                    {banner.button_text ? (
+                      <View style={styles.bannerButton}>
+                        <Typography variant='text' size='xs' weight='semiBold' style={styles.bannerButtonText}>
+                          {banner.button_text}
+                        </Typography>
+                      </View>
+                    ) : null}
+                  </View>
+                </LinearGradient>
               </Pressable>
             ))}
           </View>
@@ -177,6 +209,9 @@ const Home = () => {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Floating Contact Button */}
+      <FloatingContactButton />
     </SafeAreaView>
   );
 };
@@ -209,6 +244,35 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     globalBannerImage: {
       width: '100%',
       height: '100%',
+    },
+    bannerOverlay: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: '70%',
+      justifyContent: 'flex-end',
+      padding: 16,
+    },
+    bannerTextContainer: {
+      gap: 4,
+    },
+    bannerSubtitle: {
+      color: 'rgba(255,255,255,0.85)',
+    },
+    bannerTitle: {
+      color: '#FFFFFF',
+    },
+    bannerButton: {
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      alignSelf: 'flex-start',
+      marginTop: 6,
+    },
+    bannerButtonText: {
+      color: '#FFFFFF',
     },
   });
 

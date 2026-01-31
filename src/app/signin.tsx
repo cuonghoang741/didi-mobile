@@ -34,9 +34,17 @@ const SignInScreen = () => {
     signInWithGoogle,
     signInWithLINE,
     isLoading,
+    isLoggedIn,
     errorMessage,
   } = useAuth();
   const styles = createStyles(theme);
+
+  // Navigate to home when logged in successfully
+  useEffect(() => {
+    if (isLoggedIn) {
+      router.replace('/');
+    }
+  }, [isLoggedIn, router]);
 
   const [step, setStep] = useState<AuthStep>('phone');
   const [phone, setPhone] = useState('');
@@ -87,7 +95,7 @@ const SignInScreen = () => {
     }
 
     if (!validatePhone(phone)) {
-      setLocalError('Bạn ơi, vui lòng nhập đúng số điện thoại');
+      setLocalError(t('auth.signIn.invalidPhone'));
       return;
     }
 
@@ -187,25 +195,25 @@ const SignInScreen = () => {
           {/* Title */}
           <View style={styles.titleSection}>
             <Typography variant='display' size='lg' weight='bold'>
-              {step === 'phone' ? 'Didi Mobile - Uy tín tạo niềm tin' : 'Nhập mã xác thực'}
+              {step === 'phone' ? t('auth.signIn.welcomeTitle') : t('auth.signIn.otpTitle')}
             </Typography>
             <Typography variant='text' size='md' style={styles.subtitle}>
               {step === 'phone' ? (
-                'Đăng nhập / Đăng ký tài khoản ngay bây giờ'
+                t('auth.signIn.welcomeSubtitle')
               ) : (
                 <>
-                  Mã xác thực sẽ được gửi đến số{' '}
+                  {t('auth.signIn.otpSubtitlePrefix')}
                   <Typography variant='text' weight='bold'>
                     {phone}
                   </Typography>
-                  . Vui lòng kiểm tra tin nhắn và nhập mã xác thực vào đây
+                  {t('auth.signIn.otpSubtitleSuffix')}
                 </>
               )}
             </Typography>
             {step === 'otp' && (
               <Pressable onPress={handleChangePhone} style={styles.changePhoneButton}>
                 <Typography variant='text' size='sm' style={styles.changePhoneText}>
-                  Đổi số điện thoại <Feather name='edit-2' size={12} />
+                  {t('auth.signIn.changePhone')} <Feather name='edit-2' size={12} />
                 </Typography>
               </Pressable>
             )}
@@ -280,12 +288,12 @@ const SignInScreen = () => {
               <View style={styles.resendContainer}>
                 {timer > 0 ? (
                   <Typography variant='text' size='sm' style={styles.timerText}>
-                    Gửi lại mã xác thực ({formatTimer(timer)})
+                    {t('auth.signIn.resendOtpTimer')} ({formatTimer(timer)})
                   </Typography>
                 ) : (
                   <Pressable onPress={handleResendOtp} disabled={isLoading}>
                     <Typography variant='text' size='sm' style={styles.resendText}>
-                      Gửi lại mã xác thực
+                      {t('auth.signIn.resendOtpTimer')}
                     </Typography>
                   </Pressable>
                 )}
@@ -303,7 +311,7 @@ const SignInScreen = () => {
             loading={isLoading}
             style={styles.primaryButton}
           >
-            {step === 'phone' ? 'Tiếp tục' : 'Xác nhận'}
+            {step === 'phone' ? t('auth.signIn.continue') : t('auth.signIn.confirm')}
           </Button>
 
           {/* Divider */}
@@ -312,7 +320,7 @@ const SignInScreen = () => {
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
                 <Typography variant='text' size='sm' style={styles.dividerText}>
-                  Hoặc
+                  {t('auth.signIn.or')}
                 </Typography>
                 <View style={styles.dividerLine} />
               </View>
@@ -320,50 +328,62 @@ const SignInScreen = () => {
               {/* Social Login Buttons */}
               <View style={styles.socialButtons}>
                 <Pressable
-                  style={[styles.socialButton, styles.lineButton]}
+                  style={[styles.socialButton, styles.lineButton, isLoading && styles.socialButtonDisabled]}
                   onPress={handleLINELogin}
                   disabled={isLoading}
                 >
                   <LineIcon width={24} height={24} />
                   <Typography variant='text' size='md' weight='medium' style={styles.lineText}>
-                    Đăng nhập với LINE
+                    {t('auth.signIn.loginWithLine')}
                   </Typography>
                 </Pressable>
 
                 <Pressable
-                  style={[styles.socialButton, styles.googleButton]}
+                  style={[styles.socialButton, styles.googleButton, isLoading && styles.socialButtonDisabled]}
                   onPress={handleGoogleLogin}
                   disabled={isLoading}
                 >
                   <GoogleIcon width={24} height={24} />
                   <Typography variant='text' size='md' weight='medium'>
-                    Đăng nhập với Google
+                    {t('auth.signIn.loginWithGoogle')}
                   </Typography>
                 </Pressable>
 
                 {Platform.OS === 'ios' && (
                   <Pressable
-                    style={[styles.socialButton, styles.appleButton]}
+                    style={[styles.socialButton, styles.appleButton, isLoading && styles.socialButtonDisabled]}
                     onPress={handleAppleLogin}
                     disabled={isLoading}
                   >
                     <AppleIcon width={24} height={24} />
                     <Typography variant='text' size='md' weight='medium' style={styles.appleText}>
-                      Đăng nhập với Apple
+                      {t('auth.signIn.loginWithApple')}
                     </Typography>
                   </Pressable>
                 )}
               </View>
               <Typography variant='text' size='xs' style={styles.termsText}>
-                Bằng việc tiếp tục, Bạn đã đọc và đồng ý với{' '}
-                <Typography variant='text' size='xs' weight='bold' style={styles.linkText}>
-                  Điều khoản sử dụng
-                </Typography>{' '}
-                và{' '}
-                <Typography variant='text' size='xs' weight='bold' style={styles.linkText}>
-                  Chính sách bảo mật
-                </Typography>{' '}
-                của chúng tôi
+                {t('auth.signIn.termsPrefix')}
+                <Typography
+                  variant='text'
+                  size='xs'
+                  weight='bold'
+                  style={styles.linkText}
+                  onPress={() => router.push('/terms')}
+                >
+                  {t('auth.signIn.termsOfService')}
+                </Typography>
+                {t('auth.signIn.and')}
+                <Typography
+                  variant='text'
+                  size='xs'
+                  weight='bold'
+                  style={styles.linkText}
+                  onPress={() => router.push('/privacy')}
+                >
+                  {t('auth.signIn.privacyPolicy')}
+                </Typography>
+                {t('auth.signIn.termsSuffix')}
               </Typography>
             </>
           )}
@@ -492,6 +512,9 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       shadowOpacity: 0.05,
       shadowRadius: 2,
       elevation: 1,
+    },
+    socialButtonDisabled: {
+      opacity: 0.7,
     },
     appleButton: {
       // Style adjustment if you want black bg

@@ -13,6 +13,7 @@ import {
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
+    Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -24,27 +25,31 @@ import { supabase } from '@/services/supabase';
 const db = supabase as any;
 
 interface AddressFormData {
-    full_name: string;
+    nickname: string;
     phone: string;
+    last_name: string;
+    first_name: string;
     postal_code: string;
-    address_line1: string;
-    ward: string;
-    district: string;
-    city: string;
     province: string;
+    city: string;
+    banchi: string;
+    building_name: string;
+    is_detailed: boolean;
     is_default: boolean;
     image_url: string;
 }
 
 const initialFormData: AddressFormData = {
-    full_name: '',
+    nickname: '',
     phone: '',
+    last_name: '',
+    first_name: '',
     postal_code: '',
-    address_line1: '',
-    ward: '',
-    district: '',
-    city: '',
     province: '',
+    city: '',
+    banchi: '',
+    building_name: '',
+    is_detailed: true,
     is_default: false,
     image_url: '',
 };
@@ -124,14 +129,16 @@ const AddressFormScreen = () => {
 
             if (data) {
                 setFormData({
-                    full_name: data.full_name || '',
+                    nickname: data.nickname || data.full_name || '',
                     phone: data.phone || '',
+                    last_name: data.last_name || '',
+                    first_name: data.first_name || '',
                     postal_code: data.postal_code || '',
-                    address_line1: data.address_line1 || '',
-                    ward: data.ward || '',
-                    district: data.district || '',
-                    city: data.city || '',
                     province: data.province || '',
+                    city: data.city || '',
+                    banchi: data.banchi || data.ward || '',
+                    building_name: data.building_name || data.address_line1 || '',
+                    is_detailed: true,
                     is_default: data.is_default || false,
                     image_url: data.image_url || '',
                 });
@@ -167,9 +174,8 @@ const AddressFormScreen = () => {
             if (result.code === 200 && result.data) {
                 setFormData(prev => ({
                     ...prev,
-                    city: result.data.pref || '',
-                    district: result.data.address || '',
                     province: result.data.pref || '',
+                    city: result.data.city || result.data.address || '',
                 }));
             }
         } catch (error) {
@@ -303,22 +309,42 @@ const AddressFormScreen = () => {
     const validate = (): boolean => {
         const newErrors: Partial<Record<keyof AddressFormData, string>> = {};
 
-        if (!formData.full_name.trim()) {
-            newErrors.full_name = t('addresses.errors.fullNameRequired');
+        if (!formData.nickname.trim()) {
+            newErrors.nickname = t('addresses.errors.nicknameRequired');
         }
 
         if (!formData.phone.trim()) {
             newErrors.phone = t('addresses.errors.phoneRequired');
-        } else if (!/^(0[3|5|7|8|9])+([0-9]{8})$/.test(formData.phone.replace(/\D/g, ''))) {
-            newErrors.phone = t('addresses.errors.phoneInvalid');
         }
 
-        if (!formData.address_line1.trim()) {
-            newErrors.address_line1 = t('addresses.errors.addressRequired');
-        }
+        if (formData.is_detailed) {
+            if (!formData.last_name.trim()) {
+                newErrors.last_name = t('addresses.errors.lastNameRequired');
+            }
 
-        if (!formData.city.trim()) {
-            newErrors.city = t('addresses.errors.cityRequired');
+            if (!formData.first_name.trim()) {
+                newErrors.first_name = t('addresses.errors.firstNameRequired');
+            }
+
+            if (!formData.postal_code.trim()) {
+                newErrors.postal_code = t('addresses.errors.postalCodeRequired');
+            }
+
+            if (!formData.province.trim()) {
+                newErrors.province = t('addresses.errors.provinceRequired');
+            }
+
+            if (!formData.city.trim()) {
+                newErrors.city = t('addresses.errors.cityRequired');
+            }
+
+            if (!formData.banchi.trim()) {
+                newErrors.banchi = t('addresses.errors.banchiRequired');
+            }
+
+            if (!formData.building_name.trim()) {
+                newErrors.building_name = t('addresses.errors.buildingNameRequired');
+            }
         }
 
         setErrors(newErrors);
@@ -343,16 +369,29 @@ const AddressFormScreen = () => {
                     .eq('customer_id', user.id);
             }
 
+            // Build full address from components
+            const fullAddress = [
+                formData.building_name,
+                formData.banchi,
+                formData.city,
+                formData.province,
+            ].filter(Boolean).join(', ');
+
             const addressData = {
                 customer_id: user.id,
-                full_name: formData.full_name.trim(),
+                full_name: `${formData.last_name} ${formData.first_name}`.trim() || formData.nickname,
+                nickname: formData.nickname.trim(),
                 phone: formData.phone.trim(),
-                address_line1: formData.address_line1.trim(),
-                ward: formData.ward.trim() || null,
-                district: formData.district.trim() || null,
-                city: formData.city.trim(),
-                province: formData.province.trim() || null,
+                last_name: formData.last_name.trim() || null,
+                first_name: formData.first_name.trim() || null,
                 postal_code: formData.postal_code.trim() || null,
+                province: formData.province.trim() || null,
+                city: formData.city.trim() || null,
+                district: formData.city.trim() || null, // For backward compatibility
+                ward: formData.banchi.trim() || null, // For backward compatibility
+                banchi: formData.banchi.trim() || null,
+                building_name: formData.building_name.trim() || null,
+                address_line1: fullAddress || null, // For backward compatibility
                 is_default: formData.is_default,
                 image_url: formData.image_url || null,
                 type: 'shipping',
@@ -382,44 +421,6 @@ const AddressFormScreen = () => {
             setIsLoading(false);
         }
     };
-
-    const renderInput = (
-        label: string,
-        field: keyof AddressFormData,
-        placeholder: string,
-        options?: {
-            multiline?: boolean;
-            keyboardType?: 'default' | 'phone-pad' | 'number-pad';
-            required?: boolean;
-        },
-    ) => (
-        <View style={styles.inputGroup}>
-            <Typography variant='text' size='sm' weight='medium' style={styles.label}>
-                {label}
-                {options?.required && <Typography style={styles.required}> *</Typography>}
-            </Typography>
-            <TextInput
-                style={[
-                    styles.input,
-                    options?.multiline && styles.inputMultiline,
-                    errors[field] && styles.inputError,
-                ]}
-                value={formData[field] as string}
-                onChangeText={(text) => updateField(field, text)}
-                placeholder={placeholder}
-                placeholderTextColor={theme.colors.text.tertiary}
-                keyboardType={options?.keyboardType || 'default'}
-                multiline={options?.multiline}
-                numberOfLines={options?.multiline ? 3 : 1}
-                editable={!isLoading}
-            />
-            {errors[field] && (
-                <Typography variant='text' size='xs' style={styles.errorText}>
-                    {errors[field]}
-                </Typography>
-            )}
-        </View>
-    );
 
     if (isFetching) {
         return (
@@ -454,10 +455,220 @@ const AddressFormScreen = () => {
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps='handled'
                     >
+                        {/* Nickname Field */}
+                        <View style={styles.inputGroup}>
+                            <Typography variant='text' size='sm' weight='medium' style={styles.label}>
+                                {t('addresses.form.nickname')}<Typography style={styles.required}> *</Typography>
+                            </Typography>
+                            <TextInput
+                                style={[styles.input, errors.nickname && styles.inputError]}
+                                value={formData.nickname}
+                                onChangeText={(text) => updateField('nickname', text)}
+                                placeholder={t('addresses.form.nicknamePlaceholder')}
+                                placeholderTextColor={theme.colors.text.tertiary}
+                                editable={!isLoading}
+                            />
+                            {errors.nickname && (
+                                <Typography variant='text' size='xs' style={styles.errorText}>
+                                    {errors.nickname}
+                                </Typography>
+                            )}
+                        </View>
+
+                        {/* Phone Field */}
+                        <View style={styles.inputGroup}>
+                            <Typography variant='text' size='sm' weight='medium' style={styles.label}>
+                                {t('addresses.form.phone')}<Typography style={styles.required}> *</Typography>
+                            </Typography>
+                            <TextInput
+                                style={[styles.input, errors.phone && styles.inputError]}
+                                value={formData.phone}
+                                onChangeText={(text) => updateField('phone', text)}
+                                placeholder={t('addresses.form.phonePlaceholder')}
+                                placeholderTextColor={theme.colors.text.tertiary}
+                                keyboardType='phone-pad'
+                                editable={!isLoading}
+                            />
+                            {errors.phone && (
+                                <Typography variant='text' size='xs' style={styles.errorText}>
+                                    {errors.phone}
+                                </Typography>
+                            )}
+                        </View>
+
+                        {/* Detailed Address Toggle */}
+                        <View style={styles.toggleRow}>
+                            <Typography variant='text' size='sm' weight='medium'>
+                                {t('addresses.form.detailedAddress')}
+                            </Typography>
+                            <Switch
+                                value={formData.is_detailed}
+                                onValueChange={(value) => updateField('is_detailed', value)}
+                                trackColor={{ false: '#E5E7EB', true: theme.colors.foreground.brand_primary }}
+                                thumbColor='#FFFFFF'
+                            />
+                        </View>
+
+                        {/* Detailed Address Fields */}
+                        {formData.is_detailed && (
+                            <>
+                                {/* Name Row (2 columns) */}
+                                <View style={styles.row}>
+                                    <View style={[styles.inputGroup, styles.halfWidth]}>
+                                        <Typography variant='text' size='sm' weight='medium' style={styles.label}>
+                                            {t('addresses.form.lastName')}<Typography style={styles.required}> *</Typography>
+                                        </Typography>
+                                        <TextInput
+                                            style={[styles.input, errors.last_name && styles.inputError]}
+                                            value={formData.last_name}
+                                            onChangeText={(text) => updateField('last_name', text)}
+                                            placeholder={t('addresses.form.lastNamePlaceholder')}
+                                            placeholderTextColor={theme.colors.text.tertiary}
+                                            editable={!isLoading}
+                                        />
+                                        {errors.last_name && (
+                                            <Typography variant='text' size='xs' style={styles.errorText}>
+                                                {errors.last_name}
+                                            </Typography>
+                                        )}
+                                    </View>
+                                    <View style={[styles.inputGroup, styles.halfWidth]}>
+                                        <Typography variant='text' size='sm' weight='medium' style={styles.label}>
+                                            {t('addresses.form.firstName')}<Typography style={styles.required}> *</Typography>
+                                        </Typography>
+                                        <TextInput
+                                            style={[styles.input, errors.first_name && styles.inputError]}
+                                            value={formData.first_name}
+                                            onChangeText={(text) => updateField('first_name', text)}
+                                            placeholder={t('addresses.form.firstNamePlaceholder')}
+                                            placeholderTextColor={theme.colors.text.tertiary}
+                                            editable={!isLoading}
+                                        />
+                                        {errors.first_name && (
+                                            <Typography variant='text' size='xs' style={styles.errorText}>
+                                                {errors.first_name}
+                                            </Typography>
+                                        )}
+                                    </View>
+                                </View>
+
+                                {/* Postal Code & Province Row (2 columns) */}
+                                <View style={styles.row}>
+                                    <View style={[styles.inputGroup, styles.halfWidth]}>
+                                        <Typography variant='text' size='sm' weight='medium' style={styles.label}>
+                                            {t('addresses.form.postalCode')}<Typography style={styles.required}> *</Typography>
+                                        </Typography>
+                                        <View style={styles.postalCodeContainer}>
+                                            <TextInput
+                                                style={[styles.input, errors.postal_code && styles.inputError]}
+                                                value={formData.postal_code}
+                                                onChangeText={(text) => updateField('postal_code', text)}
+                                                placeholder={t('addresses.form.postalCodePlaceholder')}
+                                                placeholderTextColor={theme.colors.text.tertiary}
+                                                keyboardType='number-pad'
+                                                editable={!isLoading}
+                                            />
+                                            {isLookingUpAddress && (
+                                                <View style={styles.lookupIndicator}>
+                                                    <ActivityIndicator size='small' color={theme.colors.foreground.brand_primary} />
+                                                </View>
+                                            )}
+                                        </View>
+                                        {errors.postal_code && (
+                                            <Typography variant='text' size='xs' style={styles.errorText}>
+                                                {errors.postal_code}
+                                            </Typography>
+                                        )}
+                                    </View>
+                                    <View style={[styles.inputGroup, styles.halfWidth]}>
+                                        <Typography variant='text' size='sm' weight='medium' style={styles.label}>
+                                            {t('addresses.form.province')}<Typography style={styles.required}> *</Typography>
+                                        </Typography>
+                                        <TextInput
+                                            style={[styles.input, errors.province && styles.inputError]}
+                                            value={formData.province}
+                                            onChangeText={(text) => updateField('province', text)}
+                                            placeholder={t('addresses.form.provincePlaceholder')}
+                                            placeholderTextColor={theme.colors.text.tertiary}
+                                            editable={!isLoading}
+                                        />
+                                        {errors.province && (
+                                            <Typography variant='text' size='xs' style={styles.errorText}>
+                                                {errors.province}
+                                            </Typography>
+                                        )}
+                                    </View>
+                                </View>
+
+                                {/* City Field */}
+                                <View style={styles.inputGroup}>
+                                    <Typography variant='text' size='sm' weight='medium' style={styles.label}>
+                                        {t('addresses.form.city')}<Typography style={styles.required}> *</Typography>
+                                    </Typography>
+                                    <TextInput
+                                        style={[styles.input, errors.city && styles.inputError]}
+                                        value={formData.city}
+                                        onChangeText={(text) => updateField('city', text)}
+                                        placeholder={t('addresses.form.cityPlaceholder')}
+                                        placeholderTextColor={theme.colors.text.tertiary}
+                                        editable={!isLoading}
+                                    />
+                                    {errors.city && (
+                                        <Typography variant='text' size='xs' style={styles.errorText}>
+                                            {errors.city}
+                                        </Typography>
+                                    )}
+                                </View>
+
+                                {/* Banchi Field */}
+                                <View style={styles.inputGroup}>
+                                    <Typography variant='text' size='sm' weight='medium' style={styles.label}>
+                                        {t('addresses.form.banchi')}<Typography style={styles.required}> *</Typography>
+                                    </Typography>
+                                    <TextInput
+                                        style={[styles.input, errors.banchi && styles.inputError]}
+                                        value={formData.banchi}
+                                        onChangeText={(text) => updateField('banchi', text)}
+                                        placeholder={t('addresses.form.banchiPlaceholder')}
+                                        placeholderTextColor={theme.colors.text.tertiary}
+                                        editable={!isLoading}
+                                    />
+                                    {errors.banchi && (
+                                        <Typography variant='text' size='xs' style={styles.errorText}>
+                                            {errors.banchi}
+                                        </Typography>
+                                    )}
+                                </View>
+
+                                {/* Building Name Field */}
+                                <View style={styles.inputGroup}>
+                                    <Typography variant='text' size='sm' weight='medium' style={styles.label}>
+                                        {t('addresses.form.buildingName')}<Typography style={styles.required}> *</Typography>
+                                    </Typography>
+                                    <TextInput
+                                        style={[styles.input, errors.building_name && styles.inputError]}
+                                        value={formData.building_name}
+                                        onChangeText={(text) => updateField('building_name', text)}
+                                        placeholder={t('addresses.form.buildingNamePlaceholder')}
+                                        placeholderTextColor={theme.colors.text.tertiary}
+                                        editable={!isLoading}
+                                    />
+                                    {errors.building_name && (
+                                        <Typography variant='text' size='xs' style={styles.errorText}>
+                                            {errors.building_name}
+                                        </Typography>
+                                    )}
+                                </View>
+                            </>
+                        )}
+
                         {/* Address Image Section */}
-                        <View style={styles.section}>
-                            <Typography variant='text' size='md' weight='bold' style={styles.sectionTitle}>
-                                {t('addresses.form.addressPhoto')}
+                        <View style={styles.imageSection}>
+                            <Typography variant='text' size='sm' weight='bold' style={styles.imageSectionTitle}>
+                                {t('addresses.form.addressPhotoKanji')}<Typography style={styles.required}> *</Typography>
+                            </Typography>
+                            <Typography variant='text' size='xs' style={styles.imageSectionDesc}>
+                                {t('addresses.form.addressPhotoDesc')}
                             </Typography>
 
                             {formData.image_url ? (
@@ -467,20 +678,21 @@ const AddressFormScreen = () => {
                                         style={styles.addressImage}
                                         contentFit='cover'
                                     />
-                                    <View style={styles.imageActions}>
-                                        <Pressable
-                                            style={styles.imageActionButton}
-                                            onPress={showImageOptions}
-                                        >
-                                            <Feather name='edit-2' size={16} color='#FFFFFF' />
-                                        </Pressable>
-                                        <Pressable
-                                            style={[styles.imageActionButton, styles.deleteImageButton]}
-                                            onPress={handleRemoveImage}
-                                        >
-                                            <Feather name='trash-2' size={16} color='#FFFFFF' />
-                                        </Pressable>
-                                    </View>
+                                    <Pressable
+                                        style={styles.removeImageButton}
+                                        onPress={handleRemoveImage}
+                                    >
+                                        <Feather name='x' size={16} color='#FFFFFF' />
+                                    </Pressable>
+                                    <Button
+                                        variant='solid'
+                                        colorScheme='brand'
+                                        size='md'
+                                        onPress={showImageOptions}
+                                        style={styles.changeImageButton}
+                                    >
+                                        {t('addresses.form.changePhoto')}
+                                    </Button>
                                 </View>
                             ) : (
                                 <Pressable
@@ -502,42 +714,7 @@ const AddressFormScreen = () => {
                             )}
                         </View>
 
-                        {/* Contact Info Section */}
-                        <View style={styles.section}>
-                            <Typography variant='text' size='md' weight='bold' style={styles.sectionTitle}>
-                                {t('addresses.form.contactInfo')}
-                            </Typography>
-                            {renderInput(t('addresses.form.fullName'), 'full_name', t('addresses.form.fullNamePlaceholder'), { required: true })}
-                            {renderInput(t('addresses.form.phone'), 'phone', t('addresses.form.phonePlaceholder'), {
-                                keyboardType: 'phone-pad',
-                                required: true,
-                            })}
-                        </View>
-
-                        {/* Address Section */}
-                        <View style={styles.section}>
-                            <Typography variant='text' size='md' weight='bold' style={styles.sectionTitle}>
-                                {t('addresses.form.addressInfo')}
-                            </Typography>
-                            {/* Postal code first for auto-fill */}
-                            <View style={styles.postalCodeRow}>
-                                {renderInput(t('addresses.form.postalCode'), 'postal_code', t('addresses.form.postalCodePlaceholder'), {
-                                    keyboardType: 'number-pad',
-                                })}
-                                {isLookingUpAddress && (
-                                    <View style={styles.lookupIndicator}>
-                                        <ActivityIndicator size='small' color={theme.colors.foreground.brand_primary} />
-                                    </View>
-                                )}
-                            </View>
-                            {renderInput(t('addresses.form.city'), 'city', t('addresses.form.cityPlaceholder'), { required: true })}
-                            {renderInput(t('addresses.form.district'), 'district', t('addresses.form.districtPlaceholder'))}
-                            {renderInput(t('addresses.form.ward'), 'ward', t('addresses.form.wardPlaceholder'))}
-                            {renderInput(t('addresses.form.addressLine1'), 'address_line1', t('addresses.form.addressLine1Placeholder'), {
-                                required: true,
-                            })}
-                        </View>
-
+                        {/* Default Address Toggle */}
                         <Pressable
                             style={styles.defaultToggle}
                             onPress={() => updateField('is_default', !formData.is_default)}
@@ -581,7 +758,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     StyleSheet.create({
         container: {
             flex: 1,
-            backgroundColor: theme.colors.background.primary,
+            backgroundColor: theme.colors.background.secondary,
         },
         header: {
             flexDirection: 'row',
@@ -608,29 +785,18 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
             justifyContent: 'center',
             alignItems: 'center',
         },
-        section: {
-            backgroundColor: '#FFFFFF',
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 16,
-        },
-        sectionTitle: {
-            marginBottom: 16,
-            color: theme.colors.text.primary,
-        },
         inputGroup: {
             marginBottom: 16,
         },
-        postalCodeRow: {
-            position: 'relative',
+        row: {
+            flexDirection: 'row',
+            gap: 12,
         },
-        lookupIndicator: {
-            position: 'absolute',
-            right: 12,
-            top: 38,
+        halfWidth: {
+            flex: 1,
         },
         label: {
-            color: theme.colors.text.secondary,
+            color: theme.colors.text.primary,
             marginBottom: 8,
         },
         required: {
@@ -647,10 +813,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
             color: theme.colors.text.primary,
             letterSpacing: 0,
         },
-        inputMultiline: {
-            minHeight: 80,
-            textAlignVertical: 'top',
-        },
         inputError: {
             borderColor: '#EF4444',
         },
@@ -658,13 +820,32 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
             color: '#EF4444',
             marginTop: 4,
         },
+        toggleRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            backgroundColor: theme.colors.background.primary,
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            borderRadius: 8,
+            marginBottom: 16,
+        },
+        postalCodeContainer: {
+            position: 'relative',
+        },
+        lookupIndicator: {
+            position: 'absolute',
+            right: 12,
+            top: 12,
+        },
         defaultToggle: {
             flexDirection: 'row',
             alignItems: 'center',
             gap: 12,
-            backgroundColor: '#FFFFFF',
+            backgroundColor: theme.colors.background.primary,
             padding: 16,
             borderRadius: 12,
+            marginTop: 8,
         },
         checkbox: {
             width: 22,
@@ -689,7 +870,22 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
         saveButton: {
             borderRadius: 24,
         },
-        // Image upload styles
+        // Image section styles
+        imageSection: {
+            backgroundColor: theme.colors.background.primary,
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 16,
+        },
+        imageSectionTitle: {
+            color: theme.colors.text.primary,
+            marginBottom: 4,
+        },
+        imageSectionDesc: {
+            color: theme.colors.text.tertiary,
+            marginBottom: 16,
+            lineHeight: 18,
+        },
         imageContainer: {
             position: 'relative',
             borderRadius: 12,
@@ -697,36 +893,33 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
         },
         addressImage: {
             width: '100%',
-            height: 200,
+            height: 160,
             borderRadius: 12,
         },
-        imageActions: {
+        removeImageButton: {
             position: 'absolute',
             top: 8,
             right: 8,
-            flexDirection: 'row',
-            gap: 8,
-        },
-        imageActionButton: {
-            width: 36,
-            height: 36,
-            borderRadius: 18,
+            width: 28,
+            height: 28,
+            borderRadius: 14,
             backgroundColor: 'rgba(0,0,0,0.5)',
             justifyContent: 'center',
             alignItems: 'center',
         },
-        deleteImageButton: {
-            backgroundColor: '#EF4444',
+        changeImageButton: {
+            marginTop: 12,
+            borderRadius: 20,
         },
         addImageButton: {
-            height: 150,
+            height: 120,
             borderRadius: 12,
             borderWidth: 2,
             borderStyle: 'dashed',
             borderColor: theme.colors.border.secondary,
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: theme.colors.background.primary,
+            backgroundColor: theme.colors.background.secondary,
         },
         addImageText: {
             color: theme.colors.text.tertiary,

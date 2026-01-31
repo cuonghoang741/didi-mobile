@@ -15,6 +15,7 @@ export interface Branch {
 export interface BankAccount {
   id: string;
   bank_name: string;
+  branch_name: string;
   account_name: string;
   account_number: string;
   qr_code_url: string | null;

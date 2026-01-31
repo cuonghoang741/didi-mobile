@@ -1,10 +1,12 @@
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Typography } from '@/components';
 import { useTheme, useLanguage } from '@/contexts';
+
+const EmptyNotificationImage = require('@/assets/images/empty-noti.png');
 
 const Notifications = () => {
   const theme = useTheme();
@@ -25,7 +27,7 @@ const Notifications = () => {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {notifications.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Feather name='bell-off' size={64} color={theme.colors.text.tertiary} />
+            <Image source={EmptyNotificationImage} style={styles.emptyImage} resizeMode='contain' />
             <Typography variant='text' size='md' style={styles.emptyText}>
               {t('notifications.empty')}
             </Typography>
@@ -76,6 +78,10 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       justifyContent: 'center',
       alignItems: 'center',
       paddingTop: 100,
+    },
+    emptyImage: {
+      width: 200,
+      height: 200,
     },
     emptyText: {
       color: theme.colors.text.tertiary,

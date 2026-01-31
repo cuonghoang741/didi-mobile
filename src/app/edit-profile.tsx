@@ -1,11 +1,13 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, TextInput, Alert, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, TextInput, Alert, Image, ActionSheetIOS, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Typography, Button } from '@/components';
 import { useTheme, useLanguage, useAuth } from '@/contexts';
+import { supabase } from '@/services/supabase';
 
 type EditMode = 'view' | 'edit';
 
@@ -25,6 +27,8 @@ const EditProfileScreen = () => {
   const styles = createStyles(theme);
 
   const [mode, setMode] = useState<EditMode>('view');
+  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [formData, setFormData] = useState({
     fullName: getDisplayName() || '',
     birthday: user?.user_metadata?.birthday || '',
@@ -98,22 +102,143 @@ const EditProfileScreen = () => {
         onPress: async () => {
           // TODO: Implement account deletion
           await logout();
-          router.replace('/');
+          router.replace('/signin');
         },
       },
     ]);
   };
 
+  // Pick image from gallery
+  const pickImageFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Thông báo', 'Cần cấp quyền truy cập thư viện ảnh để thay đổi ảnh đại diện');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await uploadAvatar(result.assets[0].uri);
+    }
+  };
+
+  // Take photo with camera
+  const takePhotoWithCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Thông báo', 'Cần cấp quyền truy cập camera để chụp ảnh đại diện');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await uploadAvatar(result.assets[0].uri);
+    }
+  };
+
+  // Upload avatar to Supabase Storage
+  const uploadAvatar = async (imageUri: string) => {
+    if (!user) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      // Create a unique filename
+      const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      // Fetch the image and convert to blob
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+
+      // Convert blob to ArrayBuffer for Supabase
+      const arrayBuffer = await new Response(blob).arrayBuffer();
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, arrayBuffer, {
+          contentType: `image/${fileExt}`,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const publicUrl = publicUrlData.publicUrl;
+
+      // Update user metadata with new avatar URL
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { avatar_url: publicUrl },
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Update local state to show new avatar immediately
+      setLocalAvatarUrl(publicUrl);
+      Alert.alert('Thành công', 'Đã cập nhật ảnh đại diện');
+    } catch (error: any) {
+      console.error('Error uploading avatar:', error);
+      Alert.alert('Lỗi', error.message || 'Không thể tải ảnh lên. Vui lòng thử lại.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const handleChangePhoto = () => {
-    // TODO: Implement photo picker
-    console.log('Change photo');
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Hủy', 'Chụp ảnh', 'Chọn từ thư viện'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            takePhotoWithCamera();
+          } else if (buttonIndex === 2) {
+            pickImageFromGallery();
+          }
+        }
+      );
+    } else {
+      // Android: Show Alert as ActionSheet
+      Alert.alert(
+        'Đổi ảnh đại diện',
+        'Chọn nguồn ảnh',
+        [
+          { text: 'Hủy', style: 'cancel' },
+          { text: 'Chụp ảnh', onPress: takePhotoWithCamera },
+          { text: 'Chọn từ thư viện', onPress: pickImageFromGallery },
+        ]
+      );
+    }
   };
 
   const updateField = (key: string, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
-  const avatarUrl = getAvatarUrl();
+  // Use local avatar if available, otherwise fallback to user's avatar (always a string from DiceBear)
+  const avatarUrl: string = localAvatarUrl || getAvatarUrl();
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -131,20 +256,27 @@ const EditProfileScreen = () => {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Avatar Section */}
         <View style={styles.avatarSection}>
-          <Pressable style={styles.avatarContainer} onPress={handleChangePhoto}>
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+          <Pressable
+            style={styles.avatarContainer}
+            onPress={handleChangePhoto}
+            disabled={isUploadingAvatar}
+          >
+            <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+            {isUploadingAvatar ? (
+              <View style={styles.avatarLoadingOverlay}>
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              </View>
             ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Typography variant='display' size='lg' weight='bold' style={styles.avatarText}>
-                  {getDisplayName().substring(0, 2).toUpperCase()}
-                </Typography>
+              <View style={styles.cameraIcon}>
+                <Feather name='camera' size={14} color='#FFFFFF' />
               </View>
             )}
-            <View style={styles.cameraIcon}>
-              <Feather name='camera' size={14} color='#FFFFFF' />
-            </View>
           </Pressable>
+          {isUploadingAvatar && (
+            <Typography variant='text' size='sm' style={styles.uploadingText}>
+              Đang tải ảnh lên...
+            </Typography>
+          )}
         </View>
 
         {/* Profile Fields */}
@@ -279,6 +411,23 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: 'center',
       borderWidth: 3,
       borderColor: theme.colors.background.primary,
+    },
+    avatarLoadingOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    uploadingText: {
+      color: theme.colors.text.secondary,
+      marginTop: 8,
     },
     fieldsContainer: {
       backgroundColor: '#FFFFFF',

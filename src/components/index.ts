@@ -42,3 +42,6 @@ export { default as FilterModal } from './search/FilterModal';
 
 // Common
 export * from './common';
+
+// Floating Button
+export { default as FloatingContactButton } from './FloatingContactButton';

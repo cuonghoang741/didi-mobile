@@ -273,6 +273,188 @@ class OneSignalService {
       return await this.unsubscribe();
     }
   }
+
+  /**
+   * Set user tags for targeting notifications
+   * @param userId - The user's ID
+   * @param role - The user's role (customer, admin)
+   */
+  public async setUserTags(
+    userId: string,
+    role: 'customer' | 'admin' = 'customer',
+  ): Promise<boolean> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+    const OneSignal = getOneSignal();
+    if (!OneSignal) {
+      console.warn('OneSignal module not available for setting tags');
+      return false;
+    }
+
+    try {
+      // Set tags for user segmentation
+      if (OneSignal.User?.addTags) {
+        await OneSignal.User.addTags({
+          user_id: userId,
+          role: role,
+        });
+        console.log('OneSignal tags set successfully:', { user_id: userId, role });
+        return true;
+      } else if (OneSignal.User?.addTag) {
+        // Fallback: add tags one by one
+        await OneSignal.User.addTag('user_id', userId);
+        await OneSignal.User.addTag('role', role);
+        console.log('OneSignal tags set successfully (individual):', { user_id: userId, role });
+        return true;
+      }
+
+      console.warn('OneSignal User.addTags/addTag not available');
+      return false;
+    } catch (error) {
+      console.error('Error setting OneSignal tags:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Remove user tags
+   */
+  public async removeUserTags(): Promise<boolean> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+    const OneSignal = getOneSignal();
+    if (!OneSignal) {
+      console.warn('OneSignal module not available for removing tags');
+      return false;
+    }
+
+    try {
+      if (OneSignal.User?.removeTags) {
+        await OneSignal.User.removeTags(['user_id', 'role']);
+        console.log('OneSignal tags removed successfully');
+        return true;
+      } else if (OneSignal.User?.removeTag) {
+        await OneSignal.User.removeTag('user_id');
+        await OneSignal.User.removeTag('role');
+        console.log('OneSignal tags removed successfully (individual)');
+        return true;
+      }
+
+      console.warn('OneSignal User.removeTags/removeTag not available');
+      return false;
+    } catch (error) {
+      console.error('Error removing OneSignal tags:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Login user to OneSignal with external user ID
+   * This links the device to the user account for targeted notifications
+   * @param userId - The user's ID from your backend
+   */
+  public async login(userId: string): Promise<boolean> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+    const OneSignal = getOneSignal();
+    if (!OneSignal) {
+      console.warn('OneSignal module not available for login');
+      return false;
+    }
+
+    try {
+      // Login sets the external user ID in OneSignal
+      if (typeof OneSignal.login === 'function') {
+        await OneSignal.login(userId);
+        console.log('OneSignal user logged in with external ID:', userId);
+        return true;
+      }
+
+      console.warn('OneSignal.login not available');
+      return false;
+    } catch (error) {
+      console.error('Error logging in to OneSignal:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Logout user from OneSignal
+   * This removes the external user ID association
+   */
+  public async logout(): Promise<boolean> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+    const OneSignal = getOneSignal();
+    if (!OneSignal) {
+      console.warn('OneSignal module not available for logout');
+      return false;
+    }
+
+    try {
+      // Logout removes the external user ID
+      if (typeof OneSignal.logout === 'function') {
+        await OneSignal.logout();
+        console.log('OneSignal user logged out');
+        return true;
+      }
+
+      console.warn('OneSignal.logout not available');
+      return false;
+    } catch (error) {
+      console.error('Error logging out from OneSignal:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Complete user registration with OneSignal
+   * Sets external ID and tags in one call
+   * @param userId - The user's ID
+   * @param role - The user's role (defaults to customer)
+   */
+  public async registerUser(
+    userId: string,
+    role: 'customer' | 'admin' = 'customer',
+  ): Promise<boolean> {
+    try {
+      // First, login with external user ID
+      await this.login(userId);
+
+      // Then, set user tags
+      await this.setUserTags(userId, role);
+
+      console.log('OneSignal user registration complete:', { userId, role });
+      return true;
+    } catch (error) {
+      console.error('Error registering user with OneSignal:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Complete user logout from OneSignal
+   * Removes tags and external ID
+   */
+  public async unregisterUser(): Promise<boolean> {
+    try {
+      // Remove tags first
+      await this.removeUserTags();
+
+      // Then logout
+      await this.logout();
+
+      console.log('OneSignal user unregistered successfully');
+      return true;
+    } catch (error) {
+      console.error('Error unregistering user from OneSignal:', error);
+      return false;
+    }
+  }
 }
 
 export const oneSignalService = OneSignalService.getInstance();

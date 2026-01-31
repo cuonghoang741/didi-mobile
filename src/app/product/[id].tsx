@@ -272,12 +272,12 @@ const ProductDetailScreen = () => {
   // Interpolate button colors
   const buttonBorderColor = buttonColorAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [theme.colors.text.brand_primary, '#10B981'],
+    outputRange: ['#E5E7EB', '#10B981'],
   });
 
   const buttonBgColor = buttonColorAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['transparent', 'rgba(16, 185, 129, 0.1)'],
+    outputRange: ['#FFFFFF', 'rgba(16, 185, 129, 0.1)'],
   });
 
   return (
@@ -618,7 +618,7 @@ const ProductDetailScreen = () => {
                 </Animated.View>
               ) : (
                 <>
-                  <Feather name='shopping-cart' size={20} color={theme.colors.text.brand_primary} />
+                  <Feather name='shopping-cart' size={20} color={theme.colors.text.primary} />
                   <Typography variant='text' size='md' weight='semiBold' style={styles.addToCartText}>
                     {t('product.addToCart')}
                   </Typography>
@@ -627,17 +627,12 @@ const ProductDetailScreen = () => {
             </Animated.View>
           </Pressable>
         </Animated.View>
-        <Pressable style={styles.buyNowButton} onPress={handleBuyNow}>
-          <LinearGradient
-            colors={['#5B7CFF', '#3D4DF4']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.buyNowGradient}
-          >
+        <Pressable style={[styles.buyNowButton, { backgroundColor: '#2E8FF9' }]} onPress={handleBuyNow}>
+          <View style={styles.buyNowGradient}>
             <Typography variant='text' size='md' weight='bold' style={styles.buyNowText}>
               {t('product.buyNow')}
             </Typography>
-          </LinearGradient>
+          </View>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -883,12 +878,12 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: 'center',
       paddingVertical: 14,
       borderRadius: 12,
-      borderWidth: 2,
-      borderColor: theme.colors.text.brand_primary,
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
       gap: 8,
     },
     addToCartText: {
-      color: theme.colors.text.brand_primary,
+      color: theme.colors.text.primary,
     },
     buyNowButton: {
       flex: 1,

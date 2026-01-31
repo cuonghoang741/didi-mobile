@@ -20,6 +20,38 @@ const generateOrderNumber = (): string => {
 };
 
 /**
+ * Send notification to all admin users when a new order is created
+ * This function calls a Supabase Edge Function that uses OneSignal to send push notifications
+ */
+const notifyAdminsNewOrder = async (
+  order: Order,
+  customerName: string,
+  itemsCount: number,
+): Promise<void> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('notify-admin-new-order', {
+      body: {
+        order_id: order.id,
+        order_number: order.order_number,
+        customer_name: customerName,
+        total_amount: order.total_amount,
+        items_count: itemsCount,
+      },
+    });
+
+    if (error) {
+      console.error('Error sending admin notification:', error);
+      // Don't throw - notification failure shouldn't affect order creation
+    } else {
+      console.log('Admin notification sent successfully:', data);
+    }
+  } catch (err) {
+    console.error('Failed to notify admins about new order:', err);
+    // Don't throw - notification failure shouldn't affect order creation
+  }
+};
+
+/**
  * Create a new order from cart items
  */
 export const createOrder = async (
@@ -95,6 +127,9 @@ export const createOrder = async (
     await supabase.from('orders').delete().eq('id', order.id);
     return { order: null, error: 'Failed to create order items' };
   }
+
+  // Send notification to admins (fire and forget - don't wait for result)
+  notifyAdminsNewOrder(order, checkoutForm.shipping_name, cartItems.length);
 
   return { order, error: null };
 };

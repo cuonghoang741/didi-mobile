@@ -53,7 +53,7 @@ const BottomTabBarButton: React.FC<BottomTabBarButtonProps> = ({
     }).start();
   };
 
-  const iconColor = focused ? theme.colors.foreground.brand_primary : theme.colors.text.quaternary;
+  const iconColor = focused ? theme.colors.text.primary : theme.colors.text.quaternary;
   const iconSize = theme.spacing(6);
   const iconVariant = focused ? 'Bold' : 'Linear';
 
@@ -85,7 +85,7 @@ const BottomTabBarButton: React.FC<BottomTabBarButtonProps> = ({
           style={[
             styles.text,
             {
-              color: focused ? theme.colors.foreground.brand_primary : theme.colors.text.quaternary,
+              color: focused ? theme.colors.text.primary : theme.colors.text.quaternary,
             },
           ]}
         >

@@ -1,7 +1,7 @@
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,32 +19,73 @@ const CartScreen = () => {
   const { formatPrice } = useCurrency();
   const styles = createStyles(theme);
 
-  // Calc totals
-  const subtotal = getSubtotal();
-  const shipping = 30000;
-  const total = subtotal; // Currently shipping fee logic might need adjustment for JPY. 30,000 VND ~ 176 JPY?
-  // Wait, shipping is currently hardcoded as 30000. If that's VND, it's weird if base currency is JPY.
-  // Assuming shipping is 30000 (unit?). If unit is JPY 30000 is huge.
-  // If unit is VND, then 30000/170 ~ 176 JPY.
-  // Let's assume user wants everything in JPY base.
-  // If previous code was VND based, then subtotal was VND?
-  // Let's check getSubtotal().
+  // Selected items state - default all selected (excluding out of stock)
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
-  // User said "đơn vị tiền của app luôn là ¥". So product.price is JPY.
-  // So subtotal is JPY.
-  // 30000 shipping? If it's JPY, it matches JPY 30,000.
-  // If it's VND, I should convert it or change it.
-  // I will assume shipping is 0 or needs to be configured in JPY.
-  // For now I'll set shipping to 0 or a small JPY amount like 500 Yen ~ 85k VND.
-  const shippingJpy = 0; // Free shipping for now or small fee.
-  // Or maybe user meant everything was VND before?
-  // "giá tiền sản phẩm sẽ luôn hiện thêm quy đổi sang vnđ" -> implies base is Yen.
+  // Initialize selected items when items change
+  useEffect(() => {
+    const inStockItemIds = items
+      .filter(item => {
+        const stockQty = item.variant?.stock_quantity ?? (item.product as any).stock_quantity ?? null;
+        const isOutOfStock = stockQty === 0;
+        return !isOutOfStock;
+      })
+      .map(item => `${item.product.id}-${item.variant?.id || 'default'}`);
+    setSelectedItems(new Set(inStockItemIds));
+  }, [items]);
 
-  const totalJpy = subtotal + shippingJpy;
+  const toggleItemSelection = (itemKey: string) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemKey)) {
+        newSet.delete(itemKey);
+      } else {
+        newSet.add(itemKey);
+      }
+      return newSet;
+    });
+  };
 
-  const subtotalFormatted = formatPrice(subtotal);
-  const shippingFormatted = formatPrice(shippingJpy);
+  const toggleSelectAll = () => {
+    const inStockItemIds = items
+      .filter(item => {
+        const stockQty = item.variant?.stock_quantity ?? (item.product as any).stock_quantity ?? null;
+        const isOutOfStock = stockQty === 0;
+        return !isOutOfStock;
+      })
+      .map(item => `${item.product.id}-${item.variant?.id || 'default'}`);
+
+    if (selectedItems.size === inStockItemIds.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(inStockItemIds));
+    }
+  };
+
+  // Calculate totals only for selected items
+  const selectedSubtotal = useMemo(() => {
+    return items.reduce((total, item) => {
+      const itemKey = `${item.product.id}-${item.variant?.id || 'default'}`;
+      if (!selectedItems.has(itemKey)) return total;
+
+      const price = item.variant
+        ? item.variant.price
+        : (item.product.sale_price || item.product.base_price || 0);
+      return total + (price * item.quantity);
+    }, 0);
+  }, [items, selectedItems]);
+
+  const shippingJpy = 0;
+  const totalJpy = selectedSubtotal + shippingJpy;
   const totalFormatted = formatPrice(totalJpy);
+
+  const inStockItemsCount = items.filter(item => {
+    const stockQty = item.variant?.stock_quantity ?? (item.product as any).stock_quantity ?? null;
+    const isOutOfStock = stockQty === 0;
+    return !isOutOfStock;
+  }).length;
+
+  const isAllSelected = selectedItems.size === inStockItemsCount && inStockItemsCount > 0;
 
   if (items.length === 0) {
     return (
@@ -99,6 +140,13 @@ const CartScreen = () => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Cart Items */}
         {items.map((item, index) => {
+          const itemKey = `${item.product.id}-${item.variant?.id || 'default'}`;
+          const isSelected = selectedItems.has(itemKey);
+
+          // Check if out of stock
+          const stockQty = item.variant?.stock_quantity ?? (item.product as any).stock_quantity ?? null;
+          const isOutOfStock = stockQty === 0;
+
           // Get price - variant has price, product has sale_price or base_price
           const price = item.variant
             ? item.variant.price
@@ -120,67 +168,104 @@ const CartScreen = () => {
 
           return (
             <View
-              key={`${item.product.id}-${item.variant?.id || 'default'}`}
-              style={styles.cartItem}
+              key={itemKey}
+              style={[styles.cartItem, isOutOfStock && styles.cartItemDisabled]}
             >
-              <Image
-                source={{ uri: imageUrl || 'https://via.placeholder.com/100' }}
-                style={styles.itemImage}
-                contentFit='cover'
-              />
+              {/* Checkbox - only for in-stock items */}
+              {!isOutOfStock ? (
+                <Pressable
+                  style={styles.checkboxContainer}
+                  onPress={() => toggleItemSelection(itemKey)}
+                >
+                  <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                    {isSelected && (
+                      <MaterialIcons name='check' size={16} color='#FFFFFF' />
+                    )}
+                  </View>
+                </Pressable>
+              ) : (
+                <View style={styles.checkboxPlaceholder} />
+              )}
+
+              {/* Product Image with Out of Stock Badge */}
+              <View style={styles.imageContainer}>
+                <Image
+                  source={{ uri: imageUrl || 'https://via.placeholder.com/100' }}
+                  style={[styles.itemImage, isOutOfStock && styles.itemImageDisabled]}
+                  contentFit='cover'
+                />
+                {isOutOfStock && (
+                  <View style={styles.outOfStockBadge}>
+                    <Typography variant='text' size='xs' weight='semiBold' style={styles.outOfStockText}>
+                      Hết hàng
+                    </Typography>
+                  </View>
+                )}
+              </View>
+
               <View style={styles.itemInfo}>
-                <Typography variant='text' size='md' weight='medium' numberOfLines={2}>
+                <Typography
+                  variant='text'
+                  size='md'
+                  weight='medium'
+                  numberOfLines={2}
+                  style={isOutOfStock && styles.textDisabled}
+                >
                   {item.product.name}
                 </Typography>
                 {variantName && (
-                  <Typography variant='text' size='sm' style={styles.variantName}>
-                    {variantName}
-                  </Typography>
-                )}
-                <View style={{ marginTop: 6 }}>
-                  <Typography variant='text' size='md' weight='bold' style={styles.itemPrice}>
-                    {priceFormatted.jpy}
-                  </Typography>
-                  <Typography
-                    variant='text'
-                    size='xs'
-                    style={{ color: theme.colors.text.tertiary }}
-                  >
-                    {priceFormatted.vnd}
-                  </Typography>
-                </View>
-                <View style={styles.itemActions}>
-                  <View style={styles.quantityControls}>
-                    <Pressable
-                      style={styles.quantityButton}
-                      onPress={() =>
-                        updateQuantity(item.product.id, item.variant?.id, item.quantity - 1)
-                      }
-                    >
-                      <Feather name='minus' size={16} color={theme.colors.text.primary} />
-                    </Pressable>
-                    <Typography
-                      variant='text'
-                      size='sm'
-                      weight='semiBold'
-                      style={styles.quantityValue}
-                    >
-                      {item.quantity}
+                  <View style={styles.variantBadge}>
+                    <Typography variant='text' size='xs' style={styles.variantBadgeText}>
+                      {variantName}
                     </Typography>
-                    <Pressable
-                      style={styles.quantityButton}
-                      onPress={() =>
-                        updateQuantity(item.product.id, item.variant?.id, item.quantity + 1)
-                      }
-                    >
-                      <Feather name='plus' size={16} color={theme.colors.text.primary} />
-                    </Pressable>
                   </View>
+                )}
+                <Typography
+                  variant='text'
+                  size='md'
+                  weight='bold'
+                  style={[styles.itemPrice, isOutOfStock && styles.textDisabled]}
+                >
+                  {priceFormatted.vnd}
+                </Typography>
+
+                {/* Actions - Quantity controls or just delete button for out of stock */}
+                <View style={styles.itemActions}>
+                  {!isOutOfStock ? (
+                    <View style={styles.quantityControls}>
+                      <Pressable
+                        style={styles.quantityButton}
+                        onPress={() =>
+                          updateQuantity(item.product.id, item.variant?.id, item.quantity - 1)
+                        }
+                      >
+                        <Feather name='minus' size={16} color='#FFFFFF' />
+                      </Pressable>
+                      <Typography
+                        variant='text'
+                        size='sm'
+                        weight='semiBold'
+                        style={styles.quantityValue}
+                      >
+                        {item.quantity}
+                      </Typography>
+                      <Pressable
+                        style={styles.quantityButton}
+                        onPress={() =>
+                          updateQuantity(item.product.id, item.variant?.id, item.quantity + 1)
+                        }
+                      >
+                        <Feather name='plus' size={16} color='#FFFFFF' />
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <View />
+                  )}
                   <Pressable
                     style={styles.removeButton}
                     onPress={() => removeItem(item.product.id, item.variant?.id)}
                   >
-                    <Feather name='trash-2' size={18} color='#EF4444' />
+                    <Feather name='trash-2' size={22} color={theme.colors.text.tertiary} />
                   </Pressable>
                 </View>
               </View>
@@ -204,18 +289,17 @@ const CartScreen = () => {
             {totalFormatted.vnd}
           </Typography>
         </View>
-        <Pressable style={styles.checkoutButton} onPress={() => router.push('/checkout')}>
-          <LinearGradient
-            colors={['#5B7CFF', '#3D4DF4']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.checkoutGradient}
-          >
+        <Pressable
+          style={[styles.checkoutButton, { backgroundColor: selectedItems.size > 0 ? '#2E8FF9' : '#D1D5DB' }]}
+          onPress={() => router.push('/checkout')}
+          disabled={selectedItems.size === 0}
+        >
+          <View style={styles.checkoutGradient}>
             <Typography variant='text' size='md' weight='bold' style={styles.checkoutText}>
               {t('cart.checkout')}
             </Typography>
             <Feather name='arrow-right' size={20} color='#FFF' />
-          </LinearGradient>
+          </View>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -275,12 +359,61 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       borderRadius: 12,
       padding: 12,
       marginBottom: 12,
+      alignItems: 'flex-start',
+    },
+    cartItemDisabled: {
+      opacity: 0.8,
+    },
+    checkboxContainer: {
+      marginRight: 8,
+      paddingTop: 30,
+    },
+    checkbox: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: '#D1D5DB',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#FFFFFF',
+    },
+    checkboxSelected: {
+      backgroundColor: '#2E8FF9',
+      borderColor: '#2E8FF9',
+    },
+    checkboxPlaceholder: {
+      width: 24,
+      marginRight: 8,
+    },
+    imageContainer: {
+      position: 'relative',
     },
     itemImage: {
       width: 100,
       height: 100,
       borderRadius: 8,
       backgroundColor: '#F3F4F6',
+    },
+    itemImageDisabled: {
+      opacity: 0.6,
+    },
+    outOfStockBadge: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      paddingVertical: 4,
+      alignItems: 'center',
+      borderBottomLeftRadius: 8,
+      borderBottomRightRadius: 8,
+    },
+    outOfStockText: {
+      color: '#FFFFFF',
+    },
+    textDisabled: {
+      color: theme.colors.text.tertiary,
     },
     itemInfo: {
       flex: 1,
@@ -289,6 +422,17 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     variantName: {
       color: theme.colors.text.tertiary,
       marginTop: 2,
+    },
+    variantBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: '#F3F4F6',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 4,
+      marginTop: 4,
+    },
+    variantBadgeText: {
+      color: theme.colors.text.secondary,
     },
     itemPrice: {
       color: theme.colors.text.brand_primary,
@@ -303,13 +447,13 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     quantityControls: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: 8,
     },
     quantityButton: {
       width: 32,
       height: 32,
       borderRadius: 8,
-      backgroundColor: theme.colors.background.primary,
+      backgroundColor: '#2E8FF9',
       justifyContent: 'center',
       alignItems: 'center',
     },

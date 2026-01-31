@@ -282,6 +282,7 @@ const styles = StyleSheet.create({
   // Card Styles
   cardContainer: {
     width: CARD_WIDTH,
+    minWidth: 200,
     backgroundColor: '#FFF',
     borderRadius: 12,
     overflow: 'hidden',

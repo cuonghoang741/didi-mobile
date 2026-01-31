@@ -32,7 +32,7 @@ interface AuthContextType {
   getDisplayName: () => string;
   getEmail: () => string | null;
   getPhone: () => string | null;
-  getAvatarUrl: () => string | null;
+  getAvatarUrl: () => string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

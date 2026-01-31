@@ -14,6 +14,7 @@ export type Database = {
       banners: {
         Row: {
           button_text: string | null
+          category_id: string | null
           created_at: string | null
           deleted_at: string | null
           end_date: string | null
@@ -33,6 +34,7 @@ export type Database = {
         }
         Insert: {
           button_text?: string | null
+          category_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           end_date?: string | null
@@ -52,6 +54,7 @@ export type Database = {
         }
         Update: {
           button_text?: string | null
+          category_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           end_date?: string | null

@@ -82,16 +82,16 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onBannerPress 
         contentFit='cover'
         transition={300}
       />
-      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={styles.gradient}>
+      <LinearGradient colors={['transparent', item.button_text ? 'rgba(0,0,0,0.6)' : 'transparent']} style={styles.gradient}>
         <View style={styles.textContainer}>
           {item.subtitle ? (
             <Typography variant='text' size='sm' style={styles.subtitle}>
               {item.subtitle}
             </Typography>
           ) : null}
-          <Typography variant='text' size='xl' weight='bold' style={styles.title}>
+          {item.button_text && <Typography variant='text' size='xl' weight='bold' style={styles.title}>
             {item.title}
-          </Typography>
+          </Typography>}
           {item.button_text ? (
             <View style={styles.buttonContainer}>
               <Typography variant='text' size='sm' weight='semiBold' style={styles.buttonText}>

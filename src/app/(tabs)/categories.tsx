@@ -20,8 +20,7 @@ import { fetchCategories, supabase } from '@/services/supabase';
 import type { Category, Product } from '@/types/database.types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const LEFT_PANEL_WIDTH = SCREEN_WIDTH * 0.3;
-const RIGHT_PANEL_WIDTH = SCREEN_WIDTH * 0.7;
+const LEFT_PANEL_WIDTH = SCREEN_WIDTH * 0.22;
 
 const Categories = () => {
   const router = useRouter();
@@ -219,9 +218,25 @@ const Categories = () => {
               renderItem={renderProductItem}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.productList}
+              contentContainerStyle={[
+                styles.productList,
+                products.length === 0 && styles.emptyListContainer,
+              ]}
               numColumns={2}
-              columnWrapperStyle={{ gap: 12 }}
+              columnWrapperStyle={products.length > 0 ? { gap: 12 } : undefined}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <View style={styles.emptyIconContainer}>
+                    <Feather name='package' size={48} color={theme.colors.text.tertiary} />
+                  </View>
+                  <Typography variant='text' size='lg' weight='bold' style={styles.emptyTitle}>
+                    {t('categories.emptyProducts')}
+                  </Typography>
+                  <Typography variant='text' size='sm' style={styles.emptyDescription}>
+                    {t('categories.emptyProductsDescription')}
+                  </Typography>
+                </View>
+              }
             />
           )}
         </View>
@@ -257,19 +272,18 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       borderRightColor: theme.colors.border.secondary,
     },
     rightPanel: {
-      width: RIGHT_PANEL_WIDTH,
       flex: 1,
       backgroundColor: theme.colors.background.primary,
     },
     categoryList: {
-      paddingVertical: 12,
-      paddingHorizontal: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 4,
     },
     categoryItem: {
       alignItems: 'center',
-      padding: 8,
-      marginBottom: 12,
-      borderRadius: 12,
+      padding: 6,
+      marginBottom: 8,
+      borderRadius: 10,
       borderWidth: 1,
       borderColor: 'transparent',
     },
@@ -278,23 +292,24 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       borderColor: theme.colors.text.brand_primary,
     },
     categoryItemImage: {
-      width: 48,
-      height: 48,
+      width: 40,
+      height: 40,
       marginBottom: 4,
     },
     categoryName: {
       color: theme.colors.text.primary,
       textAlign: 'center',
-      fontSize: 11,
-      lineHeight: 14,
+      fontSize: 10,
+      lineHeight: 13,
     },
     categoryNameSelected: {
       color: theme.colors.text.brand_primary,
     },
     categoryHeader: {
-      height: 100,
+      height: 120,
       width: '100%',
       position: 'relative',
+      marginBottom: 0,
     },
     categoryHeaderImage: {
       width: '100%',
@@ -341,6 +356,37 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     productPrice: {
       color: theme.colors.text.error_primary,
       fontSize: 13,
+    },
+    // Empty state styles
+    emptyListContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyState: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+      paddingVertical: 40,
+    },
+    emptyIconContainer: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: theme.colors.background.secondary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    emptyTitle: {
+      color: theme.colors.text.primary,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    emptyDescription: {
+      color: theme.colors.text.tertiary,
+      textAlign: 'center',
+      lineHeight: 20,
     },
   });
 

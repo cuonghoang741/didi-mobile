@@ -22,6 +22,7 @@ const db = supabase as any;
 interface Address {
     id: string;
     full_name: string;
+    nickname?: string;
     phone: string;
     address_line1: string;
     address_line2?: string;
@@ -83,29 +84,6 @@ const AddressesScreen = () => {
         router.push(`/address-form?id=${addressId}` as any);
     };
 
-    const handleSetDefault = async (addressId: string) => {
-        if (!user?.id) return;
-
-        try {
-            // First, unset all defaults
-            await db
-                .from('customer_addresses')
-                .update({ is_default: false })
-                .eq('customer_id', user.id);
-
-            // Then set the selected one as default
-            await db
-                .from('customer_addresses')
-                .update({ is_default: true })
-                .eq('id', addressId);
-
-            fetchAddresses();
-        } catch (error) {
-            console.error('[AddressesScreen] Error setting default:', error);
-            Alert.alert(t('common.error'), t('addresses.errors.setDefaultFailed'));
-        }
-    };
-
     const handleDeleteAddress = (addressId: string, addressName: string) => {
         Alert.alert(
             t('addresses.deleteTitle'),
@@ -134,16 +112,11 @@ const AddressesScreen = () => {
         );
     };
 
-    const formatAddress = (address: Address) => {
-        const parts = [
-            address.address_line1,
-            address.address_line2,
-            address.ward,
-            address.district,
-            address.city,
-            address.province,
-        ].filter(Boolean);
-        return parts.join(', ');
+    // Get location label from province or city
+    const getLocationLabel = (address: Address) => {
+        if (address.province) return address.province;
+        if (address.city) return address.city;
+        return t('addresses.locationDefault');
     };
 
     const renderAddressCard = (address: Address) => (
@@ -152,59 +125,42 @@ const AddressesScreen = () => {
             style={styles.addressCard}
             onPress={() => handleEditAddress(address.id)}
         >
-            <View style={styles.addressHeader}>
-                <View style={styles.addressInfo}>
-                    <View style={styles.nameRow}>
-                        <Typography variant='text' size='md' weight='bold'>
-                            {address.full_name}
-                        </Typography>
-                        {address.is_default && (
-                            <View style={styles.defaultBadge}>
-                                <Typography variant='text' size='xs' style={styles.defaultBadgeText}>
-                                    {t('addresses.default')}
-                                </Typography>
-                            </View>
-                        )}
-                    </View>
-                    <Typography variant='text' size='sm' style={styles.phone}>
-                        {address.phone}
-                    </Typography>
+            <View style={styles.cardContent}>
+                {/* Location Icon */}
+                <View style={styles.locationIconContainer}>
+                    <Feather name='map-pin' size={20} color={theme.colors.text.secondary} />
                 </View>
-            </View>
 
-            <Typography variant='text' size='sm' style={styles.addressText}>
-                {formatAddress(address)}
-            </Typography>
-
-            <View style={styles.addressActions}>
-                {!address.is_default && (
-                    <Pressable
-                        style={styles.actionButton}
-                        onPress={() => handleSetDefault(address.id)}
-                    >
-                        <Feather name='check-circle' size={16} color={theme.colors.foreground.brand_primary} />
-                        <Typography variant='text' size='sm' style={styles.actionButtonText}>
-                            {t('addresses.setDefault')}
+                {/* Address Info */}
+                <View style={styles.addressInfo}>
+                    {/* Nickname + Phone */}
+                    <View style={styles.mainInfo}>
+                        <Typography variant='text' size='md' weight='bold'>
+                            {address.nickname || address.full_name}
                         </Typography>
-                    </Pressable>
-                )}
+                        <Typography variant='text' size='md' style={styles.phoneText}>
+                            {address.phone}
+                        </Typography>
+                    </View>
+
+                    {/* Location Badge */}
+                    <View style={styles.locationBadge}>
+                        <Typography variant='text' size='xs' style={styles.locationBadgeText}>
+                            {getLocationLabel(address)}
+                        </Typography>
+                    </View>
+                </View>
+
+                {/* Delete Button */}
                 <Pressable
-                    style={styles.actionButton}
-                    onPress={() => handleEditAddress(address.id)}
+                    style={styles.deleteButton}
+                    onPress={(e) => {
+                        e.stopPropagation();
+                        handleDeleteAddress(address.id, address.nickname || address.full_name);
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                    <Feather name='edit-2' size={16} color={theme.colors.text.secondary} />
-                    <Typography variant='text' size='sm' style={styles.actionButtonTextSecondary}>
-                        {t('common.edit')}
-                    </Typography>
-                </Pressable>
-                <Pressable
-                    style={styles.actionButton}
-                    onPress={() => handleDeleteAddress(address.id, address.full_name)}
-                >
-                    <Feather name='trash-2' size={16} color='#EF4444' />
-                    <Typography variant='text' size='sm' style={styles.actionButtonTextDanger}>
-                        {t('common.delete')}
-                    </Typography>
+                    <Feather name='trash-2' size={20} color={theme.colors.text.tertiary} />
                 </Pressable>
             </View>
         </Pressable>
@@ -219,11 +175,9 @@ const AddressesScreen = () => {
                         <Feather name='arrow-left' size={24} color={theme.colors.text.primary} />
                     </Pressable>
                     <Typography variant='text' size='lg' weight='bold'>
-                        {t('addresses.title')}
+                        {t('addresses.titleShort')}
                     </Typography>
-                    <Pressable style={styles.addButton} onPress={handleAddAddress}>
-                        <Feather name='plus' size={24} color={theme.colors.foreground.brand_primary} />
-                    </Pressable>
+                    <View style={{ width: 32 }} />
                 </View>
 
                 {isLoading ? (
@@ -238,35 +192,16 @@ const AddressesScreen = () => {
                             <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
                         }
                     >
-                        {addresses.length === 0 ? (
-                            <View style={styles.emptyState}>
-                                <View style={styles.emptyIcon}>
-                                    <Feather name='map-pin' size={48} color={theme.colors.text.tertiary} />
-                                </View>
-                                <Typography variant='text' size='lg' weight='medium' style={styles.emptyTitle}>
-                                    {t('addresses.empty')}
-                                </Typography>
-                                <Typography variant='text' size='sm' style={styles.emptySubtitle}>
-                                    {t('addresses.emptyDescription')}
-                                </Typography>
-                                <Pressable style={styles.emptyAddButton} onPress={handleAddAddress}>
-                                    <Feather name='plus' size={20} color='#FFFFFF' />
-                                    <Typography variant='text' size='md' weight='medium' style={styles.emptyAddButtonText}>
-                                        {t('addresses.addNew')}
-                                    </Typography>
-                                </Pressable>
-                            </View>
-                        ) : (
-                            <>
-                                {addresses.map(renderAddressCard)}
-                                <Pressable style={styles.addNewButton} onPress={handleAddAddress}>
-                                    <Feather name='plus' size={20} color={theme.colors.foreground.brand_primary} />
-                                    <Typography variant='text' size='md' weight='medium' style={styles.addNewButtonText}>
-                                        {t('addresses.addNew')}
-                                    </Typography>
-                                </Pressable>
-                            </>
-                        )}
+                        {/* Address List */}
+                        {addresses.map(renderAddressCard)}
+
+                        {/* Add New Address Button */}
+                        <Pressable style={styles.addNewButton} onPress={handleAddAddress}>
+                            <Feather name='plus' size={20} color={theme.colors.text.primary} />
+                            <Typography variant='text' size='md' style={styles.addNewButtonText}>
+                                {t('addresses.addNewSaved')}
+                            </Typography>
+                        </Pressable>
                     </ScrollView>
                 )}
             </SafeAreaView>
@@ -278,7 +213,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     StyleSheet.create({
         container: {
             flex: 1,
-            backgroundColor: theme.colors.background.primary,
+            backgroundColor: theme.colors.background.secondary,
         },
         header: {
             flexDirection: 'row',
@@ -293,9 +228,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
         backButton: {
             padding: 4,
         },
-        addButton: {
-            padding: 4,
-        },
         scrollContent: {
             padding: 16,
             paddingBottom: 32,
@@ -305,120 +237,69 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
             justifyContent: 'center',
             alignItems: 'center',
         },
+        // Address Card Styles
         addressCard: {
             backgroundColor: theme.colors.background.primary,
             borderRadius: 12,
-            padding: 16,
             marginBottom: 12,
-            borderWidth: 1,
-            borderColor: theme.colors.border.secondary,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 2,
+            elevation: 1,
         },
-        addressHeader: {
+        cardContent: {
             flexDirection: 'row',
-            justifyContent: 'space-between',
             alignItems: 'flex-start',
-            marginBottom: 8,
+            padding: 16,
+        },
+        locationIconContainer: {
+            marginRight: 12,
+            marginTop: 2,
         },
         addressInfo: {
             flex: 1,
         },
-        nameRow: {
+        mainInfo: {
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 8,
-        },
-        phone: {
-            color: theme.colors.text.secondary,
-            marginTop: 2,
-        },
-        defaultBadge: {
-            backgroundColor: theme.colors.foreground.brand_primary,
-            paddingHorizontal: 8,
-            paddingVertical: 2,
-            borderRadius: 4,
-        },
-        defaultBadgeText: {
-            color: '#FFFFFF',
-            fontWeight: '500',
-        },
-        addressText: {
-            color: theme.colors.text.secondary,
-            lineHeight: 20,
-        },
-        addressActions: {
-            flexDirection: 'row',
-            marginTop: 12,
-            paddingTop: 12,
-            borderTopWidth: 1,
-            borderTopColor: theme.colors.border.tertiary,
-            gap: 16,
-        },
-        actionButton: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-        },
-        actionButtonText: {
-            color: theme.colors.foreground.brand_primary,
-        },
-        actionButtonTextSecondary: {
-            color: theme.colors.text.secondary,
-        },
-        actionButtonTextDanger: {
-            color: '#EF4444',
-        },
-        emptyState: {
-            flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingVertical: 60,
-        },
-        emptyIcon: {
-            width: 96,
-            height: 96,
-            borderRadius: 48,
-            backgroundColor: theme.colors.background.tertiary,
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginBottom: 16,
-        },
-        emptyTitle: {
-            color: theme.colors.text.primary,
+            gap: 12,
             marginBottom: 8,
         },
-        emptySubtitle: {
-            color: theme.colors.text.tertiary,
-            textAlign: 'center',
-            paddingHorizontal: 32,
-            marginBottom: 24,
+        phoneText: {
+            color: theme.colors.text.primary,
         },
-        emptyAddButton: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-            backgroundColor: theme.colors.foreground.brand_primary,
-            paddingHorizontal: 24,
-            paddingVertical: 12,
-            borderRadius: 24,
+        locationBadge: {
+            alignSelf: 'flex-start',
+            backgroundColor: '#FEE2E2',
+            paddingHorizontal: 10,
+            paddingVertical: 4,
+            borderRadius: 4,
         },
-        emptyAddButtonText: {
-            color: '#FFFFFF',
+        locationBadgeText: {
+            color: '#DC2626',
+            fontWeight: '500',
         },
+        deleteButton: {
+            padding: 4,
+            marginLeft: 8,
+        },
+        // Add New Button Styles
         addNewButton: {
             flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
+            justifyContent: 'flex-start',
+            gap: 12,
             backgroundColor: theme.colors.background.primary,
             paddingVertical: 16,
-            marginHorizontal: 48,
+            paddingHorizontal: 16,
             borderRadius: 12,
             borderWidth: 1,
-            borderColor: theme.colors.foreground.brand_primary,
+            borderColor: theme.colors.border.secondary,
             borderStyle: 'dashed',
         },
         addNewButtonText: {
-            color: theme.colors.foreground.brand_primary,
+            color: theme.colors.text.primary,
         },
     });
 
