@@ -25,6 +25,86 @@ import { getLocalizedContent } from '@/utils/language';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// Map common color names to hex codes
+const colorNameToHex = (colorName: string | null | undefined): string | null => {
+  if (!colorName) return null;
+
+  const normalizedName = colorName.toLowerCase().trim();
+
+  // Common color mappings
+  const colorMap: Record<string, string> = {
+    // Blacks
+    'black': '#1A1A1A',
+    'titanium black': '#2D2D2D',
+    'midnight': '#1C1C1E',
+    'graphite': '#41464B',
+
+    // Grays
+    'gray': '#808080',
+    'grey': '#808080',
+    'titanium gray': '#8E8E93',
+    'titanium grey': '#8E8E93',
+    'silver': '#C0C0C0',
+    'space gray': '#535150',
+
+    // Whites
+    'white': '#FFFFFF',
+    'cream': '#FFFDD0',
+    'pearl': '#F5F5F5',
+
+    // Violets/Purples
+    'violet': '#8B5CF6',
+    'titanium violet': '#9B7EDE',
+    'purple': '#9333EA',
+    'lavender': '#E6E6FA',
+
+    // Blues
+    'blue': '#3B82F6',
+    'titanium blue': '#5B7FDE',
+    'navy': '#1E3A5F',
+    'sky blue': '#87CEEB',
+    'pacific blue': '#1E88E5',
+
+    // Greens
+    'green': '#22C55E',
+    'alpine green': '#4A5D23',
+    'mint': '#98FB98',
+
+    // Reds/Pinks
+    'red': '#EF4444',
+    'pink': '#EC4899',
+    'rose': '#F43F5E',
+    'coral': '#FF7F50',
+
+    // Yellows/Golds
+    'yellow': '#EAB308',
+    'gold': '#FFD700',
+    'titanium gold': '#C7A958',
+
+    // Browns
+    'brown': '#92400E',
+    'bronze': '#CD7F32',
+
+    // Others
+    'natural': '#F5F5DC',
+    'titanium': '#878681',
+  };
+
+  // Try exact match first
+  if (colorMap[normalizedName]) {
+    return colorMap[normalizedName];
+  }
+
+  // Try partial match
+  for (const [key, value] of Object.entries(colorMap)) {
+    if (normalizedName.includes(key) || key.includes(normalizedName)) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
 import { useCurrency } from '@/hooks'; // Import hook
 
 const ProductDetailScreen = () => {
@@ -46,81 +126,19 @@ const ProductDetailScreen = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const imageListRef = useRef<FlatList>(null);
 
+  console.log("variant", product?.product_variants);
+
   // Button animation states
   const [isAdded, setIsAdded] = useState(false);
-  const addToCartScale = useRef(new Animated.Value(1)).current;
-  const successScale = useRef(new Animated.Value(0)).current;
-  const buttonColorAnim = useRef(new Animated.Value(0)).current;
 
-  // Button press animation handlers
-  const handlePressIn = useCallback(() => {
-    Animated.spring(addToCartScale, {
-      toValue: 0.92,
-      useNativeDriver: true,
-    }).start();
-  }, [addToCartScale]);
-
-  const handlePressOut = useCallback(() => {
-    Animated.spring(addToCartScale, {
-      toValue: 1,
-      friction: 3,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
-  }, [addToCartScale]);
-
-  // Success animation when added to cart
+  // Simple success animation - just swap icon for a moment
   const playSuccessAnimation = useCallback(() => {
     setIsAdded(true);
-
-    // Animate button color and icon
-    Animated.parallel([
-      // Bounce effect
-      Animated.sequence([
-        Animated.spring(addToCartScale, {
-          toValue: 1.05,
-          friction: 3,
-          tension: 100,
-          useNativeDriver: true,
-        }),
-        Animated.spring(addToCartScale, {
-          toValue: 1,
-          friction: 4,
-          tension: 80,
-          useNativeDriver: true,
-        }),
-      ]),
-      // Success icon scale in
-      Animated.spring(successScale, {
-        toValue: 1,
-        friction: 4,
-        tension: 100,
-        useNativeDriver: true,
-      }),
-      // Color transition
-      Animated.timing(buttonColorAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: false,
-      }),
-    ]).start();
-
     // Reset after 1.5 seconds
     setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(successScale, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(buttonColorAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false,
-        }),
-      ]).start(() => setIsAdded(false));
+      setIsAdded(false);
     }, 1500);
-  }, [addToCartScale, successScale, buttonColorAnim]);
+  }, []);
 
   // ... (keep useEffect and handlers)
 
@@ -269,16 +287,7 @@ const ProductDetailScreen = () => {
     );
   };
 
-  // Interpolate button colors
-  const buttonBorderColor = buttonColorAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['#E5E7EB', '#10B981'],
-  });
 
-  const buttonBgColor = buttonColorAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['#FFFFFF', 'rgba(16, 185, 129, 0.1)'],
-  });
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -370,74 +379,61 @@ const ProductDetailScreen = () => {
             )}
           </View>
 
-          {/* Variants */}
-          {product.product_variants && product.product_variants.length > 0 && (
-            <View style={styles.variantsSection}>
-              <Typography variant='text' size='md' weight='semiBold' style={styles.sectionTitle}>
-                {t('product.selectVariant')}
-              </Typography>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.variantsRow}>
-                  {product.product_variants.map((variant: ProductVariant) => {
-                    // Data is directly on variant object, not in options
-                    const variantAny = variant as any;
-                    const colorCode = variantAny.color_code;
-                    const imageUrl = variantAny.image_url;
-                    const variantName = variantAny.name || variantAny.color || variantAny.storage || variant.sku || 'Variant';
+          {/* Variants - Color Selection */}
+          {product.product_variants && product.product_variants.length > 0 && (() => {
+            // Check if all variants are color-only (no images)
+            const allColorOnly = product.product_variants.every((v: any) => !v.image_url);
 
+            return (
+              <View style={styles.variantsSection}>
+                <Typography variant='text' size='md' style={styles.variantHeaderText}>
+                  <Typography variant='text' size='md' weight='medium'>
+                    {t('product.selectColor')}:{' '}
+                  </Typography>
+                  <Typography variant='text' size='md' style={styles.selectedColorName}>
+                    {(() => {
+                      const v = selectedVariant as any;
+                      return v?.name || v?.color || t('product.notSelected');
+                    })()}
+                  </Typography>
+                </Typography>
+                <View style={[styles.variantsGrid, allColorOnly && styles.variantsGridSmall]}>
+                  {product.product_variants.map((variant: ProductVariant) => {
+                    const variantAny = variant as any;
+                    const imageUrl = variantAny.image_url;
+                    // Try color_code first, then convert color name to hex
+                    const colorHex = variantAny.color_code || variantAny.hex_color || colorNameToHex(variantAny.color);
                     const isSelected = selectedVariant?.id === variant.id;
 
                     return (
                       <Pressable
                         key={variant.id}
                         style={[
-                          styles.variantChip,
-                          isSelected && styles.variantChipActive,
+                          allColorOnly ? styles.colorSwatchCard : styles.variantCard,
+                          isSelected && (allColorOnly ? styles.colorSwatchCardActive : styles.variantCardActive),
                         ]}
                         onPress={() => setSelectedVariant(variant)}
                       >
-                        {/* Variant Image */}
-                        {imageUrl && (
+                        {imageUrl ? (
                           <Image
                             source={{ uri: imageUrl }}
-                            style={styles.variantImage}
+                            style={styles.variantCardImage}
                             contentFit='cover'
                           />
-                        )}
-
-                        {/* Color dot with code */}
-                        {colorCode && (
-                          <View style={styles.colorInfo}>
-                            <View style={[styles.colorDot, { backgroundColor: colorCode }]} />
-                            <Typography
-                              variant='text'
-                              size='xs'
-                              style={[styles.colorCode, isSelected && styles.colorCodeActive]}
-                            >
-                              {colorCode.toUpperCase()}
-                            </Typography>
+                        ) : colorHex ? (
+                          <View style={[allColorOnly ? styles.colorSwatchInner : styles.variantCardImage, { backgroundColor: colorHex }]} />
+                        ) : (
+                          <View style={[styles.variantCardImage, styles.variantCardPlaceholder]}>
+                            <Feather name='image' size={24} color='#D1D5DB' />
                           </View>
                         )}
-
-                        {/* Variant Name */}
-                        <Typography
-                          variant='text'
-                          size='sm'
-                          weight={isSelected ? 'semiBold' : 'regular'}
-                          style={[
-                            styles.variantText,
-                            isSelected && styles.variantTextActive,
-                          ]}
-                        >
-                          {variantName}
-                        </Typography>
                       </Pressable>
                     );
                   })}
                 </View>
-              </ScrollView>
-            </View>
-          )}
+              </View>
+            );
+          })()}
 
           {/* Description */}
           <View style={styles.descriptionSection}>
@@ -561,52 +557,30 @@ const ProductDetailScreen = () => {
 
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
-        <Animated.View
-          style={{
-            flex: 1,
-            transform: [{ scale: addToCartScale }],
-          }}
+        <Pressable
+          style={[
+            styles.addToCartButton,
+            isAdded && styles.addToCartButtonSuccess,
+          ]}
+          onPress={handleAddToCart}
+          disabled={isAdded}
         >
-          <Pressable
-            onPress={handleAddToCart}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-            disabled={isAdded}
-          >
-            <Animated.View
-              style={[
-                styles.addToCartButton,
-                {
-                  borderColor: buttonBorderColor,
-                  backgroundColor: buttonBgColor,
-                },
-              ]}
+          <View style={styles.addToCartContent}>
+            {isAdded ? (
+              <Feather name='check' size={20} color='#10B981' />
+            ) : (
+              <Feather name='shopping-cart' size={20} color={theme.colors.text.primary} />
+            )}
+            <Typography
+              variant='text'
+              size='md'
+              weight='semiBold'
+              style={isAdded ? styles.addToCartTextSuccess : styles.addToCartText}
             >
-              {isAdded ? (
-                <Animated.View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 8,
-                    transform: [{ scale: successScale }],
-                  }}
-                >
-                  <Feather name='check' size={20} color='#10B981' />
-                  <Typography variant='text' size='md' weight='semiBold' style={{ color: '#10B981' }}>
-                    {t('product.addedToCart') || 'Đã thêm!'}
-                  </Typography>
-                </Animated.View>
-              ) : (
-                <>
-                  <Feather name='shopping-cart' size={20} color={theme.colors.text.primary} />
-                  <Typography variant='text' size='md' weight='semiBold' style={styles.addToCartText}>
-                    {t('product.addToCart')}
-                  </Typography>
-                </>
-              )}
-            </Animated.View>
-          </Pressable>
-        </Animated.View>
+              {t('product.addToCart')}
+            </Typography>
+          </View>
+        </Pressable>
         <Pressable style={[styles.buyNowButton, { backgroundColor: '#2E8FF9' }]} onPress={handleBuyNow}>
           <View style={styles.buyNowGradient}>
             <Typography variant='text' size='md' weight='bold' style={styles.buyNowText}>
@@ -703,6 +677,61 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     variantsSection: {
       marginBottom: 20,
+    },
+    variantHeaderText: {
+      marginBottom: 12,
+    },
+    variantLabel: {
+      color: theme.colors.text.primary,
+    },
+    selectedColorName: {
+      color: theme.colors.text.secondary,
+    },
+    variantsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+    },
+    variantCard: {
+      width: 60,
+      height: 60,
+      borderRadius: 8,
+      borderWidth: 2,
+      borderColor: '#E5E7EB',
+      overflow: 'hidden',
+    },
+    variantCardActive: {
+      borderColor: theme.colors.text.brand_primary,
+    },
+    variantCardImage: {
+      width: '100%',
+      height: '100%',
+    },
+    variantCardPlaceholder: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#F9FAFB',
+    },
+    // Small color swatches for color-only variants
+    variantsGridSmall: {
+      gap: 10,
+    },
+    colorSwatchCard: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 2,
+      borderColor: '#E5E7EB',
+      overflow: 'hidden',
+      padding: 2,
+    },
+    colorSwatchCardActive: {
+      borderColor: theme.colors.text.brand_primary,
+    },
+    colorSwatchInner: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 18,
     },
     sectionTitle: {
       color: theme.colors.text.primary,
@@ -846,6 +875,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: 12,
     },
     addToCartButton: {
+      flex: 1,
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
@@ -853,19 +883,35 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       borderRadius: 12,
       borderWidth: 1,
       borderColor: '#E5E7EB',
+      backgroundColor: '#FFFFFF',
+    },
+    addToCartButtonSuccess: {
+      borderColor: '#10B981',
+      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    },
+    addToCartContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: 8,
     },
     addToCartText: {
       color: theme.colors.text.primary,
     },
+    addToCartTextSuccess: {
+      color: '#10B981',
+    },
     buyNowButton: {
       flex: 1,
       borderRadius: 12,
       overflow: 'hidden',
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     buyNowGradient: {
+      width: '100%',
       paddingVertical: 14,
       alignItems: 'center',
+      justifyContent: 'center',
     },
     buyNowText: {
       color: '#FFFFFF',

@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
@@ -37,6 +37,8 @@ interface Address {
 
 const AddressesScreen = () => {
     const router = useRouter();
+    const { select } = useLocalSearchParams<{ select?: string }>();
+    const isSelectMode = select === 'true';
     const theme = useTheme();
     const { user } = useAuth();
     const { t } = useLanguage();
@@ -84,6 +86,32 @@ const AddressesScreen = () => {
         router.push(`/address-form?id=${addressId}` as any);
     };
 
+    // Handle selecting address for checkout
+    const handleSelectAddress = async (address: Address) => {
+        if (!user?.id) return;
+
+        try {
+            // Set this address as default
+            // First, unset all other defaults
+            await db
+                .from('customer_addresses')
+                .update({ is_default: false })
+                .eq('customer_id', user.id);
+
+            // Then set this one as default
+            await db
+                .from('customer_addresses')
+                .update({ is_default: true })
+                .eq('id', address.id);
+
+            // Go back to checkout
+            router.back();
+        } catch (error) {
+            console.error('Error selecting address:', error);
+            Alert.alert(t('common.error'), 'Không thể chọn địa chỉ');
+        }
+    };
+
     const handleDeleteAddress = (addressId: string, addressName: string) => {
         Alert.alert(
             t('addresses.deleteTitle'),
@@ -122,14 +150,37 @@ const AddressesScreen = () => {
     const renderAddressCard = (address: Address) => (
         <Pressable
             key={address.id}
-            style={styles.addressCard}
-            onPress={() => handleEditAddress(address.id)}
+            style={[
+                styles.addressCard,
+                address.is_default && styles.addressCardSelected,
+            ]}
+            onPress={() => {
+                if (isSelectMode) {
+                    handleSelectAddress(address);
+                } else {
+                    handleEditAddress(address.id);
+                }
+            }}
         >
             <View style={styles.cardContent}>
+                {/* Radio/Check for select mode */}
+                {isSelectMode && (
+                    <View style={styles.radioContainer}>
+                        <View style={[
+                            styles.radioOuter,
+                            address.is_default && styles.radioOuterActive,
+                        ]}>
+                            {address.is_default && <View style={styles.radioInner} />}
+                        </View>
+                    </View>
+                )}
+
                 {/* Location Icon */}
-                <View style={styles.locationIconContainer}>
-                    <Feather name='map-pin' size={20} color={theme.colors.text.secondary} />
-                </View>
+                {!isSelectMode && (
+                    <View style={styles.locationIconContainer}>
+                        <Feather name='map-pin' size={20} color={theme.colors.text.secondary} />
+                    </View>
+                )}
 
                 {/* Address Info */}
                 <View style={styles.addressInfo}>
@@ -213,7 +264,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     StyleSheet.create({
         container: {
             flex: 1,
-            backgroundColor: theme.colors.background.secondary,
+            backgroundColor: theme.colors.background.primary,
         },
         header: {
             flexDirection: 'row',
@@ -247,6 +298,33 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
             shadowOpacity: 0.05,
             shadowRadius: 2,
             elevation: 1,
+            borderWidth: 2,
+            borderColor: 'transparent',
+        },
+        addressCardSelected: {
+            borderColor: theme.colors.foreground.brand_primary,
+        },
+        radioContainer: {
+            marginRight: 12,
+            marginTop: 2,
+        },
+        radioOuter: {
+            width: 20,
+            height: 20,
+            borderRadius: 10,
+            borderWidth: 2,
+            borderColor: '#D1D5DB',
+            justifyContent: 'center',
+            alignItems: 'center',
+        },
+        radioOuterActive: {
+            borderColor: theme.colors.foreground.brand_primary,
+        },
+        radioInner: {
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: theme.colors.foreground.brand_primary,
         },
         cardContent: {
             flexDirection: 'row',
@@ -290,7 +368,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
             alignItems: 'center',
             justifyContent: 'flex-start',
             gap: 12,
-            backgroundColor: theme.colors.background.primary,
+            backgroundColor: 'white',
             paddingVertical: 16,
             paddingHorizontal: 16,
             borderRadius: 12,

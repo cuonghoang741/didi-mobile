@@ -86,7 +86,7 @@ export const fetchProductDetail = async (productId: string): Promise<ProductDeta
     category_ids: category_ids,
     related_ids: related_ids,
 
-    variants: variants || [],
+    product_variants: variants || [],
     reviews: reviewList.map((r: any) => ({
       ...r,
       user: r.users,

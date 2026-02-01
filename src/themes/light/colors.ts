@@ -29,6 +29,8 @@ const text = {
   warning_primary: palette.warning[600],
   success_primary: palette.success[600],
   gray_primary: palette.grayLight[600],
+
+  price: palette.error[600],
 } as const;
 
 const border = {

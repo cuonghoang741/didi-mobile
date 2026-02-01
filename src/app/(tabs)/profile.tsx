@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Switch, Linking, Alert, Modal, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,12 +8,14 @@ import { Typography, Button } from '@/components';
 import { useTheme, useLanguage, useAuth } from '@/contexts';
 import { useSettings } from '@/hooks';
 import { Language, LANGUAGE } from '@/constants';
+import { oneSignalService } from '@/services/onesignal/OneSignalService';
 
 // Social Logos - import as components with react-native-svg-transformer
 import LineLogo from '@/assets/logos/line.svg';
 import FacebookLogo from '@/assets/logos/facebook.svg';
 import MessengerLogo from '@/assets/logos/messenger.svg';
 import VoucherIcon from '@/assets/icons/voucher.svg';
+import LanguageIcon from '@/assets/icons/language.svg';
 
 interface MenuItem {
   icon: React.ReactNode;
@@ -40,7 +42,45 @@ const Profile = () => {
   const styles = createStyles(theme);
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [isTogglingNotifications, setIsTogglingNotifications] = useState(false);
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
+
+  // Get initial notification subscription status
+  useEffect(() => {
+    const checkNotificationStatus = async () => {
+      try {
+        const status = await oneSignalService.getSubscriptionStatus();
+        setNotificationsEnabled(status.isSubscribed);
+      } catch (error) {
+        console.error('Error checking notification status:', error);
+      }
+    };
+    checkNotificationStatus();
+  }, []);
+
+  // Handle notification toggle
+  const handleNotificationToggle = useCallback(async (value: boolean) => {
+    setIsTogglingNotifications(true);
+    try {
+      const success = await oneSignalService.toggleSubscription(value);
+      if (success) {
+        setNotificationsEnabled(value);
+      } else {
+        // If toggle failed, show alert
+        Alert.alert(
+          t('common.error'),
+          value
+            ? t('profile.notificationEnableFailed') || 'Không thể bật thông báo. Vui lòng kiểm tra quyền thông báo trong cài đặt.'
+            : t('profile.notificationDisableFailed') || 'Không thể tắt thông báo.'
+        );
+      }
+    } catch (error) {
+      console.error('Error toggling notifications:', error);
+      Alert.alert(t('common.error'), t('common.somethingWentWrong') || 'Đã xảy ra lỗi');
+    } finally {
+      setIsTogglingNotifications(false);
+    }
+  }, [t]);
 
   // Language options
   const languageOptions = [
@@ -254,10 +294,10 @@ const Profile = () => {
           label: t('profile.notificationSettings'),
           hasSwitch: true,
           switchValue: notificationsEnabled,
-          onSwitchChange: setNotificationsEnabled,
+          onSwitchChange: handleNotificationToggle,
         },
         {
-          icon: <Feather name='globe' size={20} color={theme.colors.text.secondary} />,
+          icon: <LanguageIcon width={20} height={20} color={theme.colors.text.secondary} />,
           label: t('profile.language'),
           rightText: getCurrentLanguageLabel(),
           onPress: () => setLanguageModalVisible(true),

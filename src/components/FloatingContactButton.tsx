@@ -1,5 +1,5 @@
 import { Feather, FontAwesome5, Ionicons } from '@expo/vector-icons';
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import {
     View,
     StyleSheet,
@@ -73,6 +73,27 @@ const FloatingContactButton: React.FC = () => {
 
     const [isOpen, setIsOpen] = useState(false);
     const animation = useRef(new Animated.Value(0)).current;
+    const shakeAnimation = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        if (!isOpen) {
+            const shake = Animated.sequence([
+                Animated.timing(shakeAnimation, { toValue: 1, duration: 100, useNativeDriver: true }),
+                Animated.timing(shakeAnimation, { toValue: -1, duration: 100, useNativeDriver: true }),
+                Animated.timing(shakeAnimation, { toValue: 1, duration: 100, useNativeDriver: true }),
+                Animated.timing(shakeAnimation, { toValue: 0, duration: 100, useNativeDriver: true }),
+                Animated.delay(2000)
+            ]);
+            Animated.loop(shake).start();
+        } else {
+            shakeAnimation.setValue(0);
+        }
+    }, [isOpen]);
+
+    const shakeRotate = shakeAnimation.interpolate({
+        inputRange: [-1, 1],
+        outputRange: ['-15deg', '15deg']
+    });
 
     const toggleMenu = useCallback(() => {
         const toValue = isOpen ? 0 : 1;
@@ -195,16 +216,18 @@ const FloatingContactButton: React.FC = () => {
             ))}
 
             {/* Main FAB button */}
-            <Pressable onPress={toggleMenu} style={styles.fabButton}>
-                <View
-                    style={[
-                        styles.fabContent,
-                        { backgroundColor: isOpen ? '#333' : theme.colors.text.brand_primary },
-                    ]}
-                >
-                    <Feather name={isOpen ? "x" : "phone"} size={24} color="#FFFFFF" />
-                </View>
-            </Pressable>
+            <Animated.View style={{ transform: [{ rotate: shakeRotate }] }}>
+                <Pressable onPress={toggleMenu} style={styles.fabButton}>
+                    <View
+                        style={[
+                            styles.fabContent,
+                            { backgroundColor: isOpen ? '#333' : theme.colors.text.brand_primary },
+                        ]}
+                    >
+                        <Feather name={isOpen ? "x" : "phone"} size={24} color="#FFFFFF" />
+                    </View>
+                </Pressable>
+            </Animated.View>
         </View>
     );
 };

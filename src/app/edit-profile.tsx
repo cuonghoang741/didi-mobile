@@ -9,15 +9,9 @@ import { Typography, Button } from '@/components';
 import { useTheme, useLanguage, useAuth } from '@/contexts';
 import { supabase } from '@/services/supabase';
 
-type EditMode = 'view' | 'edit';
-
-interface ProfileField {
-  key: string;
-  label: string;
-  value: string;
-  editable?: boolean;
-  keyboardType?: 'default' | 'email-address' | 'phone-pad';
-}
+// Gender images
+const MaleIcon = require('@/assets/images/male.png');
+const FemaleIcon = require('@/assets/images/felmale.png');
 
 const EditProfileScreen = () => {
   const router = useRouter();
@@ -26,9 +20,9 @@ const EditProfileScreen = () => {
   const { user, getDisplayName, getEmail, getPhone, getAvatarUrl, logout } = useAuth();
   const styles = createStyles(theme);
 
-  const [mode, setMode] = useState<EditMode>('view');
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     fullName: getDisplayName() || '',
     birthday: user?.user_metadata?.birthday || '',
@@ -37,57 +31,30 @@ const EditProfileScreen = () => {
     phone: getPhone() || '',
   });
 
-  const profileFields: ProfileField[] = [
-    {
-      key: 'fullName',
-      label: t('editProfile.fullName'),
-      value: formData.fullName,
-      editable: true,
-    },
-    {
-      key: 'birthday',
-      label: t('editProfile.birthday'),
-      value: formData.birthday || '--/--/----',
-      editable: true,
-    },
-    {
-      key: 'gender',
-      label: t('editProfile.gender'),
-      value: formData.gender || '--',
-      editable: true,
-    },
-    {
-      key: 'email',
-      label: t('editProfile.email'),
-      value: formData.email,
-      editable: false,
-      keyboardType: 'email-address',
-    },
-    {
-      key: 'phone',
-      label: t('editProfile.phone'),
-      value: formData.phone || '--',
-      editable: true,
-      keyboardType: 'phone-pad',
-    },
-  ];
-
   const handleBack = () => {
-    if (mode === 'edit') {
-      setMode('view');
-    } else {
-      router.back();
-    }
-  };
-
-  const handleEditPress = () => {
-    setMode('edit');
+    router.back();
   };
 
   const handleSave = async () => {
-    // TODO: Implement save logic with Supabase
-    console.log('Saving profile data:', formData);
-    setMode('view');
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          full_name: formData.fullName,
+          birthday: formData.birthday,
+          gender: formData.gender,
+          phone: formData.phone,
+        },
+      });
+
+      if (error) throw error;
+
+      Alert.alert('Thành công', 'Đã cập nhật thông tin');
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.message || 'Không thể cập nhật thông tin');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -100,7 +67,6 @@ const EditProfileScreen = () => {
         text: t('editProfile.deleteConfirm'),
         style: 'destructive',
         onPress: async () => {
-          // TODO: Implement account deletion
           await logout();
           router.replace('/signin');
         },
@@ -153,19 +119,14 @@ const EditProfileScreen = () => {
 
     setIsUploadingAvatar(true);
     try {
-      // Create a unique filename
       const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `${user.id}_${Date.now()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 
-      // Fetch the image and convert to blob
       const response = await fetch(imageUri);
       const blob = await response.blob();
-
-      // Convert blob to ArrayBuffer for Supabase
       const arrayBuffer = await new Response(blob).arrayBuffer();
 
-      // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, arrayBuffer, {
@@ -173,27 +134,20 @@ const EditProfileScreen = () => {
           upsert: true,
         });
 
-      if (uploadError) {
-        throw uploadError;
-      }
+      if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: publicUrlData } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
 
       const publicUrl = publicUrlData.publicUrl;
 
-      // Update user metadata with new avatar URL
       const { error: updateError } = await supabase.auth.updateUser({
         data: { avatar_url: publicUrl },
       });
 
-      if (updateError) {
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
-      // Update local state to show new avatar immediately
       setLocalAvatarUrl(publicUrl);
       Alert.alert('Thành công', 'Đã cập nhật ảnh đại diện');
     } catch (error: any) {
@@ -220,7 +174,6 @@ const EditProfileScreen = () => {
         }
       );
     } else {
-      // Android: Show Alert as ActionSheet
       Alert.alert(
         'Đổi ảnh đại diện',
         'Chọn nguồn ảnh',
@@ -237,7 +190,6 @@ const EditProfileScreen = () => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
-  // Use local avatar if available, otherwise fallback to user's avatar (always a string from DiceBear)
   const avatarUrl: string = localAvatarUrl || getAvatarUrl();
 
   return (
@@ -272,39 +224,115 @@ const EditProfileScreen = () => {
               </View>
             )}
           </Pressable>
-          {isUploadingAvatar && (
-            <Typography variant='text' size='sm' style={styles.uploadingText}>
-              Đang tải ảnh lên...
-            </Typography>
-          )}
         </View>
 
-        {/* Profile Fields */}
-        <View style={styles.fieldsContainer}>
-          {profileFields.map((field, index) => (
-            <View
-              key={field.key}
-              style={[styles.fieldRow, index < profileFields.length - 1 && styles.fieldBorder]}
+        {/* Full Name Field */}
+        <View style={styles.fieldSection}>
+          <Typography variant='text' size='sm' style={styles.fieldLabel}>
+            {t('editProfile.fullName')}
+          </Typography>
+          <View style={styles.inputContainer}>
+            <Feather name='user' size={20} color={theme.colors.text.tertiary} />
+            <TextInput
+              style={styles.textInput}
+              value={formData.fullName}
+              onChangeText={(value) => updateField('fullName', value)}
+              placeholder={t('editProfile.fullName')}
+              placeholderTextColor={theme.colors.text.tertiary}
+            />
+          </View>
+        </View>
+
+        {/* Birthday Field */}
+        <View style={styles.fieldSection}>
+          <Typography variant='text' size='sm' style={styles.fieldLabel}>
+            {t('editProfile.birthday')}
+          </Typography>
+          <View style={styles.inputContainer}>
+            <Feather name='calendar' size={20} color={theme.colors.text.tertiary} />
+            <TextInput
+              style={styles.textInput}
+              value={formData.birthday}
+              onChangeText={(value) => updateField('birthday', value)}
+              placeholder='DD/MM/YYYY'
+              placeholderTextColor={theme.colors.text.tertiary}
+            />
+          </View>
+        </View>
+
+        {/* Gender Selection */}
+        <View style={styles.fieldSection}>
+          <Typography variant='text' size='sm' style={styles.fieldLabel}>
+            {t('editProfile.gender')}
+          </Typography>
+          <View style={styles.genderContainer}>
+            <Pressable
+              style={[
+                styles.genderButton,
+                formData.gender === 'male' && styles.genderButtonSelected,
+              ]}
+              onPress={() => updateField('gender', 'male')}
             >
-              <Typography variant='text' size='md' style={styles.fieldLabel}>
-                {field.label}
+              <Image source={MaleIcon} style={styles.genderIcon} />
+              <Typography
+                variant='text'
+                size='md'
+                weight={formData.gender === 'male' ? 'bold' : 'regular'}
+                style={formData.gender === 'male' ? styles.genderTextSelected : styles.genderText}
+              >
+                Nam
               </Typography>
-              {mode === 'edit' && field.editable ? (
-                <TextInput
-                  style={styles.fieldInput}
-                  value={formData[field.key as keyof typeof formData]}
-                  onChangeText={(value) => updateField(field.key, value)}
-                  keyboardType={field.keyboardType || 'default'}
-                  placeholder={field.label}
-                  placeholderTextColor={theme.colors.text.tertiary}
-                />
-              ) : (
-                <Typography variant='text' size='md' weight='medium' style={styles.fieldValue}>
-                  {field.value}
-                </Typography>
-              )}
-            </View>
-          ))}
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.genderButton,
+                formData.gender === 'female' && styles.genderButtonSelected,
+              ]}
+              onPress={() => updateField('gender', 'female')}
+            >
+              <Image source={FemaleIcon} style={styles.genderIcon} />
+              <Typography
+                variant='text'
+                size='md'
+                weight={formData.gender === 'female' ? 'bold' : 'regular'}
+                style={formData.gender === 'female' ? styles.genderTextSelected : styles.genderText}
+              >
+                Nữ
+              </Typography>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Phone Field */}
+        <View style={styles.fieldSection}>
+          <Typography variant='text' size='sm' style={styles.fieldLabel}>
+            {t('editProfile.phone')}
+          </Typography>
+          <View style={styles.inputContainer}>
+            <Feather name='phone' size={20} color={theme.colors.text.tertiary} />
+            <TextInput
+              style={styles.textInput}
+              value={formData.phone}
+              onChangeText={(value) => updateField('phone', value)}
+              placeholder={t('editProfile.phone')}
+              placeholderTextColor={theme.colors.text.tertiary}
+              keyboardType='phone-pad'
+            />
+          </View>
+        </View>
+
+        {/* Email Field (Read-only) */}
+        <View style={styles.fieldSection}>
+          <Typography variant='text' size='sm' style={styles.fieldLabel}>
+            {t('editProfile.email')}
+          </Typography>
+          <View style={[styles.inputContainer, styles.inputDisabled]}>
+            <Feather name='mail' size={20} color={theme.colors.text.tertiary} />
+            <Typography variant='text' size='md' style={styles.emailText}>
+              {formData.email}
+            </Typography>
+          </View>
         </View>
 
         {/* Delete Account Button */}
@@ -315,34 +343,18 @@ const EditProfileScreen = () => {
         </Pressable>
       </ScrollView>
 
-      {/* Bottom Button */}
+      {/* Save Button */}
       <View style={styles.bottomContainer}>
-        {mode === 'view' ? (
-          <Button
-            colorScheme='gray'
-            size='lg'
-            variant='solid'
-            onPress={handleEditPress}
-            style={styles.editButton}
-          >
-            <View style={styles.buttonContent}>
-              <Feather name='edit-2' size={18} color='#FFFFFF' />
-              <Typography variant='text' size='md' weight='medium' style={styles.buttonText}>
-                {t('editProfile.editInfo')}
-              </Typography>
-            </View>
-          </Button>
-        ) : (
-          <Button
-            colorScheme='brand'
-            size='lg'
-            variant='solid'
-            onPress={handleSave}
-            style={styles.editButton}
-          >
-            {t('editProfile.save')}
-          </Button>
-        )}
+        <Button
+          colorScheme='brand'
+          size='lg'
+          variant='solid'
+          onPress={handleSave}
+          loading={isSaving}
+          fullWidth
+        >
+          {t('editProfile.save')}
+        </Button>
       </View>
     </SafeAreaView>
   );
@@ -374,11 +386,11 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     scrollContent: {
       padding: 16,
-      paddingBottom: 100,
+      paddingBottom: 120,
     },
     avatarSection: {
       alignItems: 'center',
-      paddingVertical: 24,
+      paddingVertical: 20,
     },
     avatarContainer: {
       position: 'relative',
@@ -387,17 +399,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       width: 100,
       height: 100,
       borderRadius: 50,
-    },
-    avatarPlaceholder: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
-      backgroundColor: '#4A90D9',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    avatarText: {
-      color: '#FFFFFF',
     },
     cameraIcon: {
       position: 'absolute',
@@ -416,8 +417,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       position: 'absolute',
       top: 0,
       left: 0,
-      right: 0,
-      bottom: 0,
       width: 100,
       height: 100,
       borderRadius: 50,
@@ -425,44 +424,67 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    uploadingText: {
-      color: theme.colors.text.secondary,
-      marginTop: 8,
-    },
-    fieldsContainer: {
-      backgroundColor: '#FFFFFF',
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      marginBottom: 16,
-    },
-    fieldRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: 16,
-    },
-    fieldBorder: {
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border.tertiary,
+    fieldSection: {
+      marginBottom: 20,
     },
     fieldLabel: {
-      color: theme.colors.text.secondary,
-      flex: 1,
-    },
-    fieldValue: {
       color: theme.colors.text.primary,
-      textAlign: 'right',
-      flex: 2,
+      marginBottom: 8,
+      fontWeight: '500',
     },
-    fieldInput: {
-      flex: 2,
-      textAlign: 'right',
+    inputContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#FFFFFF',
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border.secondary,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      gap: 12,
+    },
+    inputDisabled: {
+      backgroundColor: '#F9FAFB',
+    },
+    textInput: {
+      flex: 1,
       fontSize: 16,
       color: theme.colors.text.primary,
-      paddingVertical: 4,
-      paddingHorizontal: 8,
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: 8,
+    },
+    emailText: {
+      flex: 1,
+      color: theme.colors.text.primary,
+    },
+    genderContainer: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    genderButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#FFFFFF',
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: theme.colors.border.secondary,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      gap: 8,
+    },
+    genderButtonSelected: {
+      borderColor: '#007AFF',
+      backgroundColor: '#F0F8FF',
+    },
+    genderIcon: {
+      width: 24,
+      height: 24,
+    },
+    genderText: {
+      color: theme.colors.text.secondary,
+    },
+    genderTextSelected: {
+      color: '#007AFF',
     },
     deleteButton: {
       alignItems: 'center',
@@ -482,17 +504,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       backgroundColor: theme.colors.background.primary,
       borderTopWidth: 1,
       borderTopColor: theme.colors.border.tertiary,
-    },
-    editButton: {
-      backgroundColor: '#1A1A1A',
-    },
-    buttonContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    buttonText: {
-      color: '#FFFFFF',
     },
   });
 

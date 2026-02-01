@@ -5,6 +5,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Typography } from '@/components';
 import { useTheme, useLanguage, useCart } from '@/contexts';
@@ -148,9 +149,14 @@ const CartScreen = () => {
           const isOutOfStock = stockQty === 0;
 
           // Get price - variant has price, product has sale_price or base_price
-          const price = item.variant
+          const salePrice = item.variant
             ? item.variant.price
             : (item.product.sale_price || item.product.base_price || 0);
+
+          // Get original price (base_price) if there's a sale
+          const originalPrice = item.variant
+            ? null // variants don't have original price concept
+            : (item.product.sale_price && item.product.base_price ? item.product.base_price : null);
 
           // Get image - product has image_urls array or thumbnail_url
           const imageUrl = item.product.image_urls?.[0] || item.product.thumbnail_url;
@@ -164,7 +170,8 @@ const CartScreen = () => {
             variantName = options.name || `${options.color || ''} ${options.storage || ''}`.trim() || item.variant.sku || '';
           }
 
-          const priceFormatted = formatPrice(price);
+          const priceFormatted = formatPrice(salePrice);
+          const originalPriceFormatted = originalPrice ? formatPrice(originalPrice) : null;
 
           return (
             <View
@@ -204,15 +211,25 @@ const CartScreen = () => {
               </View>
 
               <View style={styles.itemInfo}>
-                <Typography
-                  variant='text'
-                  size='md'
-                  weight='medium'
-                  numberOfLines={2}
-                  style={isOutOfStock && styles.textDisabled}
-                >
-                  {item.product.name}
-                </Typography>
+                {/* Header row with name and delete button */}
+                <View style={styles.itemHeader}>
+                  <Typography
+                    variant='text'
+                    size='md'
+                    weight='medium'
+                    numberOfLines={2}
+                    style={[styles.itemName, isOutOfStock && styles.textDisabled]}
+                  >
+                    {item.product.name}
+                  </Typography>
+                  <Pressable
+                    style={styles.removeButton}
+                    onPress={() => removeItem(item.product.id, item.variant?.id)}
+                  >
+                    <Feather name='trash-2' size={20} color={theme.colors.text.tertiary} />
+                  </Pressable>
+                </View>
+
                 {variantName && (
                   <View style={styles.variantBadge}>
                     <Typography variant='text' size='xs' style={styles.variantBadgeText}>
@@ -220,26 +237,50 @@ const CartScreen = () => {
                     </Typography>
                   </View>
                 )}
+
+                {/* Prices */}
+                <View style={styles.priceRow}>
+                  <Typography
+                    variant='text'
+                    size='md'
+                    weight='bold'
+                    style={[styles.itemPrice, isOutOfStock && styles.textDisabled]}
+                  >
+                    {priceFormatted.jpy}
+                  </Typography>
+                  {originalPriceFormatted && (
+                    <Typography
+                      variant='text'
+                      size='sm'
+                      style={styles.originalPrice}
+                    >
+                      {originalPriceFormatted.jpy}
+                    </Typography>
+                  )}
+                </View>
                 <Typography
                   variant='text'
-                  size='md'
-                  weight='bold'
-                  style={[styles.itemPrice, isOutOfStock && styles.textDisabled]}
+                  size='sm'
+                  style={[styles.itemPriceVnd, isOutOfStock && styles.textDisabled]}
                 >
                   {priceFormatted.vnd}
                 </Typography>
 
-                {/* Actions - Quantity controls or just delete button for out of stock */}
-                <View style={styles.itemActions}>
-                  {!isOutOfStock ? (
+                {/* Quantity controls below price, aligned right */}
+                {!isOutOfStock && (
+                  <View style={styles.quantityWrapper}>
                     <View style={styles.quantityControls}>
                       <Pressable
-                        style={styles.quantityButton}
+                        style={[
+                          styles.quantityButton,
+                          item.quantity <= 1 && styles.quantityButtonDisabled
+                        ]}
                         onPress={() =>
                           updateQuantity(item.product.id, item.variant?.id, item.quantity - 1)
                         }
+                        disabled={item.quantity <= 1}
                       >
-                        <Feather name='minus' size={16} color='#FFFFFF' />
+                        <Feather name='minus' size={14} color='#FFFFFF' />
                       </Pressable>
                       <Typography
                         variant='text'
@@ -255,19 +296,11 @@ const CartScreen = () => {
                           updateQuantity(item.product.id, item.variant?.id, item.quantity + 1)
                         }
                       >
-                        <Feather name='plus' size={16} color='#FFFFFF' />
+                        <Feather name='plus' size={14} color='#FFFFFF' />
                       </Pressable>
                     </View>
-                  ) : (
-                    <View />
-                  )}
-                  <Pressable
-                    style={styles.removeButton}
-                    onPress={() => removeItem(item.product.id, item.variant?.id)}
-                  >
-                    <Feather name='trash-2' size={22} color={theme.colors.text.tertiary} />
-                  </Pressable>
-                </View>
+                  </View>
+                )}
               </View>
             </View>
           );
@@ -291,7 +324,11 @@ const CartScreen = () => {
         </View>
         <Pressable
           style={[styles.checkoutButton, { backgroundColor: selectedItems.size > 0 ? '#2E8FF9' : '#D1D5DB' }]}
-          onPress={() => router.push('/checkout')}
+          onPress={async () => {
+            // Save selected item keys to AsyncStorage
+            await AsyncStorage.setItem('selectedCartItems', JSON.stringify(Array.from(selectedItems)));
+            router.push('/checkout');
+          }}
           disabled={selectedItems.size === 0}
         >
           <View style={styles.checkoutGradient}>
@@ -419,6 +456,21 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
       marginLeft: 12,
     },
+    itemHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    itemName: {
+      flex: 1,
+      marginRight: 8,
+    },
+    priceQuantityRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-end',
+      marginTop: 8,
+    },
     variantName: {
       color: theme.colors.text.tertiary,
       marginTop: 2,
@@ -435,8 +487,25 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       color: theme.colors.text.secondary,
     },
     itemPrice: {
-      color: theme.colors.text.brand_primary,
+      color: theme.colors.text.price,
+    },
+    priceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
       marginTop: 6,
+    },
+    originalPrice: {
+      color: theme.colors.text.tertiary,
+      textDecorationLine: 'line-through',
+    },
+    itemPriceVnd: {
+      color: theme.colors.text.tertiary,
+      marginTop: 2,
+    },
+    quantityWrapper: {
+      alignItems: 'flex-end',
+      marginTop: 8,
     },
     itemActions: {
       flexDirection: 'row',
@@ -447,22 +516,25 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     quantityControls: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 6,
     },
     quantityButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 8,
+      width: 26,
+      height: 26,
+      borderRadius: 6,
       backgroundColor: '#2E8FF9',
       justifyContent: 'center',
       alignItems: 'center',
     },
+    quantityButtonDisabled: {
+      backgroundColor: '#D1D5DB',
+    },
     quantityValue: {
-      minWidth: 24,
+      minWidth: 20,
       textAlign: 'center',
+      fontSize: 13,
     },
     removeButton: {
-      padding: 8,
     },
     summaryCard: {
       backgroundColor: theme.colors.background.secondary,
@@ -488,7 +560,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       marginVertical: 12,
     },
     totalPrice: {
-      color: theme.colors.text.brand_primary,
+      color: theme.colors.text.price,
     },
     bottomBar: {
       position: 'absolute',
@@ -511,7 +583,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       color: theme.colors.text.tertiary,
     },
     totalAmount: {
-      color: theme.colors.text.brand_primary,
+      color: theme.colors.text.price,
     },
     checkoutButton: {
       flex: 1,

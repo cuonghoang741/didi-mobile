@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -13,50 +13,67 @@ import {
   ActivityIndicator,
   Modal,
   TouchableOpacity,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Typography } from '@/components';
 import { useTheme, useLanguage, useCart, useAuth } from '@/contexts';
 import { createOrder, CheckoutForm } from '@/services/supabase/orderService';
 import type { PaymentMethod } from '@/models/common';
-
+import { supabase } from '@/services/supabase';
 import { useCurrency, useSettings } from '@/hooks';
 
+// Type helper
+const db = supabase as any;
 
+interface Address {
+  id: string;
+  full_name: string;
+  nickname?: string;
+  phone: string;
+  address_line1: string;
+  address_line2?: string;
+  ward?: string;
+  district?: string;
+  city: string;
+  province?: string;
+  postal_code?: string;
+  is_default: boolean;
+  type: string;
+}
 
-const PAYMENT_METHODS: { id: PaymentMethod; icon: keyof typeof Feather.glyphMap }[] = [
-  { id: 'at_store', icon: 'home' },
-  { id: 'bank_transfer', icon: 'credit-card' },
-  { id: 'daibiki', icon: 'truck' },
+const PAYMENT_METHODS: { id: PaymentMethod; labelKey: string; descKey: string; icon: keyof typeof Feather.glyphMap }[] = [
+  { id: 'daibiki', labelKey: 'checkout.daibiki', descKey: 'checkout.daibikiDesc', icon: 'truck' },
+  { id: 'bank_transfer', labelKey: 'checkout.bankTransfer', descKey: 'checkout.bankTransferDesc', icon: 'credit-card' },
+  { id: 'at_store', labelKey: 'checkout.atStore', descKey: 'checkout.atStoreDesc', icon: 'home' },
 ];
 
 const CheckoutScreen = () => {
   const router = useRouter();
   const theme = useTheme();
   const { t } = useLanguage();
-  const { items, getSubtotal, clearCart } = useCart();
+  const { items: allItems, getSubtotal, clearCart, removeItem } = useCart();
   const { user } = useAuth();
-  const { formatPrice } = useCurrency();
+  const { formatPrice, formatJpy } = useCurrency();
   const { bankAccounts } = useSettings();
   const styles = createStyles(theme);
 
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState<CheckoutForm>({
-    shipping_name: '',
-    shipping_phone: '',
-    shipping_email: '',
-    shipping_address: '',
-    shipping_city: '',
-    shipping_district: '',
-    shipping_ward: '',
-    shipping_note: '',
-    payment_method: 'daibiki',
-  });
+  const [loadingAddress, setLoadingAddress] = useState(true);
+  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+  const [customerNote, setCustomerNote] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('daibiki');
+  const [useDidiPoint, setUseDidiPoint] = useState(false);
+  const [didiPoints] = useState(3); // Mock points
+
+  // Selected cart items from cart page
+  const [selectedCartItemKeys, setSelectedCartItemKeys] = useState<string[]>([]);
 
   // Payment proof states
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -64,80 +81,171 @@ const CheckoutScreen = () => {
   const [uploadingProof, setUploadingProof] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<{ id: string; order_number: string } | null>(null);
 
-  const subtotal = getSubtotal();
-  const shipping = form.payment_method === 'at_store' ? 0 : 500; // 500 JPY shipping
-  const total = subtotal + shipping;
+  // Voucher state
+  const [selectedVoucher, setSelectedVoucher] = useState<{
+    id: string;
+    code: string;
+    title: string;
+    discount_type: 'percentage' | 'fixed';
+    discount_value: number;
+    max_discount?: number;
+  } | null>(null);
 
-  const subtotalFormatted = formatPrice(subtotal);
-  const shippingFormatted = formatPrice(shipping);
-  const totalFormatted = formatPrice(total);
+  // Time slot state
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('Tất cả khung giờ');
 
-  const [zipCode, setZipCode] = useState('');
-  const [loadingZip, setLoadingZip] = useState(false);
-
-  const handleZipCodeChange = async (text: string) => {
-    setZipCode(text);
-
-    if (text.length === 7) {
-      setLoadingZip(true);
+  // Load selected cart items on mount
+  useEffect(() => {
+    const loadSelectedItems = async () => {
       try {
-        const response = await fetch(`https://api.zipaddress.net/?zipcode=${text}&lang=rome`);
-        const result = await response.json();
-
-        if (result.code === 200 && result.data) {
-          const { pref, address } = result.data;
-          // Auto-fill address
-          setForm((prev) => ({
-            ...prev,
-            shipping_city: pref || prev.shipping_city,
-            shipping_district: address || prev.shipping_district,
-            shipping_ward: '', // Reset or try to parse if needed
-          }));
+        const selectedData = await AsyncStorage.getItem('selectedCartItems');
+        if (selectedData) {
+          setSelectedCartItemKeys(JSON.parse(selectedData));
+          // Clear from storage
+          await AsyncStorage.removeItem('selectedCartItems');
         }
       } catch (error) {
-        console.error('Error fetching address:', error);
-      } finally {
-        setLoadingZip(false);
+        console.error('Error loading selected items:', error);
       }
+    };
+    loadSelectedItems();
+  }, []);
+
+  // Load time slot when screen focuses
+  useFocusEffect(
+    useCallback(() => {
+      const loadTimeSlot = async () => {
+        try {
+          const savedLabel = await AsyncStorage.getItem('selected_time_slot_label');
+          if (savedLabel) {
+            setSelectedTimeSlot(savedLabel);
+          }
+        } catch (error) {
+          console.error('Error loading time slot:', error);
+        }
+      };
+      loadTimeSlot();
+    }, [])
+  );
+
+  // Filter items based on selected keys
+  const items = allItems.filter(item => {
+    const itemKey = `${item.product.id}-${item.variant?.id || 'default'}`;
+    // If no selected keys (direct access to checkout), show all
+    if (selectedCartItemKeys.length === 0) return true;
+    return selectedCartItemKeys.includes(itemKey);
+  });
+
+  // Calculate subtotal for selected items only
+  const subtotal = items.reduce((total, item) => {
+    const price = item.variant?.price || item.product?.sale_price || item.product?.base_price || 0;
+    return total + (price * item.quantity);
+  }, 0);
+  const shipping = paymentMethod === 'at_store' ? 0 : 500;
+
+  // Calculate discount based on selected voucher
+  const calculateDiscount = (): number => {
+    if (!selectedVoucher) return 0;
+
+    if (selectedVoucher.discount_type === 'percentage') {
+      const percentDiscount = Math.floor(subtotal * (selectedVoucher.discount_value / 100));
+      // Apply max discount cap if exists
+      if (selectedVoucher.max_discount) {
+        return Math.min(percentDiscount, selectedVoucher.max_discount);
+      }
+      return percentDiscount;
+    } else {
+      // Fixed discount
+      return selectedVoucher.discount_value;
     }
   };
 
-  const updateForm = (key: keyof CheckoutForm, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+  const discount = calculateDiscount();
+  const total = subtotal + shipping - discount;
+
+  // Fetch default address
+  const fetchDefaultAddress = useCallback(async () => {
+    if (!user?.id) {
+      setLoadingAddress(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await db
+        .from('customer_addresses')
+        .select('*')
+        .eq('customer_id', user.id)
+        .order('is_default', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setSelectedAddress(data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching address:', error);
+    } finally {
+      setLoadingAddress(false);
+    }
+  }, [user?.id]);
+
+  // Refresh address when screen is focused (after selecting/editing)
+  useFocusEffect(
+    useCallback(() => {
+      fetchDefaultAddress();
+      loadSelectedVoucher();
+    }, [fetchDefaultAddress])
+  );
+
+  // Load selected voucher from AsyncStorage
+  const loadSelectedVoucher = async () => {
+    try {
+      const voucherData = await AsyncStorage.getItem('selectedVoucher');
+      if (voucherData) {
+        const voucher = JSON.parse(voucherData);
+        setSelectedVoucher(voucher);
+        // Clear the stored voucher after loading
+        await AsyncStorage.removeItem('selectedVoucher');
+      }
+    } catch (error) {
+      console.error('Error loading voucher:', error);
+    }
   };
 
-  const validateForm = (): boolean => {
-    if (!form.shipping_name.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập họ và tên');
-      return false;
-    }
-    if (!form.shipping_phone.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập số điện thoại');
-      return false;
-    }
-    if (form.payment_method !== 'at_store') {
-      if (!form.shipping_address.trim()) {
-        Alert.alert('Lỗi', 'Vui lòng nhập địa chỉ giao hàng');
-        return false;
-      }
-      if (!form.shipping_city.trim()) {
-        Alert.alert('Lỗi', 'Vui lòng nhập tỉnh/thành phố');
-        return false;
-      }
-    }
-    return true;
+  const handleSelectAddress = () => {
+    router.push('/addresses?select=true' as any);
   };
 
   const handlePlaceOrder = async () => {
-    if (!validateForm()) return;
+    if (!selectedAddress) {
+      if (paymentMethod === 'at_store') {
+        Alert.alert(t('common.notice'), t('checkout.selectRecipientForPickup'));
+      } else {
+        Alert.alert(t('common.notice'), t('checkout.selectAddressRequired'));
+      }
+      return;
+    }
     if (!user) {
-      Alert.alert('Lỗi', 'Vui lòng đăng nhập để đặt hàng');
+      Alert.alert(t('common.notice'), t('checkout.loginRequired'));
       return;
     }
 
     setLoading(true);
 
     try {
+      const form: CheckoutForm = {
+        shipping_name: selectedAddress.full_name,
+        shipping_phone: selectedAddress.phone,
+        shipping_email: '',
+        shipping_address: selectedAddress.address_line1,
+        shipping_city: selectedAddress.city || selectedAddress.province || '',
+        shipping_district: selectedAddress.district || '',
+        shipping_ward: selectedAddress.ward || '',
+        shipping_note: customerNote,
+        payment_method: paymentMethod,
+      };
+
       const { order, error } = await createOrder(user.id.toString(), items, form);
 
       if (error || !order) {
@@ -145,14 +253,26 @@ const CheckoutScreen = () => {
         return;
       }
 
-      // If bank transfer, show payment proof modal
-      if (form.payment_method === 'bank_transfer') {
-        setPendingOrder({ id: order.id, order_number: order.order_number });
-        clearCart();
-        setShowPaymentModal(true);
+      // Remove only ordered items from cart (not all cart items)
+      const removeOrderedItems = () => {
+        items.forEach(item => {
+          removeItem(item.product.id, item.variant?.id);
+        });
+      };
+
+      if (paymentMethod === 'bank_transfer') {
+        removeOrderedItems();
+        // Navigate to bank transfer confirmation screen
+        router.replace({
+          pathname: '/bank-transfer-confirm',
+          params: {
+            orderId: order.id,
+            orderNumber: order.order_number,
+            totalAmount: total.toString(),
+          },
+        } as any);
       } else {
-        // For other payment methods, go directly to success
-        clearCart();
+        removeOrderedItems();
         router.replace({
           pathname: '/order-success',
           params: { orderId: order.id, orderNumber: order.order_number },
@@ -166,7 +286,7 @@ const CheckoutScreen = () => {
     }
   };
 
-  // Copy bank account number to clipboard
+  // Copy bank account number
   const handleCopyAccount = async (accountNumber: string) => {
     await Clipboard.setStringAsync(accountNumber);
     Alert.alert(t('checkout.copied'), t('checkout.accountCopied'));
@@ -180,47 +300,36 @@ const CheckoutScreen = () => {
       aspect: [4, 3],
       quality: 0.8,
     });
-
     if (!result.canceled && result.assets[0]) {
       setPaymentProofImage(result.assets[0].uri);
     }
   };
 
-  // Take photo of payment proof
   const handleTakePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(t('common.error'), t('addresses.errors.cameraPermissionDenied'));
+      Alert.alert(t('common.error'), 'Cần cấp quyền camera');
       return;
     }
-
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
     });
-
     if (!result.canceled && result.assets[0]) {
       setPaymentProofImage(result.assets[0].uri);
     }
   };
 
-  // Confirm payment proof and go to success
   const handleConfirmPayment = async () => {
     if (!paymentProofImage) {
-      Alert.alert(t('common.error'), t('checkout.pleaseUploadProof'));
+      Alert.alert(t('common.error'), 'Vui lòng tải lên ảnh chuyển khoản');
       return;
     }
-
     if (!pendingOrder) return;
 
     setUploadingProof(true);
-
     try {
-      // TODO: Upload image to storage and update order with payment_proof_url
-      // For now, we'll just proceed to success
-
-      // Close modal and navigate to success
       setShowPaymentModal(false);
       router.replace({
         pathname: '/order-success',
@@ -230,18 +339,13 @@ const CheckoutScreen = () => {
           pendingPayment: 'true',
         },
       });
-    } catch (error) {
-      console.error('Upload error:', error);
-      Alert.alert(t('common.error'), t('addresses.errors.uploadFailed'));
     } finally {
       setUploadingProof(false);
     }
   };
 
-  // Skip payment proof (can upload later)
   const handleSkipPaymentProof = () => {
     if (!pendingOrder) return;
-
     setShowPaymentModal(false);
     router.replace({
       pathname: '/order-success',
@@ -253,32 +357,292 @@ const CheckoutScreen = () => {
     });
   };
 
-
-  const getPaymentMethodLabel = (method: PaymentMethod): string => {
-    switch (method) {
-      case 'at_store':
-        return t('checkout.atStore');
-      case 'bank_transfer':
-        return t('checkout.bankTransfer');
-      case 'daibiki':
-        return t('checkout.daibiki');
-      default:
-        return '';
+  const renderAddressSection = () => {
+    if (loadingAddress) {
+      return (
+        <View style={styles.sectionCard}>
+          <ActivityIndicator size="small" color={theme.colors.text.brand_primary} />
+        </View>
+      );
     }
+
+    return (
+      <View style={styles.sectionCard}>
+        <Typography variant='text' size='md' weight='bold' style={styles.sectionTitle}>
+          {t('checkout.shippingAddress')}
+        </Typography>
+
+        <Pressable style={styles.addressRow} onPress={handleSelectAddress}>
+          <Feather name='map-pin' size={18} color={theme.colors.text.secondary} />
+          <Typography variant='text' size='md' style={styles.addressRowText}>
+            {selectedAddress
+              ? `${selectedAddress.full_name} - ${selectedAddress.phone}`
+              : t('checkout.selectAddress')}
+          </Typography>
+          <Feather name='chevron-right' size={20} color={theme.colors.text.tertiary} />
+        </Pressable>
+
+        <Pressable style={[styles.addressRow, { borderBottomWidth: 0 }]} onPress={() => router.push('/select-time-slot')}>
+          <Feather name='clock' size={18} color={theme.colors.text.secondary} />
+          <Typography variant='text' size='md' style={styles.addressRowText}>
+            {selectedTimeSlot}
+          </Typography>
+          <Feather name='chevron-right' size={20} color={theme.colors.text.tertiary} />
+        </Pressable>
+      </View>
+    );
   };
 
-  const getPaymentMethodDesc = (method: PaymentMethod): string => {
-    switch (method) {
-      case 'at_store':
-        return t('checkout.atStoreDesc');
-      case 'bank_transfer':
-        return t('checkout.bankTransferDesc');
-      case 'daibiki':
-        return t('checkout.daibikiDesc');
-      default:
-        return '';
-    }
+  const renderProductsSection = () => (
+    <View style={styles.sectionCard}>
+      <View style={styles.sectionHeader}>
+        <Feather name='shopping-bag' size={18} color={theme.colors.text.primary} />
+        <Typography variant='text' size='md' weight='bold' style={{ marginLeft: 8 }}>
+          {t('checkout.products')}
+        </Typography>
+      </View>
+
+      {items.map((item) => (
+        <View key={item.id || item.product_id} style={styles.productRow}>
+          <Image
+            source={{ uri: item.product?.thumbnail_url || item.product?.image_urls?.[0] }}
+            style={styles.productImage}
+            contentFit='cover'
+          />
+          <View style={styles.productInfo}>
+            <Typography variant='text' size='md' numberOfLines={2}>
+              {item.product?.name}
+            </Typography>
+            <Typography variant='text' size='sm' style={styles.quantityText}>
+              x{item.quantity}
+            </Typography>
+          </View>
+          <Typography variant='text' size='md' weight='bold' style={styles.priceText}>
+            {formatJpy(item.variant?.price || item.product?.sale_price || item.product?.base_price || 0)}
+          </Typography>
+        </View>
+      ))}
+    </View>
+  );
+
+  const renderShippingSection = () => (
+    <View style={styles.sectionCard}>
+      <View style={styles.shippingRow}>
+        <Typography variant='text' size='md' weight='bold'>
+          {t('checkout.shipping')}
+        </Typography>
+      </View>
+      <View style={styles.shippingSecurityInfo}>
+        <Feather name='shield' size={16} color={theme.colors.text.tertiary} />
+        <Typography variant='text' size='sm' style={styles.shippingText}>
+          {t('checkout.securityNote')}
+        </Typography>
+      </View>
+    </View>
+  );
+
+  const handleSelectVoucher = () => {
+    router.push({
+      pathname: '/select-voucher',
+      params: { orderTotal: subtotal.toString() },
+    } as any);
   };
+
+  const handleRemoveVoucher = () => {
+    setSelectedVoucher(null);
+  };
+
+  const renderVoucherSection = () => (
+    <View style={styles.sectionCard}>
+      <Pressable style={styles.voucherRow} onPress={handleSelectVoucher}>
+        <Feather name='tag' size={18} color={theme.colors.text.secondary} />
+        <Typography variant='text' size='md' weight='bold' style={{ flex: 1, marginLeft: 12 }}>
+          {t('checkout.voucher')}
+        </Typography>
+        {selectedVoucher ? (
+          <View style={styles.selectedVoucherContainer}>
+            <Typography variant='text' size='sm' style={styles.voucherValue}>
+              {selectedVoucher.discount_type === 'percentage'
+                ? `Giảm ${selectedVoucher.discount_value}%`
+                : `Giảm ¥${selectedVoucher.discount_value}`
+              }
+            </Typography>
+            <Pressable onPress={handleRemoveVoucher} hitSlop={8}>
+              <Feather name='x-circle' size={18} color={theme.colors.text.tertiary} />
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <Typography variant='text' size='sm' style={styles.selectVoucherText}>
+              {t('checkout.selectVoucher')}
+            </Typography>
+            <Feather name='chevron-right' size={20} color={theme.colors.text.tertiary} />
+          </>
+        )}
+      </Pressable>
+    </View>
+  );
+
+  const renderPointsSection = () => (
+    <View style={styles.sectionCard}>
+      <View style={styles.pointsRow}>
+        <Feather name='gift' size={18} color={theme.colors.text.secondary} />
+        <View style={styles.pointsInfo}>
+          <Typography variant='text' size='md' weight='bold'>
+            DiDi Point
+          </Typography>
+          <View style={styles.pointsBalance}>
+            <Typography variant='text' size='sm' style={styles.pointsText}>
+              {t('checkout.points')}: {didiPoints}
+            </Typography>
+            <View style={styles.pointIcon}>
+              <Typography variant='text' size='xs' style={{ color: '#F59E0B' }}>●</Typography>
+            </View>
+          </View>
+        </View>
+        <Switch
+          value={useDidiPoint}
+          onValueChange={setUseDidiPoint}
+          trackColor={{ false: '#E5E7EB', true: theme.colors.foreground.brand_primary }}
+          thumbColor='#FFFFFF'
+        />
+      </View>
+    </View>
+  );
+
+  const renderNoteSection = () => (
+    <View style={styles.sectionCard}>
+      <View style={styles.noteHeader}>
+        <Feather name='file-text' size={18} color={theme.colors.text.secondary} />
+        <Typography variant='text' size='md' weight='bold' style={{ marginLeft: 8 }}>
+          {t('checkout.note')}
+        </Typography>
+      </View>
+      <TextInput
+        style={styles.noteInput}
+        placeholder={t('checkout.enterNote')}
+        placeholderTextColor={theme.colors.text.tertiary}
+        value={customerNote}
+        onChangeText={setCustomerNote}
+        multiline
+        numberOfLines={3}
+      />
+    </View>
+  );
+
+  const renderSummarySection = () => (
+    <View style={styles.sectionCard}>
+      <Typography variant='text' size='md' weight='bold' style={styles.sectionTitle}>
+        {t('checkout.summary')}
+      </Typography>
+
+      <View style={styles.summaryRow}>
+        <Typography variant='text' size='md' style={styles.summaryLabel}>
+          {t('checkout.subtotal')}
+        </Typography>
+        <Typography variant='text' size='md'>
+          {formatJpy(subtotal)}
+        </Typography>
+      </View>
+
+      {discount > 0 && (
+        <View style={styles.summaryRow}>
+          <Typography variant='text' size='md' style={styles.summaryLabel}>
+            {t('checkout.discount')}
+          </Typography>
+          <Typography variant='text' size='md' style={styles.discountText}>
+            -{formatJpy(discount)}
+          </Typography>
+        </View>
+      )}
+
+      <View style={styles.divider} />
+
+      <View style={styles.summaryRow}>
+        <Typography variant='text' size='lg' weight='bold'>
+          {t('checkout.total')}
+        </Typography>
+        <Typography variant='text' size='lg' weight='bold' style={styles.totalText}>
+          {formatJpy(total)}
+        </Typography>
+      </View>
+    </View>
+  );
+
+  const renderPaymentSection = () => (
+    <View style={styles.sectionCard}>
+      <Typography variant='text' size='md' weight='bold' style={styles.sectionTitle}>
+        {t('checkout.paymentMethod')}
+      </Typography>
+
+      {PAYMENT_METHODS.map((method, index) => {
+        const isSelected = paymentMethod === method.id;
+        const isLast = index === PAYMENT_METHODS.length - 1;
+        return (
+          <Pressable
+            key={method.id}
+            style={[
+              styles.paymentRow,
+              isSelected && styles.paymentRowActive,
+              isLast && { borderBottomWidth: 0 }
+            ]}
+            onPress={() => setPaymentMethod(method.id)}
+          >
+            <View style={[styles.paymentIcon, isSelected && styles.paymentIconActive]}>
+              <Feather name={method.icon} size={20} color={isSelected ? '#FFFFFF' : theme.colors.text.secondary} />
+            </View>
+            <View style={styles.paymentInfo}>
+              <Typography variant='text' size='md' weight={isSelected ? 'semiBold' : 'regular'}>
+                {t(method.labelKey)}
+              </Typography>
+              <Typography variant='text' size='sm' style={styles.paymentDesc}>
+                {t(method.descKey)}
+              </Typography>
+            </View>
+            <View style={[
+              styles.radioOuter,
+              isSelected && styles.radioOuterActive,
+            ]}>
+              {isSelected && <View style={styles.radioInner} />}
+            </View>
+          </Pressable>
+        );
+      })}
+
+      {/* Bank Account Info */}
+      {paymentMethod === 'bank_transfer' && bankAccounts.length > 0 && (
+        <View style={styles.bankSection}>
+          <Typography variant='text' size='sm' weight='medium' style={{ marginBottom: 12 }}>
+            {t('checkout.transferTo')}
+          </Typography>
+          {bankAccounts.map((account) => (
+            <View key={account.id} style={styles.bankCard}>
+              <View style={styles.bankHeader}>
+                <Feather name='credit-card' size={18} color={theme.colors.text.brand_primary} />
+                <Typography variant='text' size='md' weight='bold' style={{ marginLeft: 8 }}>
+                  {account.bank_name}
+                </Typography>
+              </View>
+              <View style={styles.bankRow}>
+                <Typography variant='text' size='sm' style={styles.bankLabel}>
+                  {t('checkout.accountNumber')}
+                </Typography>
+                <TouchableOpacity
+                  style={styles.copyButton}
+                  onPress={() => handleCopyAccount(account.account_number)}
+                >
+                  <Typography variant='text' size='sm' weight='bold' style={styles.accountNumber}>
+                    {account.account_number}
+                  </Typography>
+                  <Feather name='copy' size={14} color={theme.colors.text.brand_primary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -298,329 +662,27 @@ const CheckoutScreen = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Shipping Info */}
-          <View style={styles.section}>
-            <Typography variant='text' size='md' weight='bold' style={styles.sectionTitle}>
-              {t('checkout.shippingInfo')}
-            </Typography>
-
-            <View style={styles.inputGroup}>
-              <Typography variant='text' size='sm' weight='medium' style={styles.label}>
-                {t('checkout.fullName')} *
-              </Typography>
-              <TextInput
-                style={styles.input}
-                placeholder={t('checkout.fullName')}
-                placeholderTextColor={theme.colors.text.tertiary}
-                value={form.shipping_name}
-                onChangeText={(v) => updateForm('shipping_name', v)}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Typography variant='text' size='sm' weight='medium' style={styles.label}>
-                {t('checkout.phone')} *
-              </Typography>
-              <TextInput
-                style={styles.input}
-                placeholder={t('checkout.phone')}
-                placeholderTextColor={theme.colors.text.tertiary}
-                value={form.shipping_phone}
-                onChangeText={(v) => updateForm('shipping_phone', v)}
-                keyboardType='phone-pad'
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Typography variant='text' size='sm' weight='medium' style={styles.label}>
-                {t('checkout.email')}
-              </Typography>
-              <TextInput
-                style={styles.input}
-                placeholder={t('checkout.email')}
-                placeholderTextColor={theme.colors.text.tertiary}
-                value={form.shipping_email}
-                onChangeText={(v) => updateForm('shipping_email', v)}
-                keyboardType='email-address'
-                autoCapitalize='none'
-              />
-            </View>
-
-            {form.payment_method !== 'at_store' && (
-              <>
-                <View style={styles.inputGroup}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Typography variant='text' size='sm' weight='medium' style={styles.label}>
-                      {t('checkout.zipCode')}
-                    </Typography>
-                    {loadingZip && (
-                      <ActivityIndicator size='small' color={theme.colors.text.brand_primary} />
-                    )}
-                  </View>
-                  <TextInput
-                    style={styles.input}
-                    placeholder='1000001'
-                    placeholderTextColor={theme.colors.text.tertiary}
-                    value={zipCode}
-                    onChangeText={handleZipCodeChange}
-                    keyboardType='numeric'
-                    maxLength={7}
-                  />
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Typography variant='text' size='sm' weight='medium' style={styles.label}>
-                    {t('checkout.address')} *
-                  </Typography>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={t('checkout.address')}
-                    placeholderTextColor={theme.colors.text.tertiary}
-                    value={form.shipping_address}
-                    onChangeText={(v) => updateForm('shipping_address', v)}
-                  />
-                </View>
-
-                <View style={styles.row}>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Typography variant='text' size='sm' weight='medium' style={styles.label}>
-                      {t('checkout.city')} *
-                    </Typography>
-                    <TextInput
-                      style={styles.input}
-                      placeholder={t('checkout.city')}
-                      placeholderTextColor={theme.colors.text.tertiary}
-                      value={form.shipping_city}
-                      onChangeText={(v) => updateForm('shipping_city', v)}
-                    />
-                  </View>
-                  <View style={{ width: 12 }} />
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Typography variant='text' size='sm' weight='medium' style={styles.label}>
-                      {t('checkout.district')}
-                    </Typography>
-                    <TextInput
-                      style={styles.input}
-                      placeholder={t('checkout.district')}
-                      placeholderTextColor={theme.colors.text.tertiary}
-                      value={form.shipping_district}
-                      onChangeText={(v) => updateForm('shipping_district', v)}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Typography variant='text' size='sm' weight='medium' style={styles.label}>
-                    {t('checkout.ward')}
-                  </Typography>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={t('checkout.ward')}
-                    placeholderTextColor={theme.colors.text.tertiary}
-                    value={form.shipping_ward}
-                    onChangeText={(v) => updateForm('shipping_ward', v)}
-                  />
-                </View>
-              </>
-            )}
-
-            <View style={styles.inputGroup}>
-              <Typography variant='text' size='sm' weight='medium' style={styles.label}>
-                {t('checkout.note')}
-              </Typography>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder={t('checkout.note')}
-                placeholderTextColor={theme.colors.text.tertiary}
-                value={form.shipping_note}
-                onChangeText={(v) => updateForm('shipping_note', v)}
-                multiline
-                numberOfLines={3}
-                textAlignVertical='top'
-              />
-            </View>
-          </View>
-
-          {/* Payment Method */}
-          <View style={styles.section}>
-            <Typography variant='text' size='md' weight='bold' style={styles.sectionTitle}>
-              {t('checkout.paymentMethod')}
-            </Typography>
-
-            {PAYMENT_METHODS.map((method) => (
-              <Pressable
-                key={method.id}
-                style={[
-                  styles.paymentOption,
-                  form.payment_method === method.id && styles.paymentOptionActive,
-                ]}
-                onPress={() => updateForm('payment_method', method.id)}
-              >
-                <View style={styles.paymentRadio}>
-                  <View
-                    style={[
-                      styles.radioOuter,
-                      form.payment_method === method.id && styles.radioOuterActive,
-                    ]}
-                  >
-                    {form.payment_method === method.id && <View style={styles.radioInner} />}
-                  </View>
-                </View>
-                <View style={styles.paymentIcon}>
-                  <Feather name={method.icon} size={20} color={theme.colors.text.brand_primary} />
-                </View>
-                <View style={styles.paymentInfo}>
-                  <Typography variant='text' size='md' weight='medium'>
-                    {getPaymentMethodLabel(method.id)}
-                  </Typography>
-                  <Typography variant='text' size='sm' style={styles.paymentDesc}>
-                    {getPaymentMethodDesc(method.id)}
-                  </Typography>
-                </View>
-              </Pressable>
-            ))}
-
-            {/* Bank Account Info - Show when bank_transfer selected */}
-            {form.payment_method === 'bank_transfer' && bankAccounts.length > 0 && (
-              <View style={styles.bankAccountsSection}>
-                <Typography variant='text' size='sm' weight='medium' style={styles.bankAccountsTitle}>
-                  {t('checkout.transferTo')}
-                </Typography>
-                {bankAccounts.map((account) => (
-                  <View key={account.id} style={styles.bankAccountCard}>
-                    <View style={styles.bankAccountHeader}>
-                      <Feather name='credit-card' size={20} color={theme.colors.text.brand_primary} />
-                      <Typography variant='text' size='md' weight='bold' style={{ marginLeft: 8 }}>
-                        {account.bank_name}
-                      </Typography>
-                    </View>
-                    {account.branch_name && (
-                      <Typography variant='text' size='sm' style={styles.bankBranch}>
-                        {account.branch_name}
-                      </Typography>
-                    )}
-                    <View style={styles.bankAccountRow}>
-                      <Typography variant='text' size='sm' style={styles.bankLabel}>
-                        {t('checkout.accountName')}
-                      </Typography>
-                      <Typography variant='text' size='sm' weight='medium'>
-                        {account.account_name}
-                      </Typography>
-                    </View>
-                    <View style={styles.bankAccountRow}>
-                      <Typography variant='text' size='sm' style={styles.bankLabel}>
-                        {t('checkout.accountNumber')}
-                      </Typography>
-                      <TouchableOpacity
-                        style={styles.copyButton}
-                        onPress={() => handleCopyAccount(account.account_number)}
-                      >
-                        <Typography variant='text' size='sm' weight='bold' style={styles.accountNumber}>
-                          {account.account_number}
-                        </Typography>
-                        <Feather name='copy' size={16} color={theme.colors.text.brand_primary} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))}
-                <Typography variant='text' size='xs' style={styles.bankNote}>
-                  {t('checkout.bankTransferNote')}
-                </Typography>
-              </View>
-            )}
-          </View>
-
-          {/* Order Summary */}
-          <View style={styles.section}>
-            <Typography variant='text' size='md' weight='bold' style={styles.sectionTitle}>
-              {t('checkout.orderSummary')}
-            </Typography>
-
-            <View style={styles.summaryCard}>
-              <View style={styles.summaryRow}>
-                <Typography variant='text' size='md' style={styles.summaryLabel}>
-                  {t('cart.subtotal')} ({items.length} {t('cart.itemCount')})
-                </Typography>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Typography variant='text' size='md' weight='medium'>
-                    {subtotalFormatted.jpy}
-                  </Typography>
-                  <Typography
-                    variant='text'
-                    size='xs'
-                    style={{ color: theme.colors.text.tertiary }}
-                  >
-                    {subtotalFormatted.vnd}
-                  </Typography>
-                </View>
-              </View>
-
-              <View style={styles.summaryRow}>
-                <Typography variant='text' size='md' style={styles.summaryLabel}>
-                  {t('cart.shipping')}
-                </Typography>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Typography variant='text' size='md' weight='medium'>
-                    {shipping === 0 ? t('checkout.freeShipping') : shippingFormatted.jpy}
-                  </Typography>
-                  {shipping > 0 && (
-                    <Typography
-                      variant='text'
-                      size='xs'
-                      style={{ color: theme.colors.text.tertiary }}
-                    >
-                      {shippingFormatted.vnd}
-                    </Typography>
-                  )}
-                </View>
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.summaryRow}>
-                <Typography variant='text' size='lg' weight='bold'>
-                  {t('cart.total')}
-                </Typography>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Typography variant='text' size='lg' weight='bold' style={styles.totalPrice}>
-                    {totalFormatted.jpy}
-                  </Typography>
-                  <Typography
-                    variant='text'
-                    size='sm'
-                    style={{ color: theme.colors.text.tertiary }}
-                  >
-                    {totalFormatted.vnd}
-                  </Typography>
-                </View>
-              </View>
-            </View>
-          </View>
-
+          {renderAddressSection()}
+          {renderProductsSection()}
+          {renderShippingSection()}
+          {renderVoucherSection()}
+          {renderPointsSection()}
+          {renderNoteSection()}
+          {renderSummarySection()}
+          {renderPaymentSection()}
           <View style={{ height: 120 }} />
         </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
-        <View style={styles.totalContainer}>
-          <Typography variant='text' size='sm' style={styles.totalLabel}>
-            {t('cart.total')}
-          </Typography>
-          <Typography variant='text' size='xl' weight='bold' style={styles.totalAmount}>
-            {totalFormatted.jpy}
-          </Typography>
-          <Typography variant='text' size='xs' style={{ color: theme.colors.text.tertiary }}>
-            {totalFormatted.vnd}
-          </Typography>
-        </View>
         <Pressable
           style={[styles.orderButton, loading && styles.orderButtonDisabled]}
           onPress={handlePlaceOrder}
           disabled={loading}
         >
           <LinearGradient
-            colors={['#5B7CFF', '#3D4DF4']}
+            colors={['#0088FF', '#0088FF']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.orderGradient}
@@ -628,12 +690,9 @@ const CheckoutScreen = () => {
             {loading ? (
               <ActivityIndicator color='#FFF' />
             ) : (
-              <>
-                <Typography variant='text' size='md' weight='bold' style={styles.orderText}>
-                  {t('checkout.placeOrder')}
-                </Typography>
-                <Feather name='check' size={20} color='#FFF' />
-              </>
+              <Typography variant='text' size='md' weight='bold' style={styles.orderText}>
+                {t('checkout.placeOrder')} • {formatJpy(total)}
+              </Typography>
             )}
           </LinearGradient>
         </Pressable>
@@ -654,80 +713,39 @@ const CheckoutScreen = () => {
           </View>
 
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-            {/* Bank Accounts in Modal */}
-            <View style={styles.modalSection}>
-              <Typography variant='text' size='md' weight='medium' style={{ marginBottom: 12 }}>
-                {t('checkout.transferTo')}
-              </Typography>
-              {bankAccounts.map((account) => (
-                <View key={account.id} style={styles.bankAccountCard}>
-                  <View style={styles.bankAccountHeader}>
-                    <Feather name='credit-card' size={20} color={theme.colors.text.brand_primary} />
-                    <Typography variant='text' size='md' weight='bold' style={{ marginLeft: 8 }}>
-                      {account.bank_name}
-                    </Typography>
-                  </View>
-                  {account.branch_name && (
-                    <Typography variant='text' size='sm' style={styles.bankBranch}>
-                      {account.branch_name}
-                    </Typography>
-                  )}
-                  <View style={styles.bankAccountRow}>
-                    <Typography variant='text' size='sm' style={styles.bankLabel}>
-                      {t('checkout.accountName')}
-                    </Typography>
-                    <Typography variant='text' size='sm' weight='medium'>
-                      {account.account_name}
-                    </Typography>
-                  </View>
-                  <View style={styles.bankAccountRow}>
-                    <Typography variant='text' size='sm' style={styles.bankLabel}>
-                      {t('checkout.accountNumber')}
-                    </Typography>
-                    <TouchableOpacity
-                      style={styles.copyButton}
-                      onPress={() => handleCopyAccount(account.account_number)}
-                    >
-                      <Typography variant='text' size='sm' weight='bold' style={styles.accountNumber}>
-                        {account.account_number}
-                      </Typography>
-                      <Feather name='copy' size={16} color={theme.colors.text.brand_primary} />
-                    </TouchableOpacity>
-                  </View>
+            {bankAccounts.map((account) => (
+              <View key={account.id} style={styles.bankCard}>
+                <View style={styles.bankHeader}>
+                  <Feather name='credit-card' size={18} color={theme.colors.text.brand_primary} />
+                  <Typography variant='text' size='md' weight='bold' style={{ marginLeft: 8 }}>
+                    {account.bank_name}
+                  </Typography>
                 </View>
-              ))}
-            </View>
+                <View style={styles.bankRow}>
+                  <Typography variant='text' size='sm' style={styles.bankLabel}>
+                    {t('checkout.accountNumber')}
+                  </Typography>
+                  <TouchableOpacity
+                    style={styles.copyButton}
+                    onPress={() => handleCopyAccount(account.account_number)}
+                  >
+                    <Typography variant='text' size='sm' weight='bold' style={styles.accountNumber}>
+                      {account.account_number}
+                    </Typography>
+                    <Feather name='copy' size={14} color={theme.colors.text.brand_primary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
 
-            {/* Transfer Amount */}
             <View style={styles.modalSection}>
               <Typography variant='text' size='md' weight='medium'>
-                {t('checkout.transferAmount')}
-              </Typography>
-              <Typography variant='text' size='xl' weight='bold' style={styles.transferAmount}>
-                {totalFormatted.jpy}
-              </Typography>
-              <Typography variant='text' size='sm' style={{ color: theme.colors.text.tertiary }}>
-                {totalFormatted.vnd}
-              </Typography>
-            </View>
-
-            {/* Upload Proof */}
-            <View style={styles.modalSection}>
-              <Typography variant='text' size='md' weight='medium' style={{ marginBottom: 12 }}>
                 {t('checkout.uploadProof')}
               </Typography>
-
               {paymentProofImage ? (
                 <View style={styles.proofImageContainer}>
-                  <Image
-                    source={{ uri: paymentProofImage }}
-                    style={styles.proofImage}
-                    contentFit='cover'
-                  />
-                  <Pressable
-                    style={styles.removeImageButton}
-                    onPress={() => setPaymentProofImage(null)}
-                  >
+                  <Image source={{ uri: paymentProofImage }} style={styles.proofImage} contentFit='cover' />
+                  <Pressable style={styles.removeImageButton} onPress={() => setPaymentProofImage(null)}>
                     <Feather name='x' size={20} color='#FFF' />
                   </Pressable>
                 </View>
@@ -735,46 +753,32 @@ const CheckoutScreen = () => {
                 <View style={styles.uploadButtons}>
                   <Pressable style={styles.uploadButton} onPress={handlePickImage}>
                     <Feather name='image' size={24} color={theme.colors.text.brand_primary} />
-                    <Typography variant='text' size='sm' weight='medium' style={{ marginTop: 8 }}>
-                      {t('addresses.form.chooseFromLibrary')}
-                    </Typography>
+                    <Typography variant='text' size='sm' style={{ marginTop: 8 }}>Thư viện</Typography>
                   </Pressable>
                   <Pressable style={styles.uploadButton} onPress={handleTakePhoto}>
                     <Feather name='camera' size={24} color={theme.colors.text.brand_primary} />
-                    <Typography variant='text' size='sm' weight='medium' style={{ marginTop: 8 }}>
-                      {t('addresses.form.takePhoto')}
-                    </Typography>
+                    <Typography variant='text' size='sm' style={{ marginTop: 8 }}>Chụp ảnh</Typography>
                   </Pressable>
                 </View>
               )}
             </View>
-
-            <View style={{ height: 100 }} />
           </ScrollView>
 
-          {/* Modal Bottom Buttons */}
           <View style={styles.modalBottomBar}>
             <Pressable style={styles.skipButton} onPress={handleSkipPaymentProof}>
-              <Typography variant='text' size='md' weight='medium'>
-                {t('checkout.uploadLater')}
-              </Typography>
+              <Typography variant='text' size='md'>Để sau</Typography>
             </Pressable>
             <Pressable
-              style={[styles.confirmButton, uploadingProof && styles.orderButtonDisabled]}
+              style={[styles.confirmButton, uploadingProof && { opacity: 0.6 }]}
               onPress={handleConfirmPayment}
               disabled={uploadingProof}
             >
-              <LinearGradient
-                colors={['#5B7CFF', '#3D4DF4']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.confirmGradient}
-              >
+              <LinearGradient colors={['#0088FF', '#0088FF']} style={styles.confirmGradient}>
                 {uploadingProof ? (
                   <ActivityIndicator color='#FFF' />
                 ) : (
                   <Typography variant='text' size='md' weight='bold' style={{ color: '#FFF' }}>
-                    {t('checkout.confirmPayment')}
+                    Xác nhận
                   </Typography>
                 )}
               </LinearGradient>
@@ -790,7 +794,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background.primary,
+      backgroundColor: '#F5F5F5',
     },
     header: {
       flexDirection: 'row',
@@ -798,6 +802,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: 'center',
       paddingHorizontal: 16,
       paddingVertical: 12,
+      backgroundColor: theme.colors.background.primary,
       borderBottomWidth: 1,
       borderBottomColor: '#E5E7EB',
     },
@@ -806,59 +811,191 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     content: {
       flex: 1,
-      padding: 16,
     },
-    section: {
-      marginBottom: 24,
+    sectionCard: {
+      backgroundColor: 'white',
+      marginHorizontal: 16,
+      marginTop: 12,
+      padding: 16,
+      borderRadius: 16,
     },
     sectionTitle: {
-      marginBottom: 16,
+      marginBottom: 12,
     },
-    inputGroup: {
-      marginBottom: 16,
-    },
-    label: {
-      marginBottom: 8,
-      color: theme.colors.text.secondary,
-    },
-    input: {
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      fontSize: 16,
-      color: theme.colors.text.primary,
-      borderWidth: 1,
-      borderColor: '#E5E7EB',
-    },
-    textArea: {
-      minHeight: 80,
-      paddingTop: 14,
-    },
-    row: {
-      flexDirection: 'row',
-    },
-    paymentOption: {
+    sectionHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: 12,
-      padding: 16,
       marginBottom: 12,
-      borderWidth: 2,
-      borderColor: 'transparent',
     },
-    paymentOptionActive: {
-      borderColor: theme.colors.text.brand_primary,
-      backgroundColor: '#EEF2FF',
+    // Address Section
+    addressRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: '#F3F4F6',
     },
-    paymentRadio: {
-      marginRight: 12,
+    addressRowText: {
+      flex: 1,
+      marginLeft: 12,
+      color: theme.colors.text.primary,
+    },
+    // Products Section
+    productRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: '#F3F4F6',
+    },
+    productImage: {
+      width: 50,
+      height: 50,
+      borderRadius: 8,
+      backgroundColor: '#F3F4F6',
+    },
+    productInfo: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    quantityText: {
+      color: theme.colors.text.tertiary,
+      marginTop: 4,
+    },
+    priceText: {
+      color: theme.colors.text.price,
+    },
+    // Shipping Section
+    shippingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    shippingSecurityInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 8,
+      gap: 6,
+    },
+    shippingInfo: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginLeft: 12,
+    },
+    shippingText: {
+      color: theme.colors.text.tertiary,
+      flex: 1,
+    },
+    // Voucher Section
+    voucherRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    voucherValue: {
+      color: theme.colors.text.brand_primary,
+      marginRight: 8,
+    },
+    selectedVoucherContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    selectVoucherText: {
+      color: theme.colors.text.tertiary,
+      marginRight: 4,
+    },
+    // Points Section
+    pointsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    pointsInfo: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    pointsBalance: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 2,
+    },
+    pointsText: {
+      color: theme.colors.text.tertiary,
+    },
+    pointIcon: {
+      marginLeft: 4,
+    },
+    // Note Section
+    noteHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    noteInput: {
+      backgroundColor: '#F9FAFB',
+      borderRadius: 8,
+      padding: 12,
+      minHeight: 80,
+      fontSize: 14,
+      color: theme.colors.text.primary,
+      textAlignVertical: 'top',
+    },
+    // Summary Section
+    summaryRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 8,
+    },
+    summaryLabel: {
+      color: theme.colors.text.secondary,
+    },
+    discountText: {
+      color: '#EF4444',
+    },
+    totalText: {
+      color: '#3B82F6',
+    },
+    divider: {
+      height: 1,
+      backgroundColor: '#E5E7EB',
+      marginVertical: 8,
+    },
+    // Payment Section
+    paymentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: '#F3F4F6',
+      gap: 12,
+    },
+    paymentRowActive: {
+      backgroundColor: 'rgba(46, 143, 249, 0.05)',
+      marginHorizontal: -16,
+      paddingHorizontal: 16,
+    },
+    paymentIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: '#F3F4F6',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    paymentIconActive: {
+      backgroundColor: '#2E8FF9',
+    },
+    paymentInfo: {
+      flex: 1,
+    },
+    paymentDesc: {
+      color: theme.colors.text.tertiary,
+      marginTop: 2,
     },
     radioOuter: {
-      width: 22,
-      height: 22,
-      borderRadius: 11,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
       borderWidth: 2,
       borderColor: '#D1D5DB',
       justifyContent: 'center',
@@ -868,125 +1005,32 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       borderColor: theme.colors.text.brand_primary,
     },
     radioInner: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
+      width: 10,
+      height: 10,
+      borderRadius: 5,
       backgroundColor: theme.colors.text.brand_primary,
     },
-    paymentIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: '#EEF2FF',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 12,
-    },
-    paymentInfo: {
-      flex: 1,
-    },
-    paymentDesc: {
-      color: theme.colors.text.tertiary,
-      marginTop: 2,
-    },
-    summaryCard: {
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: 12,
-      padding: 16,
-    },
-    summaryRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12,
-    },
-    summaryLabel: {
-      color: theme.colors.text.secondary,
-    },
-    divider: {
-      height: 1,
-      backgroundColor: '#E5E7EB',
-      marginVertical: 12,
-    },
-    totalPrice: {
-      color: theme.colors.text.brand_primary,
-    },
-    bottomBar: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 16,
-      paddingBottom: 32,
-      backgroundColor: theme.colors.background.primary,
-      borderTopWidth: 1,
-      borderTopColor: '#E5E7EB',
-      gap: 16,
-    },
-    totalContainer: {
-      flex: 1,
-    },
-    totalLabel: {
-      color: theme.colors.text.tertiary,
-    },
-    totalAmount: {
-      color: theme.colors.text.brand_primary,
-    },
-    orderButton: {
-      flex: 1,
-      borderRadius: 12,
-      overflow: 'hidden',
-    },
-    orderButtonDisabled: {
-      opacity: 0.6,
-    },
-    orderGradient: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: 14,
-      gap: 8,
-    },
-    orderText: {
-      color: '#FFFFFF',
-    },
-    // Bank Accounts Styles
-    bankAccountsSection: {
-      marginTop: 8,
-      padding: 16,
+    bankSection: {
+      marginTop: 16,
+      padding: 12,
       backgroundColor: '#FFF7ED',
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: '#FED7AA',
+      borderRadius: 8,
     },
-    bankAccountsTitle: {
-      color: theme.colors.text.secondary,
-      marginBottom: 12,
-    },
-    bankAccountCard: {
+    bankCard: {
       backgroundColor: '#FFFFFF',
-      borderRadius: 10,
-      padding: 14,
-      marginBottom: 10,
-      borderWidth: 1,
-      borderColor: '#E5E7EB',
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 8,
     },
-    bankAccountHeader: {
+    bankHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       marginBottom: 8,
     },
-    bankBranch: {
-      color: theme.colors.text.tertiary,
-      marginBottom: 8,
-    },
-    bankAccountRow: {
+    bankRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginTop: 6,
     },
     bankLabel: {
       color: theme.colors.text.tertiary,
@@ -994,15 +1038,32 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     copyButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: 4,
     },
     accountNumber: {
       color: theme.colors.text.brand_primary,
     },
-    bankNote: {
-      color: theme.colors.text.tertiary,
-      marginTop: 8,
-      fontStyle: 'italic',
+    // Bottom Bar
+    bottomBar: {
+      padding: 16,
+      backgroundColor: theme.colors.background.primary,
+      borderTopWidth: 1,
+      borderTopColor: '#E5E7EB',
+    },
+    orderButton: {
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    orderButtonDisabled: {
+      opacity: 0.6,
+    },
+    orderGradient: {
+      paddingVertical: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    orderText: {
+      color: '#FFFFFF',
     },
     // Modal Styles
     modalContainer: {
@@ -1010,10 +1071,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       backgroundColor: theme.colors.background.primary,
     },
     modalHeader: {
-      flexDirection: 'row',
-      justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 16,
       paddingVertical: 16,
       borderBottomWidth: 1,
       borderBottomColor: '#E5E7EB',
@@ -1023,14 +1081,10 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       padding: 16,
     },
     modalSection: {
-      marginBottom: 24,
-    },
-    transferAmount: {
-      color: theme.colors.text.brand_primary,
-      marginTop: 4,
+      marginTop: 16,
     },
     proofImageContainer: {
-      position: 'relative',
+      marginTop: 12,
       borderRadius: 12,
       overflow: 'hidden',
     },
@@ -1053,11 +1107,12 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     uploadButtons: {
       flexDirection: 'row',
       gap: 12,
+      marginTop: 12,
     },
     uploadButton: {
       flex: 1,
       height: 100,
-      backgroundColor: theme.colors.background.secondary,
+      backgroundColor: '#F9FAFB',
       borderRadius: 12,
       borderWidth: 2,
       borderColor: '#E5E7EB',
@@ -1072,7 +1127,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingBottom: 32,
       borderTopWidth: 1,
       borderTopColor: '#E5E7EB',
-      backgroundColor: theme.colors.background.primary,
     },
     skipButton: {
       flex: 1,

@@ -300,7 +300,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>, cardWidth: number, car
       gap: 2,
     },
     price: {
-      color: theme.colors.text.error_primary,
+      color: theme.colors.text.price,
       fontSize: 16,
     },
     originalPriceContainer: {
