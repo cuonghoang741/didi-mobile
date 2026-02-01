@@ -369,3 +369,27 @@ export const checkOrderReviewed = async (
     reviewedProductIds,
   };
 };
+
+/**
+ * Fetch user's favorite products
+ */
+export const fetchFavorites = async (userId: string): Promise<Product[]> => {
+  const { data, error } = await (supabase as any)
+    .from('favorites')
+    .select(`
+      product_id,
+      products (*)
+    `)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching favorites:', error);
+    return [];
+  }
+
+  // Filter out any null products (e.g. deleted) and cast
+  return (data || [])
+    .map((item: any) => item.products)
+    .filter((product: any) => product !== null) as Product[];
+};

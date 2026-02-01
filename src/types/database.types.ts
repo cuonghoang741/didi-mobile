@@ -958,6 +958,8 @@ export type MultiLanguageData = {
 export type ProductDetail = Product & {
   product_variants: ProductVariant[];
   product_reviews: ProductReview[];
+  avg_rating?: number;
+  review_count?: number;
 };
 
 export type Order = {
