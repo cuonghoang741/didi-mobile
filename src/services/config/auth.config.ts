@@ -12,5 +12,5 @@ export const PersistKeys = {
 } as const;
 
 // Supabase URL from env
-export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "https://brsigfliyzwlomomoxqu.supabase.co";
 export const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY!;

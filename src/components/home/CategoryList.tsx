@@ -80,7 +80,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       width: ITEM_WIDTH - 10,
       height: ITEM_WIDTH - 10,
       borderRadius: (ITEM_WIDTH - 10) / 2,
-      backgroundColor: theme.colors.background.secondary,
       marginBottom: 8,
       overflow: 'hidden',
       justifyContent: 'center',

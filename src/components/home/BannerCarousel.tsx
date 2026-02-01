@@ -11,9 +11,10 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { Typography } from '@/components';
+import { Button, Typography } from '@/components';
 import { useTheme } from '@/contexts';
 import type { Banner } from '@/types/database.types';
+import { grayLight } from '@/themes/palette';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_HEIGHT = 180;
@@ -93,11 +94,15 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onBannerPress 
             {item.title}
           </Typography>}
           {item.button_text ? (
-            <View style={styles.buttonContainer}>
+            <Button
+              variant='liquid'
+              size='sm'
+              style={styles.buttonContainer}
+            >
               <Typography variant='text' size='sm' weight='semiBold' style={styles.buttonText}>
                 {item.button_text}
               </Typography>
-            </View>
+            </Button>
           ) : null}
         </View>
       </LinearGradient>
@@ -142,7 +147,7 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onBannerPress 
                   backgroundColor:
                     index === currentIndex
                       ? theme.colors.text.brand_primary
-                      : theme.colors.background.secondary,
+                      : grayLight[300],
                   width: index === currentIndex ? 24 : 8,
                 },
               ]}
@@ -191,7 +196,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   buttonContainer: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,

@@ -1,11 +1,65 @@
 import { supabase } from './client';
-import type {
-  Order,
-  OrderItem,
-  InsertTables,
-  CheckoutForm,
-  CartItem,
-} from '@/types/database.types';
+import type { ShippingAddress, PaymentMethod, OrderStatus, PaymentStatus } from '@/models/common';
+import type { CartItem } from '@/types/database.types';
+
+/**
+ * Checkout form data from the checkout screen
+ */
+export interface CheckoutForm {
+  shipping_name: string;
+  shipping_phone: string;
+  shipping_email?: string;
+  shipping_address: string;
+  shipping_city: string;
+  shipping_district?: string;
+  shipping_ward?: string;
+  shipping_note?: string;
+  payment_method: PaymentMethod;
+}
+
+/**
+ * Order type matching actual database structure
+ */
+export interface Order {
+  id: string;
+  order_number: string;
+  customer_id: string | null;
+  status: OrderStatus;
+  payment_status: PaymentStatus;
+  payment_method: PaymentMethod | null;
+  payment_proof_url: string | null;
+  subtotal: number;
+  discount_amount: number;
+  shipping_fee: number;
+  tax_amount: number;
+  total_amount: number;
+  shipping_address: ShippingAddress | null;
+  customer_note: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+/**
+ * OrderItem type matching actual database structure
+ */
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id: string | null;
+  variant_id: string | null;
+  product_name: string;
+  variant_name: string | null;
+  sku: string | null;
+  image_url: string | null;
+  unit_price: number;
+  quantity: number;
+  discount_amount: number;
+  total_price: number;
+  created_at: string | null;
+}
+
+// Using CartItem from @/types/database.types
 
 /**
  * Generate unique order number
@@ -24,35 +78,50 @@ const generateOrderNumber = (): string => {
  * This function calls a Supabase Edge Function that uses OneSignal to send push notifications
  */
 const notifyAdminsNewOrder = async (
-  order: Order,
+  orderId: string,
+  orderNumber: string,
   customerName: string,
+  totalAmount: number,
   itemsCount: number,
 ): Promise<void> => {
   try {
     const { data, error } = await supabase.functions.invoke('notify-admin-new-order', {
       body: {
-        order_id: order.id,
-        order_number: order.order_number,
+        order_id: orderId,
+        order_number: orderNumber,
         customer_name: customerName,
-        total_amount: order.total_amount,
+        total_amount: totalAmount,
         items_count: itemsCount,
       },
     });
 
     if (error) {
       console.error('Error sending admin notification:', error);
-      // Don't throw - notification failure shouldn't affect order creation
     } else {
       console.log('Admin notification sent successfully:', data);
     }
   } catch (err) {
     console.error('Failed to notify admins about new order:', err);
-    // Don't throw - notification failure shouldn't affect order creation
   }
 };
 
 /**
+ * Get price from cart item (handles both product base price and variant price)
+ */
+const getItemPrice = (item: CartItem): number => {
+  // Check variant price first
+  if (item.variant) {
+    const variant = item.variant as any;
+    return variant.sale_price || variant.price || 0;
+  }
+  // Fall back to product price
+  const product = item.product as any;
+  return product.sale_price || product.base_price || product.price || 0;
+};
+
+/**
  * Create a new order from cart items
+ * Uses the actual database structure with shipping_address as JSONB
  */
 export const createOrder = async (
   userId: string,
@@ -61,17 +130,26 @@ export const createOrder = async (
 ): Promise<{ order: Order | null; error: string | null }> => {
   // Calculate totals
   const subtotal = cartItems.reduce((sum, item) => {
-    const price = item.variant?.sale_price || item.variant?.price || item.product.price;
-    return sum + price * item.quantity;
+    return sum + getItemPrice(item) * item.quantity;
   }, 0);
 
-  const shippingFee = checkoutForm.payment_method === 'at_store' ? 0 : 30000; // 30k shipping
+  const shippingFee = checkoutForm.payment_method === 'at_store' ? 0 : 500; // 500 JPY shipping
   const totalAmount = subtotal + shippingFee;
 
-  // Create order
-  const orderData: InsertTables<'orders'> = {
+  // Build shipping address as JSONB object matching ShippingAddress interface
+  const shippingAddress: ShippingAddress = {
+    full_name: checkoutForm.shipping_name,
+    phone: checkoutForm.shipping_phone,
+    address_line1: checkoutForm.shipping_address,
+    ward: checkoutForm.shipping_ward,
+    district: checkoutForm.shipping_district,
+    city: checkoutForm.shipping_city,
+  };
+
+  // Create order data matching actual database structure
+  const orderData = {
     order_number: generateOrderNumber(),
-    user_id: userId,
+    customer_id: userId,
     status: 'pending',
     payment_status: 'pending',
     payment_method: checkoutForm.payment_method,
@@ -80,38 +158,37 @@ export const createOrder = async (
     discount_amount: 0,
     tax_amount: 0,
     total_amount: totalAmount,
-    shipping_name: checkoutForm.shipping_name,
-    shipping_phone: checkoutForm.shipping_phone,
-    shipping_email: checkoutForm.shipping_email,
-    shipping_address: checkoutForm.shipping_address,
-    shipping_city: checkoutForm.shipping_city,
-    shipping_district: checkoutForm.shipping_district,
-    shipping_ward: checkoutForm.shipping_ward,
-    shipping_note: checkoutForm.shipping_note || null,
+    shipping_address: shippingAddress,
+    customer_note: checkoutForm.shipping_note || null,
   };
 
-  const { data: order, error: orderError } = await supabase
+  // Insert order - use type assertion for Supabase response
+  const { data: orderResult, error: orderError } = await supabase
     .from('orders')
-    .insert(orderData)
+    .insert(orderData as any)
     .select()
     .single();
 
-  if (orderError || !order) {
+  if (orderError || !orderResult) {
     console.error('Error creating order:', orderError);
     return { order: null, error: orderError?.message || 'Failed to create order' };
   }
 
-  // Create order items
-  const orderItems: InsertTables<'order_items'>[] = cartItems.map((item) => {
-    const price = item.variant?.sale_price || item.variant?.price || item.product.price;
+  const order = orderResult as any;
+
+  // Create order items - matches actual order_items table structure
+  const orderItems = cartItems.map((item) => {
+    const price = getItemPrice(item);
+    const variant = item.variant as any;
+    const product = item.product as any;
     return {
       order_id: order.id,
-      product_id: item.product.id,
-      variant_id: item.variant?.id || null,
-      product_name: item.product.name,
-      variant_name: item.variant?.name || null,
-      sku: item.variant?.sku || item.product.sku,
-      image_url: item.variant?.image_url || item.product.image_url,
+      product_id: product.id,
+      variant_id: variant?.id || null,
+      product_name: product.name,
+      variant_name: variant?.name || null,
+      sku: variant?.sku || product.sku || null,
+      image_url: variant?.image_url || product.thumbnail_url || null,
       unit_price: price,
       quantity: item.quantity,
       discount_amount: 0,
@@ -119,7 +196,9 @@ export const createOrder = async (
     };
   });
 
-  const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+  const { error: itemsError } = await supabase
+    .from('order_items')
+    .insert(orderItems as any);
 
   if (itemsError) {
     console.error('Error creating order items:', itemsError);
@@ -128,10 +207,37 @@ export const createOrder = async (
     return { order: null, error: 'Failed to create order items' };
   }
 
-  // Send notification to admins (fire and forget - don't wait for result)
-  notifyAdminsNewOrder(order, checkoutForm.shipping_name, cartItems.length);
+  // Send notification to admins (fire and forget)
+  notifyAdminsNewOrder(
+    order.id,
+    order.order_number,
+    checkoutForm.shipping_name,
+    totalAmount,
+    cartItems.length
+  );
 
-  return { order, error: null };
+  // Map response to Order type
+  const mappedOrder: Order = {
+    id: order.id,
+    order_number: order.order_number,
+    customer_id: order.customer_id,
+    status: order.status as OrderStatus,
+    payment_status: order.payment_status as PaymentStatus,
+    payment_method: order.payment_method as PaymentMethod,
+    payment_proof_url: order.payment_proof_url,
+    subtotal: Number(order.subtotal),
+    discount_amount: Number(order.discount_amount) || 0,
+    shipping_fee: Number(order.shipping_fee) || 0,
+    tax_amount: Number(order.tax_amount) || 0,
+    total_amount: Number(order.total_amount),
+    shipping_address: order.shipping_address,
+    customer_note: order.customer_note,
+    created_at: order.created_at,
+    updated_at: order.updated_at,
+    deleted_at: order.deleted_at,
+  };
+
+  return { order: mappedOrder, error: null };
 };
 
 /**
@@ -147,7 +253,7 @@ export const fetchUserOrders = async (
   const { data, error, count } = await supabase
     .from('orders')
     .select('*, items:order_items(*)', { count: 'exact' })
-    .eq('user_id', userId)
+    .eq('customer_id', userId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
@@ -157,8 +263,30 @@ export const fetchUserOrders = async (
     return { orders: [], hasMore: false };
   }
 
+  // Map to proper types
+  const orders = (data as any[])?.map((order) => ({
+    id: order.id,
+    order_number: order.order_number,
+    customer_id: order.customer_id,
+    status: order.status as OrderStatus,
+    payment_status: order.payment_status as PaymentStatus,
+    payment_method: order.payment_method as PaymentMethod,
+    payment_proof_url: order.payment_proof_url,
+    subtotal: Number(order.subtotal),
+    discount_amount: Number(order.discount_amount) || 0,
+    shipping_fee: Number(order.shipping_fee) || 0,
+    tax_amount: Number(order.tax_amount) || 0,
+    total_amount: Number(order.total_amount),
+    shipping_address: order.shipping_address,
+    customer_note: order.customer_note,
+    created_at: order.created_at,
+    updated_at: order.updated_at,
+    deleted_at: order.deleted_at,
+    items: order.items || [],
+  })) || [];
+
   return {
-    orders: (data as any) || [],
+    orders,
     hasMore: count ? offset + limit < count : false,
   };
 };
@@ -169,16 +297,18 @@ export const fetchUserOrders = async (
 export const fetchOrderDetail = async (
   orderId: string,
 ): Promise<{ order: Order | null; items: OrderItem[] }> => {
-  const { data: order, error: orderError } = await supabase
+  const { data: orderData, error: orderError } = await supabase
     .from('orders')
     .select('*')
     .eq('id', orderId)
     .single();
 
-  if (orderError || !order) {
+  if (orderError || !orderData) {
     console.error('Error fetching order:', orderError);
     return { order: null, items: [] };
   }
+
+  const order = orderData as any;
 
   const { data: items, error: itemsError } = await supabase
     .from('order_items')
@@ -189,8 +319,28 @@ export const fetchOrderDetail = async (
     console.error('Error fetching order items:', itemsError);
   }
 
+  const mappedOrder: Order = {
+    id: order.id,
+    order_number: order.order_number,
+    customer_id: order.customer_id,
+    status: order.status as OrderStatus,
+    payment_status: order.payment_status as PaymentStatus,
+    payment_method: order.payment_method as PaymentMethod,
+    payment_proof_url: order.payment_proof_url,
+    subtotal: Number(order.subtotal),
+    discount_amount: Number(order.discount_amount) || 0,
+    shipping_fee: Number(order.shipping_fee) || 0,
+    tax_amount: Number(order.tax_amount) || 0,
+    total_amount: Number(order.total_amount),
+    shipping_address: order.shipping_address,
+    customer_note: order.customer_note,
+    created_at: order.created_at,
+    updated_at: order.updated_at,
+    deleted_at: order.deleted_at,
+  };
+
   return {
-    order,
-    items: items || [],
+    order: mappedOrder,
+    items: (items as unknown as OrderItem[]) || [],
   };
 };

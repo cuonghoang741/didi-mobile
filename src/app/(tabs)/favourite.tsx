@@ -30,7 +30,7 @@ const Favourite = () => {
           {favourites.length === 0 ? (
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIcon}>
-                <Feather name='heart' size={48} color={theme.colors.text.brand_primary} />
+                <Feather name='heart' size={48} color='#EF4444' />
               </View>
               <Typography variant='display' size='xs' weight='bold' style={styles.emptyTitle}>
                 {t('favourite.empty')}
@@ -39,9 +39,9 @@ const Favourite = () => {
                 {t('favourite.emptyDescription')}
               </Typography>
               <Button
+                variant='solid'
                 colorScheme='brand'
                 size='md'
-                variant='solid'
                 onPress={() => console.log('Browse products')}
                 style={styles.browseButton}
               >
@@ -83,7 +83,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       width: 100,
       height: 100,
       borderRadius: 50,
-      backgroundColor: theme.colors.background.brand_primary,
+      backgroundColor: '#FEE2E2',
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: 24,

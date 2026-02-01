@@ -22,10 +22,11 @@ import { Image } from 'expo-image';
 
 import { Typography } from '@/components';
 import { useTheme, useLanguage, useCart, useAuth } from '@/contexts';
-import { createOrder } from '@/services/supabase';
-import type { PaymentMethod, CheckoutForm } from '@/types/database.types';
+import { createOrder, CheckoutForm } from '@/services/supabase/orderService';
+import type { PaymentMethod } from '@/models/common';
 
 import { useCurrency, useSettings } from '@/hooks';
+
 
 
 const PAYMENT_METHODS: { id: PaymentMethod; icon: keyof typeof Feather.glyphMap }[] = [

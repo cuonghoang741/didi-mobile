@@ -14,6 +14,7 @@ export const vi = {
     seeMore: 'Xem thêm',
     continueShopping: 'Tiếp tục mua sắm',
     variant: 'Phân loại',
+    all: 'Tất cả',
   },
   home: {
     welcome: 'Xin chào',
@@ -45,6 +46,9 @@ export const vi = {
     empty: 'Chưa có danh mục nào',
     emptyProducts: 'Chưa có sản phẩm',
     emptyProductsDescription: 'Danh mục này hiện chưa có sản phẩm nào. Vui lòng quay lại sau.',
+    brand: 'Thương hiệu',
+    productType: 'Loại sản phẩm',
+    emptySubcategories: 'Chưa có loại sản phẩm',
   },
   favourite: {
     empty: 'Chưa có sản phẩm yêu thích',

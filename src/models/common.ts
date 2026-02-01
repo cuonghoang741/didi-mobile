@@ -5,10 +5,11 @@ export type OrderStatus =
   | 'processing'
   | 'shipping'
   | 'delivered'
+  | 'completed'
   | 'cancelled'
   | 'refunded';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'partial_refund';
-export type PaymentMethod = 'cod' | 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay';
+export type PaymentMethod = 'cod' | 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay' | 'at_store' | 'daibiki';
 export type CustomerStatus = 'active' | 'inactive' | 'blocked';
 export type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'spam';
 export type InventoryStatus = 'in_stock' | 'sold' | 'reserved' | 'defective' | 'returned';

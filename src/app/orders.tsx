@@ -16,8 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography, Button, AuthProtect, Skeleton } from '@/components';
 import OrderReviewModal from '@/components/order/OrderReviewModal';
 import { useTheme, useLanguage, useAuth } from '@/contexts';
-import { fetchUserOrders } from '@/services/supabase/orderService';
-import { Order, OrderItem } from '@/types/database.types';
+import { fetchUserOrders, Order, OrderItem } from '@/services/supabase/orderService';
 
 const EmptyStateImage = require('@/assets/images/empty-state.png');
 

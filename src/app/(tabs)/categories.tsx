@@ -9,15 +9,17 @@ import {
   Pressable,
   FlatList,
   Dimensions,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Header, Typography } from '@/components';
+import { Header, Typography, CategoriesSkeleton } from '@/components';
 import { useTheme, useLanguage } from '@/contexts';
 import { useCurrency } from '@/hooks';
 import { getLocalizedContent } from '@/utils/language';
 import { fetchCategories, supabase } from '@/services/supabase';
-import type { Category, Product } from '@/types/database.types';
+import { fetchBrandsFromTable } from '@/services/supabase/productService';
+import type { Category, Product, Brand } from '@/types/database.types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const LEFT_PANEL_WIDTH = SCREEN_WIDTH * 0.22;
@@ -28,17 +30,20 @@ const Categories = () => {
   const { t, language } = useLanguage();
   const { id } = useLocalSearchParams();
   const styles = createStyles(theme);
-  const { formatPrice } = useCurrency();
+  const { formatJpy } = useCurrency();
 
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadCategories();
+    loadBrands();
   }, []);
 
   useEffect(() => {
@@ -59,9 +64,9 @@ const Categories = () => {
 
   useEffect(() => {
     if (selectedCategory) {
-      loadProducts(selectedCategory.id);
+      loadProducts();
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, selectedBrand]);
 
   const loadCategories = async () => {
     try {
@@ -74,27 +79,34 @@ const Categories = () => {
     }
   };
 
-  const loadProducts = async (categoryId: string) => {
+  const loadBrands = async () => {
+    try {
+      const data = await fetchBrandsFromTable();
+      setBrands(data);
+    } catch (error) {
+      console.error('Error loading brands:', error);
+    }
+  };
+
+  const loadProducts = async () => {
+    if (!selectedCategory) return;
+
     setLoadingProducts(true);
     try {
-      // Fetch subcategories first
-      const { data: subCategories } = await supabase
-        .from('categories')
-        .select('id')
-        .eq('parent_id', categoryId)
-        .is('deleted_at', null)
-        .eq('is_active', true);
-
-      const categoryIds = [categoryId, ...(subCategories?.map((c) => c.id) || [])];
-
-      const { data } = await supabase
+      let query = supabase
         .from('products')
         .select('*')
-        .in('category_id', categoryIds)
-        .eq('is_active', true)
+        .eq('category_id', selectedCategory.id)
         .is('deleted_at', null)
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
+      // Filter by brand if selected
+      if (selectedBrand) {
+        query = query.eq('brand_id', selectedBrand.id);
+      }
+
+      const { data } = await query.limit(50);
       setProducts(data || []);
     } catch (error) {
       console.error('Error loading products:', error);
@@ -103,14 +115,18 @@ const Categories = () => {
     }
   };
 
+  const handleProductPress = (product: Product) => {
+    router.push(`/product/${product.id}`);
+  };
+
   const filteredCategories = categories.filter((c) => {
-    const name = getLocalizedContent(c.language, 'name', language, c.name);
+    const name = getLocalizedContent(c.languages, 'name', language, c.name);
     return name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   const renderCategoryItem = ({ item }: { item: Category }) => {
     const isSelected = selectedCategory?.id === item.id;
-    const name = getLocalizedContent(item.language, 'name', language, item.name);
+    const name = getLocalizedContent(item.languages, 'name', language, item.name);
     return (
       <Pressable
         style={[styles.categoryItem, isSelected && styles.categoryItemSelected]}
@@ -133,13 +149,62 @@ const Categories = () => {
     );
   };
 
-  const renderProductItem = ({ item }: { item: Product }) => {
-    const { jpy } = formatPrice(item.sale_price || item.base_price || 0);
-    const name = getLocalizedContent(item.language, 'name', language, item.name);
+  const renderAllBrandItem = () => {
+    const isSelected = selectedBrand === null;
     return (
       <Pressable
+        key="all"
+        style={[styles.brandChip, isSelected && styles.brandChipSelected]}
+        onPress={() => setSelectedBrand(null)}
+      >
+        <Typography
+          variant='text'
+          size='sm'
+          weight={isSelected ? 'semiBold' : 'regular'}
+          style={[styles.brandText, isSelected && styles.brandTextSelected]}
+        >
+          {t('common.all') || 'Tất cả'}
+        </Typography>
+      </Pressable>
+    );
+  };
+
+  const renderBrandItem = (brand: Brand) => {
+    const isSelected = selectedBrand?.id === brand.id;
+    const brandName = getLocalizedContent(brand.languages, 'name', language, brand.name);
+    return (
+      <Pressable
+        key={brand.id}
+        style={[styles.brandChip, isSelected && styles.brandChipSelected]}
+        onPress={() => setSelectedBrand(brand)}
+      >
+        {brand.logo_url && (
+          <Image
+            source={{ uri: brand.logo_url }}
+            style={styles.brandLogo}
+            contentFit='contain'
+          />
+        )}
+        <Typography
+          variant='text'
+          size='sm'
+          weight={isSelected ? 'semiBold' : 'regular'}
+          style={[styles.brandText, isSelected && styles.brandTextSelected]}
+        >
+          {brandName}
+        </Typography>
+      </Pressable>
+    );
+  };
+
+  const renderProductItem = (item: Product) => {
+    const productName = getLocalizedContent(item.language, 'name', language, item.name);
+    const price = item.sale_price || item.base_price || 0;
+    return (
+      <Pressable
+        key={item.id}
         style={styles.productItem}
-        onPress={() => router.push(`/product/${item.id}`)}
+        onPress={() => handleProductPress(item)}
       >
         <Image
           source={{ uri: item.thumbnail_url || item.image_urls?.[0] || 'https://via.placeholder.com/100' }}
@@ -148,10 +213,10 @@ const Categories = () => {
         />
         <View style={styles.productInfo}>
           <Typography variant='text' size='sm' numberOfLines={2} style={styles.productName}>
-            {name}
+            {productName}
           </Typography>
           <Typography variant='text' size='sm' weight='bold' style={styles.productPrice}>
-            {jpy}
+            {formatJpy(price)}
           </Typography>
         </View>
       </Pressable>
@@ -160,14 +225,20 @@ const Categories = () => {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size='large' color={theme.colors.text.brand_primary} />
-      </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <Header
+          isSearchInput
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder={t('common.search')}
+        />
+        <CategoriesSkeleton />
+      </SafeAreaView>
     );
   }
 
   const selectedCategoryName = selectedCategory
-    ? getLocalizedContent(selectedCategory.language, 'name', language, selectedCategory.name)
+    ? getLocalizedContent(selectedCategory.languages, 'name', language, selectedCategory.name)
     : '';
 
   return (
@@ -176,7 +247,7 @@ const Categories = () => {
         isSearchInput
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder={t('tabs.categories')}
+        searchPlaceholder={t('common.search')}
       />
 
       <View style={styles.content}>
@@ -191,55 +262,60 @@ const Categories = () => {
           />
         </View>
 
-        {/* Right Panel: Products */}
-        <View style={styles.rightPanel}>
+        {/* Right Panel: Brand & Subcategories */}
+        <ScrollView style={styles.rightPanel} showsVerticalScrollIndicator={false}>
           {selectedCategory && (
-            <View style={styles.categoryHeader}>
-              <Image
-                source={{ uri: selectedCategory.image_url || 'https://via.placeholder.com/300x100' }}
-                style={styles.categoryHeaderImage}
-                contentFit='cover'
-              />
-              <View style={styles.categoryHeaderOverlay}>
-                <Typography variant='text' size='md' weight='bold' style={styles.categoryHeaderTitle}>
+            <>
+              {/* Category Title */}
+              <View style={styles.categoryTitleContainer}>
+                <Typography variant='text' size='lg' weight='bold' style={styles.categoryTitle}>
                   {selectedCategoryName}
                 </Typography>
               </View>
-            </View>
-          )}
 
-          {loadingProducts ? (
-            <View style={[styles.center, { flex: 1 }]}>
-              <ActivityIndicator color={theme.colors.text.brand_primary} />
-            </View>
-          ) : (
-            <FlatList
-              data={products}
-              renderItem={renderProductItem}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={[
-                styles.productList,
-                products.length === 0 && styles.emptyListContainer,
-              ]}
-              numColumns={2}
-              columnWrapperStyle={products.length > 0 ? { gap: 12 } : undefined}
-              ListEmptyComponent={
-                <View style={styles.emptyState}>
-                  <View style={styles.emptyIconContainer}>
-                    <Feather name='package' size={48} color={theme.colors.text.tertiary} />
-                  </View>
-                  <Typography variant='text' size='lg' weight='bold' style={styles.emptyTitle}>
-                    {t('categories.emptyProducts')}
+              {/* Brands Section */}
+              {brands.length > 0 && (
+                <View style={styles.brandsSection}>
+                  <Typography variant='text' size='md' weight='semiBold' style={styles.sectionTitle}>
+                    {t('categories.brand') || 'Thương hiệu'}
                   </Typography>
-                  <Typography variant='text' size='sm' style={styles.emptyDescription}>
-                    {t('categories.emptyProductsDescription')}
-                  </Typography>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.brandsRow}>
+                      {renderAllBrandItem()}
+                      {brands.map((brand) => renderBrandItem(brand))}
+                    </View>
+                  </ScrollView>
                 </View>
-              }
-            />
+              )}
+
+              {/* Products Section */}
+              <View style={styles.productsSection}>
+                {loadingProducts ? (
+                  <View style={[styles.center, { paddingVertical: 40 }]}>
+                    <ActivityIndicator color={theme.colors.text.brand_primary} />
+                  </View>
+                ) : products.length > 0 ? (
+                  <View style={styles.productsGrid}>
+                    {products.map((item) => (
+                      <View key={item.id} style={styles.productWrapper}>
+                        {renderProductItem(item)}
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.emptyState}>
+                    <View style={styles.emptyIconContainer}>
+                      <Feather name='package' size={40} color={theme.colors.text.tertiary} />
+                    </View>
+                    <Typography variant='text' size='sm' style={styles.emptyDescription}>
+                      {t('categories.emptyProducts') || 'Chưa có sản phẩm'}
+                    </Typography>
+                  </View>
+                )}
+              </View>
+            </>
           )}
-        </View>
+        </ScrollView>
       </View>
     </SafeAreaView>
   );
@@ -254,12 +330,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     center: {
       justifyContent: 'center',
       alignItems: 'center',
-    },
-    header: {
-      paddingHorizontal: 16,
-      paddingVertical: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border.secondary,
     },
     content: {
       flex: 1,
@@ -305,88 +375,108 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     categoryNameSelected: {
       color: theme.colors.text.brand_primary,
     },
-    categoryHeader: {
-      height: 120,
-      width: '100%',
-      position: 'relative',
-      marginBottom: 0,
+    categoryTitleContainer: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 8,
     },
-    categoryHeaderImage: {
-      width: '100%',
-      height: '100%',
+    categoryTitle: {
+      color: theme.colors.text.primary,
     },
-    categoryHeaderOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.3)',
-      justifyContent: 'center',
+    // Brands Section
+    brandsSection: {
+      paddingHorizontal: 16,
+      marginBottom: 20,
+    },
+    sectionTitle: {
+      color: theme.colors.text.primary,
+      marginBottom: 12,
+    },
+    brandsRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    brandChip: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.colors.border.secondary,
+      backgroundColor: theme.colors.background.primary,
+      minWidth: 80,
       alignItems: 'center',
+      gap: 8,
     },
-    categoryHeaderTitle: {
-      color: '#FFFFFF',
-      textShadowColor: 'rgba(0,0,0,0.5)',
-      textShadowOffset: { width: 0, height: 1 },
-      textShadowRadius: 4,
+    brandChipSelected: {
+      borderColor: theme.colors.text.brand_primary,
+      backgroundColor: '#EEF2FF',
     },
-    productList: {
-      padding: 12,
+    brandLogo: {
+      width: 20,
+      height: 20,
+    },
+    brandText: {
+      color: theme.colors.text.secondary,
+    },
+    brandTextSelected: {
+      color: theme.colors.text.brand_primary,
+    },
+    // Products Section
+    productsSection: {
+      paddingHorizontal: 16,
+      paddingBottom: 24,
+    },
+    productsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginHorizontal: -6,
+    },
+    productWrapper: {
+      width: '50%',
+      padding: 6,
     },
     productItem: {
-      flex: 1,
-      marginBottom: 12,
       backgroundColor: theme.colors.background.primary,
-      borderRadius: 8,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: theme.colors.border.secondary,
       overflow: 'hidden',
     },
     productImage: {
       width: '100%',
-      aspectRatio: 1,
-      backgroundColor: theme.colors.background.secondary,
+      height: 120,
     },
     productInfo: {
-      padding: 8,
+      padding: 10,
     },
     productName: {
-      fontSize: 12,
+      fontSize: 13,
       color: theme.colors.text.primary,
       marginBottom: 4,
-      height: 36,
+      minHeight: 36,
     },
     productPrice: {
-      color: theme.colors.text.error_primary,
-      fontSize: 13,
+      color: '#EF4444',
     },
-    // Empty state styles
-    emptyListContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
+    // Empty state
     emptyState: {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: 24,
       paddingVertical: 40,
     },
     emptyIconContainer: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
+      width: 64,
+      height: 64,
+      borderRadius: 32,
       backgroundColor: theme.colors.background.secondary,
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 16,
-    },
-    emptyTitle: {
-      color: theme.colors.text.primary,
-      textAlign: 'center',
-      marginBottom: 8,
+      marginBottom: 12,
     },
     emptyDescription: {
       color: theme.colors.text.tertiary,
       textAlign: 'center',
-      lineHeight: 20,
     },
   });
 

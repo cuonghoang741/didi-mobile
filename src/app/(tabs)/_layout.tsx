@@ -37,7 +37,7 @@ const TabLayout = () => {
             return (
               <Icon
                 size={24}
-                color={focused ? theme.colors.text.brand_primary : theme.colors.text.secondary}
+                color={focused ? theme.colors.text.primary : theme.colors.text.secondary}
               />
             );
           },
@@ -52,7 +52,7 @@ const TabLayout = () => {
             return (
               <Icon
                 size={24}
-                color={focused ? theme.colors.text.brand_primary : theme.colors.text.secondary}
+                color={focused ? theme.colors.text.primary : theme.colors.text.secondary}
               />
             );
           },
@@ -67,7 +67,7 @@ const TabLayout = () => {
             return (
               <Icon
                 size={24}
-                color={focused ? theme.colors.text.brand_primary : theme.colors.text.secondary}
+                color={focused ? theme.colors.text.primary : theme.colors.text.secondary}
               />
             );
           },
@@ -82,7 +82,7 @@ const TabLayout = () => {
             return (
               <Icon
                 size={24}
-                color={focused ? theme.colors.text.brand_primary : theme.colors.text.secondary}
+                color={focused ? theme.colors.text.primary : theme.colors.text.secondary}
               />
             );
           },
@@ -97,7 +97,7 @@ const TabLayout = () => {
             return (
               <Icon
                 size={24}
-                color={focused ? theme.colors.text.brand_primary : theme.colors.text.secondary}
+                color={focused ? theme.colors.text.primary : theme.colors.text.secondary}
               />
             );
           },

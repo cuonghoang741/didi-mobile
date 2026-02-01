@@ -14,6 +14,7 @@ export const jp = {
     seeMore: 'もっと見る',
     continueShopping: '買い物を続ける',
     variant: 'バリエーション',
+    all: 'すべて',
   },
   tabs: {
     home: 'ホーム',
@@ -26,6 +27,9 @@ export const jp = {
     empty: 'カテゴリーがありません',
     emptyProducts: '商品がありません',
     emptyProductsDescription: 'このカテゴリーには現在商品がありません。後でもう一度確認してください。',
+    brand: 'ブランド',
+    productType: '商品タイプ',
+    emptySubcategories: '商品タイプがありません',
   },
   favourite: {
     empty: 'お気に入りの商品はまだありません',

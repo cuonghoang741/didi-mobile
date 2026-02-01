@@ -15,7 +15,7 @@ import {
 import { Typography, Button } from '@/components';
 import { useTheme, useLanguage, useAuth } from '@/contexts';
 import { submitProductReview } from '@/services/supabase';
-import type { OrderItem } from '@/types/database.types';
+import type { OrderItem } from '@/services/supabase/orderService';
 
 interface OrderReviewModalProps {
     visible: boolean;

@@ -21,6 +21,7 @@ import {
   Typography,
   Header,
   FloatingContactButton,
+  HomeSkeleton,
 } from '@/components';
 import { useTheme, useLanguage, useCart } from '@/contexts';
 import { fetchHomeData, HomeData } from '@/services/supabase';
@@ -81,11 +82,13 @@ const Home = () => {
 
   if (loading && !data) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size='large' color={theme.colors.text.brand_primary} />
-      </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <Header searchPlaceholder={t('home.searchPlaceholder')} />
+        <HomeSkeleton />
+      </SafeAreaView>
     );
   }
+
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -100,12 +103,12 @@ const Home = () => {
           <BannerCarousel banners={data.banners} onBannerPress={handleBannerPress} />
         )}
 
-        {/* Categories from categoriesWithProducts + additional categories if any */}
-        {data?.categoriesWithProducts && (
+        {/* Categories Section */}
+        {data?.categories && data.categories.length > 0 && (
           <CategoryList
-            categories={data.categoriesWithProducts.map((c) => ({
-              ...c.category,
-              name: getLocalizedContent(c.category.language, 'name', language, c.category.name),
+            categories={data.categories.map((c) => ({
+              ...c,
+              name: getLocalizedContent(c.languages, 'name', language, c.name),
             }))}
             onCategoryPress={handleCategoryPress}
           />
@@ -139,7 +142,7 @@ const Home = () => {
         {data?.categoriesWithProducts.slice(0, 2).map((item) => (
           <ProductSection
             key={item.category.id}
-            title={getLocalizedContent(item.category.language, 'name', language, item.category.name)}
+            title={getLocalizedContent(item.category.languages, 'name', language, item.category.name)}
             products={item.products.map((p) => ({
               ...p,
               name: getLocalizedContent(p.language, 'name', language, p.name),
@@ -165,16 +168,16 @@ const Home = () => {
                   transition={200}
                 />
                 <LinearGradient
-                  colors={['transparent', 'rgba(0,0,0,0.7)']}
+                  colors={['transparent', banner.button_text ? 'rgba(0,0,0,0.7)' : 'transparent']}
                   style={styles.bannerOverlay}
                 >
                   <View style={styles.bannerTextContainer}>
-                    {banner.subtitle ? (
+                    {banner.button_text && banner.subtitle ? (
                       <Typography variant='text' size='sm' style={styles.bannerSubtitle}>
                         {banner.subtitle}
                       </Typography>
                     ) : null}
-                    {banner.title ? (
+                    {banner.button_text && banner.title ? (
                       <Typography variant='text' size='lg' weight='bold' style={styles.bannerTitle}>
                         {banner.title}
                       </Typography>
@@ -197,7 +200,7 @@ const Home = () => {
         {data?.categoriesWithProducts.slice(2, 5).map((item) => (
           <ProductSection
             key={item.category.id}
-            title={getLocalizedContent(item.category.language, 'name', language, item.category.name)}
+            title={getLocalizedContent(item.category.languages, 'name', language, item.category.name)}
             products={item.products.map((p) => ({
               ...p,
               name: getLocalizedContent(p.language, 'name', language, p.name),

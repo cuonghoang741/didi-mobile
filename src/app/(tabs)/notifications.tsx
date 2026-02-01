@@ -28,7 +28,7 @@ const Notifications = () => {
         {notifications.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Image source={EmptyNotificationImage} style={styles.emptyImage} resizeMode='contain' />
-            <Typography variant='text' size='md' style={styles.emptyText}>
+            <Typography variant='text' size='lg' style={styles.emptyText}>
               {t('notifications.empty')}
             </Typography>
             <Typography variant='text' size='sm' style={styles.emptySubtext}>
@@ -80,12 +80,12 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingTop: 100,
     },
     emptyImage: {
-      width: 200,
-      height: 200,
+      width: 160,
+      height: 160,
     },
     emptyText: {
-      color: theme.colors.text.tertiary,
-      marginTop: 16,
+      marginTop: 22,
+      fontWeight: 'bold',
     },
     emptySubtext: {
       color: theme.colors.text.tertiary,

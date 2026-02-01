@@ -106,6 +106,48 @@ export type Database = {
           }
         ]
       }
+      brands: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          logo_url: string | null
+          description: string | null
+          languages: Json | null
+          sort_order: number
+          is_active: boolean
+          created_at: string | null
+          updated_at: string | null
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          logo_url?: string | null
+          description?: string | null
+          languages?: Json | null
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          logo_url?: string | null
+          description?: string | null
+          languages?: Json | null
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
       cart_items: {
         Row: {
           cart_id: string
@@ -166,7 +208,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean | null
-          language: Json | null
+          languages: Json | null
           name: string
           parent_id: string | null
           slug: string
@@ -180,6 +222,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          languages?: Json | null
           name: string
           parent_id?: string | null
           slug: string
@@ -193,6 +236,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          languages?: Json | null
           name?: string
           parent_id?: string | null
           slug?: string
@@ -872,6 +916,7 @@ export type CompositeTypes<
   : never
 
 export type Banner = Database['public']['Tables']['banners']['Row'];
+export type Brand = Database['public']['Tables']['brands']['Row'];
 export type Category = Database['public']['Tables']['categories']['Row'];
 export type Product = Database['public']['Tables']['products']['Row'];
 export type FlashSale = Database['public']['Tables']['flash_sales']['Row'];

@@ -13,6 +13,7 @@ export interface HomeData {
   featuredProducts: Product[];
   flashSale: FlashSale | null;
   flashSaleProducts: ProductWithFlashSale[];
+  categories: Category[];
   categoriesWithProducts: CategoryWithProducts[];
 }
 
@@ -176,10 +177,11 @@ export const fetchCategoriesWithProducts = async (
  * Fetch all home page data in one call
  */
 export const fetchHomeData = async (): Promise<HomeData> => {
-  const [banners, featuredProducts, flashSaleData, categoriesWithProducts] = await Promise.all([
+  const [banners, featuredProducts, flashSaleData, categories, categoriesWithProducts] = await Promise.all([
     fetchBanners(),
     fetchFeaturedProducts(),
     fetchActiveFlashSale(),
+    fetchHomeCategories(),
     fetchCategoriesWithProducts(5, 5),
   ]);
 
@@ -188,8 +190,29 @@ export const fetchHomeData = async (): Promise<HomeData> => {
     featuredProducts,
     flashSale: flashSaleData.flashSale,
     flashSaleProducts: flashSaleData.products,
+    categories,
     categoriesWithProducts,
   };
+};
+
+/**
+ * Fetch top-level categories for home page display
+ */
+export const fetchHomeCategories = async (): Promise<Category[]> => {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .eq('is_active', true)
+    .is('deleted_at', null)
+    .is('parent_id', null) // Only top-level categories
+    .order('sort_order', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching home categories:', error);
+    return [];
+  }
+
+  return data || [];
 };
 
 /**

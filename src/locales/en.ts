@@ -14,6 +14,7 @@ export const en = {
     seeMore: 'See More',
     continueShopping: 'Continue Shopping',
     variant: 'Variant',
+    all: 'All',
   },
   home: {
     welcome: 'Welcome',
@@ -45,6 +46,9 @@ export const en = {
     empty: 'No categories available',
     emptyProducts: 'No products yet',
     emptyProductsDescription: 'This category has no products at the moment. Please check back later.',
+    brand: 'Brand',
+    productType: 'Product Type',
+    emptySubcategories: 'No product types available',
   },
   favourite: {
     empty: 'No favourite products yet',

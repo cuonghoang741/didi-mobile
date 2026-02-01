@@ -5,6 +5,7 @@ import type {
   ProductReview,
   ProductDetail,
   User,
+  Brand,
 } from '@/types/database.types';
 
 /**
@@ -244,7 +245,27 @@ export const searchProducts = async (
 };
 
 /**
- * Fetch all unique brands
+ * Fetch all active brands from brands table
+ */
+export const fetchBrandsFromTable = async (): Promise<Brand[]> => {
+  const { data, error } = await supabase
+    .from('brands')
+    .select('*')
+    .eq('is_active', true)
+    .is('deleted_at', null)
+    .order('sort_order', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching brands:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+/**
+ * Fetch all unique brands (legacy - from products table)
+ * @deprecated Use fetchBrandsFromTable instead
  */
 export const fetchBrands = async (): Promise<string[]> => {
   const { data, error } = await supabase

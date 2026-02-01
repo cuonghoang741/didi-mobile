@@ -439,59 +439,6 @@ const ProductDetailScreen = () => {
             </View>
           )}
 
-          {/* Quantity */}
-          <View style={styles.quantitySection}>
-            <Typography variant='text' size='md' weight='semiBold'>
-              {t('product.quantity')}
-            </Typography>
-            <View style={styles.quantityControls}>
-              <Pressable
-                style={styles.quantityButton}
-                onPress={() => setQuantity(Math.max(1, quantity - 1))}
-              >
-                <Feather name='minus' size={18} color={theme.colors.text.primary} />
-              </Pressable>
-              <Typography variant='text' size='md' weight='semiBold' style={styles.quantityValue}>
-                {quantity}
-              </Typography>
-              <Pressable style={styles.quantityButton} onPress={() => setQuantity(quantity + 1)}>
-                <Feather name='plus' size={18} color={theme.colors.text.primary} />
-              </Pressable>
-            </View>
-          </View>
-
-
-          {/* Specifications */}
-          {product.specifications && Object.keys(product.specifications).length > 0 && (
-            <View style={styles.specificationsSection}>
-              <Typography variant='text' size='md' weight='semiBold' style={styles.sectionTitle}>
-                {t('product.specifications') || 'Thông số kỹ thuật'}
-              </Typography>
-              <View style={styles.specsContainer}>
-                {Object.entries(product.specifications as Record<string, string | number>).map(
-                  ([key, value], index) => (
-                    <View
-                      key={key}
-                      style={[styles.specRow, index % 2 === 0 && styles.specRowEven]}
-                    >
-                      <Typography variant='text' size='sm' style={styles.specKey}>
-                        {key.charAt(0).toUpperCase() + key.slice(1)}
-                      </Typography>
-                      <Typography
-                        variant='text'
-                        size='sm'
-                        weight='semiBold'
-                        style={styles.specValue}
-                      >
-                        {String(value)}
-                      </Typography>
-                    </View>
-                  )
-                )}
-              </View>
-            </View>
-          )}
-
           {/* Description */}
           <View style={styles.descriptionSection}>
             <Typography variant='text' size='md' weight='semiBold' style={styles.sectionTitle}>
@@ -530,6 +477,39 @@ const ProductDetailScreen = () => {
               </Typography>
             )}
           </View>
+
+          {/* Specifications */}
+          {product.specifications && Object.keys(product.specifications).length > 0 && (
+            <View style={styles.specificationsSection}>
+              <Typography variant='text' size='md' weight='semiBold' style={styles.sectionTitle}>
+                {t('product.specifications') || 'Thông số kỹ thuật'}
+              </Typography>
+              <View style={styles.specsContainer}>
+                {Object.entries(product.specifications as Record<string, string | number>).map(
+                  ([key, value]) => (
+                    <View
+                      key={key}
+                      style={styles.specRow}
+                    >
+                      <Typography variant='text' size='sm' style={styles.specKey}>
+                        {key.charAt(0).toUpperCase() + key.slice(1)}
+                      </Typography>
+                      <Typography
+                        variant='text'
+                        size='sm'
+                        weight='semiBold'
+                        style={styles.specValue}
+                      >
+                        {String(value)}
+                      </Typography>
+                    </View>
+                  )
+                )}
+              </View>
+            </View>
+          )}
+
+
 
           {/* Reviews */}
           <ProductReviews
@@ -715,7 +695,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       marginBottom: 20,
     },
     price: {
-      color: theme.colors.text.brand_primary,
+      color: theme.colors.text.error_primary,
     },
     originalPrice: {
       color: theme.colors.text.tertiary,
@@ -819,19 +799,12 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     specsContainer: {
       marginTop: 8,
-      borderWidth: 1,
-      borderColor: '#F3F4F6',
-      borderRadius: 8,
-      overflow: 'hidden',
     },
     specRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      padding: 12,
-      backgroundColor: '#FFFFFF',
-    },
-    specRowEven: {
-      backgroundColor: '#F9FAFB',
+      paddingVertical: 10,
+      backgroundColor: 'transparent',
     },
     specKey: {
       color: theme.colors.text.secondary,

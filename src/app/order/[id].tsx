@@ -7,8 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Typography } from '@/components';
 import { useTheme, useLanguage } from '@/contexts';
-import { fetchOrderDetail } from '@/services/supabase';
-import type { Order, OrderItem } from '@/types/database.types';
+import { fetchOrderDetail, Order, OrderItem } from '@/services/supabase/orderService';
 
 import { useCurrency } from '@/hooks';
 
@@ -200,23 +199,19 @@ const OrderDetailScreen = () => {
           </Typography>
 
           <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Feather name='user' size={18} color={theme.colors.text.tertiary} />
-              <Typography variant='text' size='md' style={styles.infoText}>
-                {order.shipping_name}
-              </Typography>
-            </View>
-            <View style={styles.infoRow}>
-              <Feather name='phone' size={18} color={theme.colors.text.tertiary} />
-              <Typography variant='text' size='md' style={styles.infoText}>
-                {order.shipping_phone}
-              </Typography>
-            </View>
-            {order.shipping_email && (
+            {order.shipping_address?.full_name && (
               <View style={styles.infoRow}>
-                <Feather name='mail' size={18} color={theme.colors.text.tertiary} />
+                <Feather name='user' size={18} color={theme.colors.text.tertiary} />
                 <Typography variant='text' size='md' style={styles.infoText}>
-                  {order.shipping_email}
+                  {order.shipping_address.full_name}
+                </Typography>
+              </View>
+            )}
+            {order.shipping_address?.phone && (
+              <View style={styles.infoRow}>
+                <Feather name='phone' size={18} color={theme.colors.text.tertiary} />
+                <Typography variant='text' size='md' style={styles.infoText}>
+                  {order.shipping_address.phone}
                 </Typography>
               </View>
             )}
@@ -225,10 +220,12 @@ const OrderDetailScreen = () => {
                 <Feather name='map-pin' size={18} color={theme.colors.text.tertiary} />
                 <Typography variant='text' size='md' style={styles.infoText}>
                   {[
-                    order.shipping_address,
-                    order.shipping_ward,
-                    order.shipping_district,
-                    order.shipping_city,
+                    order.shipping_address.address_line1,
+                    order.shipping_address.address_line2,
+                    order.shipping_address.ward,
+                    order.shipping_address.district,
+                    order.shipping_address.city,
+                    order.shipping_address.province,
                   ]
                     .filter(Boolean)
                     .join(', ')}

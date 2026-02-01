@@ -45,3 +45,6 @@ export * from './common';
 
 // Floating Button
 export { default as FloatingContactButton } from './FloatingContactButton';
+
+// Categories
+export { default as CategoriesSkeleton } from './CategoriesSkeleton';
