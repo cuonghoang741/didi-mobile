@@ -16,6 +16,7 @@ import {
 import 'react-native-reanimated';
 import { oneSignalService } from '@/services/onesignal/OneSignalService';
 import { registerPushToken } from '@/services/onesignal/backend';
+import { OTAAutoUpdate } from '@/services/OTA-update/OTAAutoUpdate';
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const RootLayout = () => {
                   <GestureHandlerRootView style={{ flex: 1 }}>
                     <Stack screenOptions={{ headerShown: false }} />
                   </GestureHandlerRootView>
+                  <OTAAutoUpdate />
                 </CartProvider>
               </LanguageProvider>
             </AuthProvider>

@@ -1,11 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Modal, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
 import { useOTAUpdate } from './useOTAUpdate';
-
-import { purple } from '@/theme/palette';
-import { Button } from '@/components/ui';
 
 interface OTAAutoUpdateProps {
   onDismiss?: () => void;
@@ -16,13 +13,22 @@ export const OTAAutoUpdate: React.FC<OTAAutoUpdateProps> = ({ onDismiss }) => {
   const [visible, setVisible] = useState(false);
   const shimmerTranslate = useState(new Animated.Value(-200))[0];
   const isUpdating = updateInfo.isDownloading || updateInfo.isInstalling;
+
+  // Auto-start update when available
   useEffect(() => {
-    if (updateInfo?.isAvailable) {
+    if (updateInfo?.isAvailable && !isUpdating) {
       setVisible(true);
-    } else {
-      setVisible(false);
+      downloadAndInstallUpdate();
     }
   }, [updateInfo?.isAvailable]);
+
+  // Hide when update completes
+  useEffect(() => {
+    if (!updateInfo.isAvailable && !isUpdating && visible) {
+      setVisible(false);
+      onDismiss?.();
+    }
+  }, [updateInfo.isAvailable, isUpdating, visible]);
 
   useEffect(() => {
     if (isUpdating) {
@@ -47,152 +53,101 @@ export const OTAAutoUpdate: React.FC<OTAAutoUpdateProps> = ({ onDismiss }) => {
     }
   }, [isUpdating, shimmerTranslate]);
 
-  if (!updateInfo.isAvailable && !isChecking && !visible) {
+  if (!visible) {
     return null;
   }
 
-  const handleUpdate = () => {
-    downloadAndInstallUpdate();
-  };
-
-  const handleClose = () => {
-    setVisible(false);
-    onDismiss?.();
-  };
-
   return (
-    <Modal visible={visible} transparent animationType='fade' onRequestClose={handleClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.container}>
-          <Text style={styles.title}>New update available</Text>
-          <Text style={styles.message}>Please update to enjoy the latest version.</Text>
-          {updateInfo.isDownloading || updateInfo.isInstalling ? (
-            <View style={styles.progressRow}>
-              <ActivityIndicator size='small' color='#0D004D' />
-              <Text style={styles.progressText}>
-                {updateInfo.isInstalling ? 'Installing update...' : 'Downloading update...'}
-              </Text>
-            </View>
-          ) : null}
-          {isUpdating && updateInfo.downloadProgress === 0 ? (
-            <View style={styles.progressBarContainer}>
-              <View style={styles.progressBarTrack}>
-                <Animated.View
-                  style={[
-                    styles.progressBarShimmerWrapper,
-                    { transform: [{ translateX: shimmerTranslate }] },
-                  ]}
-                >
-                  <LinearGradient
-                    start={{ x: 0, y: 0.5 }}
-                    end={{ x: 1, y: 0.5 }}
-                    colors={['#0D004D30', '#0D004D', '#0D004D30']}
-                    style={styles.progressBarShimmer}
-                  />
-                </Animated.View>
-              </View>
-            </View>
-          ) : null}
-          {isUpdating && updateInfo.downloadProgress > 0 ? (
-            <View style={styles.progressBarContainer}>
-              <View style={styles.progressBarTrack}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    { width: `${Math.min(updateInfo.downloadProgress, 1) * 100}%` },
-                  ]}
-                >
-                  <LinearGradient
-                    start={{ x: 0, y: 0.5 }}
-                    end={{ x: 1, y: 0.5 }}
-                    colors={['#0D004D', '#4200A5']}
-                    style={styles.progressBarFillGradient}
-                  />
-                </View>
-              </View>
-            </View>
-          ) : null}
-          <View style={styles.actions}>
-            <View style={styles.actionItem}>
-              <Button
-                fullWidth
-                size='lg'
-                variant='solid'
-                color='gray'
-                onPress={handleClose}
-                disabled={updateInfo.isDownloading || updateInfo.isInstalling}
-              >
-                <Text style={[styles.buttonText, styles.secondaryText]}>Close</Text>
-              </Button>
-            </View>
-            <View style={styles.actionItem}>
-              <Button
-                size='lg'
-                fullWidth
-                variant='gradient'
-                onPress={handleUpdate}
-                disabled={updateInfo.isDownloading || updateInfo.isInstalling}
-              >
-                <Text style={[styles.buttonText, styles.primaryText]}>
-                  {updateInfo.isDownloading || updateInfo.isInstalling ? 'Updating...' : 'Update'}
-                </Text>
-              </Button>
-            </View>
+    <View style={styles.fixedContainer}>
+      <LinearGradient
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        colors={['#0D004D', '#4200A5']}
+        style={styles.gradientContainer}
+      >
+        <View style={styles.content}>
+          <View style={styles.textRow}>
+            <ActivityIndicator size='small' color='#fff' />
+            <Text style={styles.updateText}>
+              {updateInfo.isInstalling ? 'Installing update...' : 'Downloading update...'}
+            </Text>
           </View>
+          {updateInfo.downloadProgress > 0 && (
+            <Text style={styles.progressPercent}>
+              {Math.round(updateInfo.downloadProgress * 100)}%
+            </Text>
+          )}
         </View>
-      </View>
-    </Modal>
+        {updateInfo.downloadProgress === 0 ? (
+          <View style={styles.progressBarTrack}>
+            <Animated.View
+              style={[
+                styles.progressBarShimmerWrapper,
+                { transform: [{ translateX: shimmerTranslate }] },
+              ]}
+            >
+              <LinearGradient
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                colors={['#ffffff30', '#ffffff', '#ffffff30']}
+                style={styles.progressBarShimmer}
+              />
+            </Animated.View>
+          </View>
+        ) : (
+          <View style={styles.progressBarTrack}>
+            <View
+              style={[
+                styles.progressBarFill,
+                { width: `${Math.min(updateInfo.downloadProgress, 1) * 100}%` },
+              ]}
+            />
+          </View>
+        )}
+      </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
+  fixedContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 9999,
   },
-  container: {
-    width: '100%',
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    padding: 20,
-    alignItems: 'center',
+  gradientContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: 16,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#111',
-    textAlign: 'center',
-  },
-  message: {
-    fontSize: 14,
-    color: '#444',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  progressRow: {
+  content: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  textRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
-    marginBottom: 12,
   },
-  progressText: {
+  updateText: {
     fontSize: 14,
-    color: '#0a0a0a',
+    fontWeight: '600',
+    color: '#fff',
   },
-  progressBarContainer: {
-    width: '100%',
-    marginBottom: 12,
+  progressPercent: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
   progressBarTrack: {
     width: '100%',
-    height: 8,
+    height: 4,
     borderRadius: 999,
-    backgroundColor: '#eef2f7',
+    backgroundColor: '#ffffff30',
     overflow: 'hidden',
   },
   progressBarShimmerWrapper: {
@@ -207,46 +162,7 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     borderRadius: 999,
-    overflow: 'hidden',
-  },
-  progressBarFillGradient: {
-    width: '100%',
-    height: '100%',
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'stretch',
-    gap: 8,
-    width: '100%',
-    marginTop: 16,
-  },
-  actionItem: {
-    flex: 1,
-  },
-  button: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  primary: {
-    backgroundColor: purple[400],
-  },
-  primaryText: {
-    color: '#fff',
-  },
-  secondary: {
-    backgroundColor: '#eef2f7',
-  },
-  secondaryText: {
-    color: '#0a0a0a',
-  },
-  disabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
+    backgroundColor: '#fff',
   },
 });
+

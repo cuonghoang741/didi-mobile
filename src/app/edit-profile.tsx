@@ -440,7 +440,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       borderWidth: 1,
       borderColor: theme.colors.border.secondary,
       paddingHorizontal: 16,
-      paddingVertical: 14,
+      paddingVertical: 12,
       gap: 12,
     },
     inputDisabled: {

@@ -1,7 +1,7 @@
 {
   "name": "codebase-native-app",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -16,7 +16,7 @@
     "build:ios": "node scripts/update-version.js && eas build --platform ios --auto-submit",
     "build:android": "node scripts/update-version.js && eas build --platform android --auto-submit",
     "doctor": "npx -y expo-doctor",
-    "build:ios:local": "rm -rf ./*-*.ipa && eas build --local --platform ios --non-interactive && eas submit --platform ios --path $(ls build-*.ipa) --non-interactive",
+    "build:ios:local": "rm -rf ./*-*.ipa && eas build --local --platform ios && eas submit --platform ios --path $(ls build-*.ipa) --non-interactive",
     "build:android:local": "rm -rf ./*-*.aab && eas build --local --platform android && eas submit --platform android --path $(ls build-*.aab) --non-interactive",
     "update:production": "eas update --channel production --message \"Production update\"",
     "update:production:android": "eas update --channel production --platform android --message \"Production update (Android only)\"",

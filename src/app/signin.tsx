@@ -19,7 +19,7 @@ import AppleIcon from '@/assets/logos/apple.svg';
 import { Typography, Button } from '@/components';
 import { useTheme, useLanguage, useAuth } from '@/contexts';
 
-type AuthStep = 'phone' | 'otp';
+type AuthStep = 'phone' | 'password' | 'otp' | 'set-password';
 
 const OTP_TIMER_DURATION = 60; // seconds
 
@@ -28,8 +28,11 @@ const SignInScreen = () => {
   const theme = useTheme();
   const { t } = useLanguage();
   const {
+    checkPhoneExists,
     signInWithPhone,
+    signInWithPhonePassword,
     verifyPhoneOtp,
+    setPasswordAfterOtp,
     signInWithApple,
     signInWithGoogle,
     signInWithLINE,
@@ -49,8 +52,11 @@ const SignInScreen = () => {
   const [step, setStep] = useState<AuthStep>('phone');
   const [phone, setPhone] = useState('');
   const [formattedPhone, setFormattedPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+  const [userExists, setUserExists] = useState(false);
 
   // Timer state
   const [timer, setTimer] = useState(0);
@@ -86,7 +92,7 @@ const SignInScreen = () => {
     return `+84${cleaned}`;
   };
 
-  const handleSendOtp = async () => {
+  const handleContinue = async () => {
     setLocalError(null);
 
     if (!phone.trim()) {
@@ -102,13 +108,31 @@ const SignInScreen = () => {
     const apiPhone = formatPhoneNumberForApi(phone);
     setFormattedPhone(apiPhone);
 
-    const result = await signInWithPhone(apiPhone);
+    // Check if phone exists
+    const { exists, hasPassword } = await checkPhoneExists(apiPhone);
+    setUserExists(exists);
 
-    if (result.success) {
-      setStep('otp');
-      setTimer(OTP_TIMER_DURATION);
+    if (exists && hasPassword) {
+      // User exists with password -> show password field
+      setStep('password');
+    } else if (exists && !hasPassword) {
+      // User exists but no password -> send OTP and then ask to set password
+      const result = await signInWithPhone(apiPhone);
+      if (result.success) {
+        setStep('otp');
+        setTimer(OTP_TIMER_DURATION);
+      } else {
+        setLocalError(result.message);
+      }
     } else {
-      setLocalError(result.message);
+      // New user -> send OTP
+      const result = await signInWithPhone(apiPhone);
+      if (result.success) {
+        setStep('otp');
+        setTimer(OTP_TIMER_DURATION);
+      } else {
+        setLocalError(result.message);
+      }
     }
   };
 
@@ -131,13 +155,61 @@ const SignInScreen = () => {
     }
 
     setLocalError(null);
-    // Use the formatted phone
     const result = await verifyPhoneOtp(formattedPhone, otp);
+
+    if (result) {
+      // Check if user is new or existing without password
+      if (!userExists) {
+        // New user -> ask to set password
+        setStep('set-password');
+      } else {
+        // Existing user without password -> ask to set password
+        setStep('set-password');
+      }
+    } else {
+      setLocalError(t('auth.errors.invalidOtp') || 'Mã xác thực không đúng');
+    }
+  };
+
+  const handlePasswordLogin = async () => {
+    if (!password.trim()) {
+      setLocalError('Vui lòng nhập mật khẩu');
+      return;
+    }
+
+    setLocalError(null);
+    const result = await signInWithPhonePassword(formattedPhone, password);
 
     if (result) {
       router.replace('/');
     } else {
-      setLocalError(t('auth.errors.invalidOtp') || 'Mã xác thực không đúng');
+      // Error message is already set by AuthManager
+    }
+  };
+
+  const handleSetPassword = async () => {
+    if (!password.trim()) {
+      setLocalError('Vui lòng nhập mật khẩu');
+      return;
+    }
+
+    if (password.length < 6) {
+      setLocalError('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setLocalError('Mật khẩu xác nhận không khớp');
+      return;
+    }
+
+    setLocalError(null);
+    const result = await setPasswordAfterOtp(password);
+
+    if (result.success) {
+      router.replace('/');
+    } else {
+      setLocalError(result.message);
     }
   };
 
@@ -157,9 +229,11 @@ const SignInScreen = () => {
   };
 
   const handleBack = () => {
-    if (step === 'otp') {
+    if (step === 'password' || step === 'otp' || step === 'set-password') {
       setStep('phone');
       setOtp('');
+      setPassword('');
+      setConfirmPassword('');
       setLocalError(null);
     } else {
       router.back();
@@ -169,6 +243,8 @@ const SignInScreen = () => {
   const handleChangePhone = () => {
     setStep('phone');
     setOtp('');
+    setPassword('');
+    setConfirmPassword('');
     setLocalError(null);
   };
 
@@ -195,11 +271,21 @@ const SignInScreen = () => {
           {/* Title */}
           <View style={styles.titleSection}>
             <Typography variant='display' size='lg' weight='bold'>
-              {step === 'phone' ? t('auth.signIn.welcomeTitle') : t('auth.signIn.otpTitle')}
+              {step === 'phone'
+                ? t('auth.signIn.welcomeTitle')
+                : step === 'password'
+                  ? 'Đăng nhập'
+                  : step === 'set-password'
+                    ? 'Thiết lập mật khẩu'
+                    : t('auth.signIn.otpTitle')}
             </Typography>
             <Typography variant='text' size='md' style={styles.subtitle}>
               {step === 'phone' ? (
                 t('auth.signIn.welcomeSubtitle')
+              ) : step === 'password' ? (
+                'Nhập mật khẩu để tiếp tục'
+              ) : step === 'set-password' ? (
+                'Tạo mật khẩu để bảo mật tài khoản của bạn'
               ) : (
                 <>
                   {t('auth.signIn.otpSubtitlePrefix')}
@@ -210,7 +296,7 @@ const SignInScreen = () => {
                 </>
               )}
             </Typography>
-            {step === 'otp' && (
+            {(step === 'otp' || step === 'password' || step === 'set-password') && (
               <Pressable onPress={handleChangePhone} style={styles.changePhoneButton}>
                 <Typography variant='text' size='sm' style={styles.changePhoneText}>
                   {t('auth.signIn.changePhone')} <Feather name='edit-2' size={12} />
@@ -299,6 +385,82 @@ const SignInScreen = () => {
                 )}
               </View>
             </View>
+          )}\n\n          {/* Password Input (for existing users) */}
+          {step === 'password' && (
+            <View style={styles.inputSection}>
+              <View style={[styles.inputContainer, displayError && styles.inputErrorBorder]}>
+                <View style={styles.iconContainer}>
+                  <Feather name='lock' size={20} color={theme.colors.text.tertiary} />
+                </View>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (displayError) setLocalError(null);
+                  }}
+                  placeholder='Nhập mật khẩu'
+                  placeholderTextColor={theme.colors.text.tertiary}
+                  secureTextEntry
+                  autoComplete='password'
+                  editable={!isLoading}
+                  autoFocus
+                />
+              </View>
+              {displayError && (
+                <Typography variant='text' size='sm' style={styles.errorText}>
+                  {displayError}
+                </Typography>
+              )}
+            </View>
+          )}
+
+          {/* Set Password Input (for new users) */}
+          {step === 'set-password' && (
+            <View style={styles.inputSection}>
+              <View style={[styles.inputContainer, displayError && styles.inputErrorBorder]}>
+                <View style={styles.iconContainer}>
+                  <Feather name='lock' size={20} color={theme.colors.text.tertiary} />
+                </View>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (displayError) setLocalError(null);
+                  }}
+                  placeholder='Mật khẩu (tối thiểu 6 ký tự)'
+                  placeholderTextColor={theme.colors.text.tertiary}
+                  secureTextEntry
+                  autoComplete='password-new'
+                  editable={!isLoading}
+                  autoFocus
+                />
+              </View>
+              <View style={[styles.inputContainer, displayError && styles.inputErrorBorder, { marginTop: 16 }]}>
+                <View style={styles.iconContainer}>
+                  <Feather name='lock' size={20} color={theme.colors.text.tertiary} />
+                </View>
+                <TextInput
+                  style={styles.input}
+                  value={confirmPassword}
+                  onChangeText={(text) => {
+                    setConfirmPassword(text);
+                    if (displayError) setLocalError(null);
+                  }}
+                  placeholder='Xác nhận mật khẩu'
+                  placeholderTextColor={theme.colors.text.tertiary}
+                  secureTextEntry
+                  autoComplete='password-new'
+                  editable={!isLoading}
+                />
+              </View>
+              {displayError && (
+                <Typography variant='text' size='sm' style={styles.errorText}>
+                  {displayError}
+                </Typography>
+              )}
+            </View>
           )}
 
           {/* Primary Action Button */}
@@ -306,12 +468,32 @@ const SignInScreen = () => {
             colorScheme='brand'
             size='lg'
             variant='solid'
-            onPress={step === 'phone' ? handleSendOtp : handleVerifyOtp}
-            disabled={isLoading || (step === 'phone' && !phone)}
+            onPress={
+              step === 'phone'
+                ? handleContinue
+                : step === 'password'
+                  ? handlePasswordLogin
+                  : step === 'otp'
+                    ? handleVerifyOtp
+                    : handleSetPassword
+            }
+            disabled={
+              isLoading ||
+              (step === 'phone' && !phone) ||
+              (step === 'password' && !password) ||
+              (step === 'otp' && (!otp || otp.length < 6)) ||
+              (step === 'set-password' && (!password || !confirmPassword))
+            }
             loading={isLoading}
             style={styles.primaryButton}
           >
-            {step === 'phone' ? t('auth.signIn.continue') : t('auth.signIn.confirm')}
+            {step === 'phone'
+              ? t('auth.signIn.continue')
+              : step === 'password'
+                ? 'Đăng nhập'
+                : step === 'otp'
+                  ? t('auth.signIn.confirm')
+                  : 'Hoàn tất'}
           </Button>
 
           {/* Divider */}

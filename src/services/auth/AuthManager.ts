@@ -3,7 +3,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import * as AuthSession from 'expo-auth-session';
 import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 
 import { supabase } from '@/services/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -295,6 +295,110 @@ export class AuthManager {
     // Default fallback with original message for debugging
     console.warn('[AuthManager] Unhandled phone auth error:', errorMessage);
     return `Không thể gửi mã xác thực. ${errorMessage || 'Vui lòng thử lại.'}`;
+  }
+
+  /**
+   * Check if phone number already exists in the system
+   */
+  async checkPhoneExists(phone: string): Promise<{ exists: boolean; hasPassword: boolean }> {
+    try {
+      const { data, error } = await (supabase.rpc as any)('check_phone_exists', {
+        phone_number: phone,
+      });
+
+      if (error) {
+        console.error('[AuthManager] checkPhoneExists error:', error);
+        return { exists: false, hasPassword: false };
+      }
+
+      return {
+        exists: data?.exists || false,
+        hasPassword: data?.has_password || false,
+      };
+    } catch (error) {
+      console.error('[AuthManager] checkPhoneExists exception:', error);
+      return { exists: false, hasPassword: false };
+    }
+  }
+
+  /**
+   * Sign in with Phone and Password
+   */
+  async signInWithPhonePassword(
+    phone: string,
+    password: string,
+  ): Promise<{ session: Session; user: User } | null> {
+    this.setState({ isLoading: true, errorMessage: null });
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        phone,
+        password,
+      });
+
+      if (error) {
+        this.setState({
+          errorMessage: 'Số điện thoại hoặc mật khẩu không đúng',
+          isLoading: false,
+        });
+        return null;
+      }
+
+      if (data.session && data.user) {
+        await oneSignalService.registerUser(data.user.id, 'customer');
+
+        this.setState({
+          session: data.session,
+          user: data.user,
+          isLoading: false,
+        });
+        return { session: data.session, user: data.user };
+      }
+
+      this.setState({
+        isLoading: false,
+        errorMessage: 'Đăng nhập thất bại',
+      });
+      return null;
+    } catch (error: any) {
+      console.error('[AuthManager] signInWithPhonePassword exception:', error);
+      this.setState({
+        isLoading: false,
+        errorMessage: error.message || 'Đăng nhập thất bại',
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Set password for user after OTP verification
+   */
+  async setPasswordAfterOtp(password: string): Promise<{ success: boolean; message: string }> {
+    this.setState({ isLoading: true, errorMessage: null });
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password,
+      });
+
+      if (error) {
+        this.setState({
+          errorMessage: 'Không thể thiết lập mật khẩu',
+          isLoading: false,
+        });
+        return { success: false, message: 'Không thể thiết lập mật khẩu' };
+      }
+
+      this.setState({ isLoading: false });
+      return { success: true, message: 'Thiết lập mật khẩu thành công' };
+    } catch (error: any) {
+      console.error('[AuthManager] setPasswordAfterOtp exception:', error);
+      this.setState({
+        isLoading: false,
+        errorMessage: error.message || 'Không thể thiết lập mật khẩu',
+      });
+      return { success: false, message: error.message || 'Không thể thiết lập mật khẩu' };
+    }
   }
 
   /**
@@ -631,13 +735,28 @@ export class AuthManager {
       const state = Math.random().toString(36).substring(7);
       const scope = 'profile openid';
 
+      console.log('[AuthManager] LINE Login - Step 1: Building auth URL', {
+        lineCallbackUrl,
+        appRedirectUri,
+        state,
+        scope,
+        LINE_CHANNEL_ID,
+      });
+
       // Construct LINE auth URL with HTTPS callback
       const authUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${LINE_CHANNEL_ID}&redirect_uri=${encodeURIComponent(
         lineCallbackUrl,
       )}&state=${state}&scope=${encodeURIComponent(scope)}`;
 
+      console.log('[AuthManager] LINE Login - Step 2: Opening browser with URL:', authUrl);
+
       // Open browser - LINE will redirect to edge function, which redirects to app
       const result = await WebBrowser.openAuthSessionAsync(authUrl, appRedirectUri);
+
+      console.log('[AuthManager] LINE Login - Step 3: Browser result:', {
+        type: result.type,
+        url: result.type === 'success' ? result.url : 'N/A',
+      });
 
       if (result.type !== 'success' || !result.url) {
         console.log(`[AuthManager] LINE login aborted with result type: ${result.type}`);
@@ -647,9 +766,18 @@ export class AuthManager {
 
       const { authCode } = this.extractAuthPayloadFromUrl(result.url);
 
+      console.log('[AuthManager] LINE Login - Step 4: Extracted auth code:', {
+        authCode: authCode ? `${authCode.substring(0, 10)}...` : 'null',
+        fullUrl: result.url,
+      });
+
       if (!authCode) {
-        throw new Error('No authorization code found');
+        const errorMsg = `No authorization code found in URL: ${result.url}`;
+        console.error('[AuthManager]', errorMsg);
+        throw new Error(errorMsg);
       }
+
+      console.log('[AuthManager] LINE Login - Step 5: Calling line-login edge function');
 
       // Call Supabase Edge Function to exchange code for session
       const { data, error: fnError } = await supabase.functions.invoke('line-login', {
@@ -659,10 +787,37 @@ export class AuthManager {
         },
       });
 
-      if (fnError) throw fnError;
-      if (!data?.session) throw new Error('Invalid response from server');
+      console.log('[AuthManager] LINE Login - Step 6: Edge function response:', {
+        hasData: !!data,
+        hasError: !!fnError,
+        errorMessage: fnError?.message,
+        dataKeys: data ? Object.keys(data) : [],
+      });
+
+      if (fnError) {
+        console.error('[AuthManager] LINE Login - Edge function error:', {
+          message: fnError.message,
+          name: fnError.name,
+          context: fnError.context,
+          details: fnError,
+        });
+        throw fnError;
+      }
+
+      if (!data?.session) {
+        const errorMsg = `Invalid response from server. Data: ${JSON.stringify(data)}`;
+        console.error('[AuthManager]', errorMsg);
+        throw new Error(errorMsg);
+      }
 
       const { access_token, refresh_token, user } = data.session;
+
+      console.log('[AuthManager] LINE Login - Step 7: Setting session', {
+        hasAccessToken: !!access_token,
+        hasRefreshToken: !!refresh_token,
+        hasUser: !!user,
+        userId: user?.id,
+      });
 
       // Set session to Supabase client
       const { error: setSessionError } = await supabase.auth.setSession({
@@ -670,12 +825,19 @@ export class AuthManager {
         refresh_token: refresh_token || '',
       });
 
-      if (setSessionError) throw setSessionError;
+      if (setSessionError) {
+        console.error('[AuthManager] LINE Login - Set session error:', setSessionError);
+        throw setSessionError;
+      }
+
+      console.log('[AuthManager] LINE Login - Step 8: Registering user with OneSignal');
 
       // Register user with OneSignal after LINE sign in
       if (user) {
         await oneSignalService.registerUser(user.id, 'customer');
       }
+
+      console.log('[AuthManager] LINE Login - Step 9: Success! ✅');
 
       // Success
       this.setState({
@@ -685,6 +847,41 @@ export class AuthManager {
       });
     } catch (err: any) {
       console.error('[AuthManager] signInWithLINE failed', err);
+
+      // Build detailed error message for debugging
+      const errorDetails = {
+        message: err.message || 'Unknown error',
+        name: err.name,
+        code: err.code || err.error_code,
+        status: err.status,
+        details: err.details,
+        hint: err.hint,
+        fullError: JSON.stringify(err, null, 2),
+      };
+
+      const debugMessage = `
+🔴 LINE Login Error Debug Info:
+
+Message: ${errorDetails.message}
+Name: ${errorDetails.name || 'N/A'}
+Code: ${errorDetails.code || 'N/A'}
+Status: ${errorDetails.status || 'N/A'}
+Details: ${errorDetails.details || 'N/A'}
+Hint: ${errorDetails.hint || 'N/A'}
+
+Full Error:
+${errorDetails.fullError}
+      `.trim();
+
+      console.error(debugMessage);
+
+      // Show alert with detailed error
+      Alert.alert(
+        'LINE Login Error',
+        debugMessage,
+        [{ text: 'OK', style: 'cancel' }]
+      );
+
       this.setState({
         errorMessage: err.message || 'Failed to sign in with LINE',
         isLoading: false,

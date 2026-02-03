@@ -6,7 +6,7 @@ const EAS_PROJECT_ID = '37b8fd77-a4c4-4e56-bdba-7d53472c2c65';
 const PROJECT_SLUG = 'didi';
 
 // App production config
-const APP_NAME = 'DIDI Moibile';
+const APP_NAME = 'DiDi Moibile';
 const BUNDLE_IDENTIFIER = 'didi.mobile.app';
 const PACKAGE_NAME = 'didi.mobile.app';
 const ICON = './src/assets/images/logo.png';

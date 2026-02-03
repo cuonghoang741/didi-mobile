@@ -18,11 +18,17 @@ interface AuthContextType {
   errorMessage: string | null;
   hasRestoredSession: boolean;
   // Actions
+  checkPhoneExists: (phone: string) => Promise<{ exists: boolean; hasPassword: boolean }>;
   signInWithPhone: (phone: string) => Promise<{ success: boolean; message: string }>;
+  signInWithPhonePassword: (
+    phone: string,
+    password: string,
+  ) => Promise<{ session: Session; user: User } | null>;
   verifyPhoneOtp: (
     phone: string,
     token: string,
   ) => Promise<{ session: Session; user: User } | null>;
+  setPasswordAfterOtp: (password: string) => Promise<{ success: boolean; message: string }>;
   signInWithApple: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithLINE: () => Promise<void>;
@@ -55,9 +61,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isLoggedIn = !!state.session && !!state.user;
 
   // Memoize action functions
+  const checkPhoneExists = useCallback((phone: string) => authManager.checkPhoneExists(phone), []);
   const signInWithPhone = useCallback((phone: string) => authManager.signInWithPhone(phone), []);
+  const signInWithPhonePassword = useCallback(
+    (phone: string, password: string) => authManager.signInWithPhonePassword(phone, password),
+    [],
+  );
   const verifyPhoneOtp = useCallback(
     (phone: string, token: string) => authManager.verifyPhoneOtp(phone, token),
+    [],
+  );
+  const setPasswordAfterOtp = useCallback(
+    (password: string) => authManager.setPasswordAfterOtp(password),
     [],
   );
   const signInWithApple = useCallback(() => authManager.signInWithApple(), []);
@@ -76,8 +91,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     () => ({
       ...state,
       isLoggedIn,
+      checkPhoneExists,
       signInWithPhone,
+      signInWithPhonePassword,
       verifyPhoneOtp,
+      setPasswordAfterOtp,
       signInWithApple,
       signInWithGoogle,
       signInWithLINE,
@@ -91,8 +109,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     [
       state,
       isLoggedIn,
+      checkPhoneExists,
       signInWithPhone,
+      signInWithPhonePassword,
       verifyPhoneOtp,
+      setPasswordAfterOtp,
       signInWithApple,
       signInWithGoogle,
       signInWithLINE,
