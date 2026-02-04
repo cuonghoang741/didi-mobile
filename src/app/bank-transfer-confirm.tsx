@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Typography } from '@/components';
@@ -95,7 +96,22 @@ const BankTransferConfirmScreen = () => {
         });
 
         if (!result.canceled && result.assets[0]) {
-            setProofImage(result.assets[0].uri);
+            const asset = result.assets[0];
+            const actions: any[] = [];
+            if (asset.width > 1500 || asset.height > 2000) {
+                if (asset.width / asset.height > 1500 / 2000) {
+                    actions.push({ resize: { width: 1500 } });
+                } else {
+                    actions.push({ resize: { height: 2000 } });
+                }
+            }
+
+            const manipulatedImage = await manipulateAsync(
+                asset.uri,
+                actions,
+                { compress: 0.7, format: SaveFormat.JPEG }
+            );
+            setProofImage(manipulatedImage.uri);
         }
     };
 

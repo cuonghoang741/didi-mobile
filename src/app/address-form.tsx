@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -75,7 +76,8 @@ const uploadImage = async (uri: string): Promise<string | null> => {
             method: 'POST',
             body: formData,
             headers: {
-                'Accept': '*/*',
+                'Accept': 'application/json, text/plain, */*',
+                'Referer': 'https://colorme.vn/',
             },
         });
 
@@ -227,7 +229,24 @@ const AddressFormScreen = () => {
 
             if (!result.canceled && result.assets[0]) {
                 setIsUploadingImage(true);
-                const uploadedUrl = await uploadImage(result.assets[0].uri);
+
+                const asset = result.assets[0];
+                const actions: any[] = [];
+                if (asset.width > 1500 || asset.height > 2000) {
+                    if (asset.width / asset.height > 1500 / 2000) {
+                        actions.push({ resize: { width: 1500 } });
+                    } else {
+                        actions.push({ resize: { height: 2000 } });
+                    }
+                }
+
+                const manipulatedImage = await manipulateAsync(
+                    asset.uri,
+                    actions,
+                    { compress: 0.7, format: SaveFormat.JPEG }
+                );
+
+                const uploadedUrl = await uploadImage(manipulatedImage.uri);
 
                 if (uploadedUrl) {
                     setFormData(prev => ({ ...prev, image_url: uploadedUrl }));
@@ -265,7 +284,24 @@ const AddressFormScreen = () => {
 
             if (!result.canceled && result.assets[0]) {
                 setIsUploadingImage(true);
-                const uploadedUrl = await uploadImage(result.assets[0].uri);
+
+                const asset = result.assets[0];
+                const actions: any[] = [];
+                if (asset.width > 1500 || asset.height > 2000) {
+                    if (asset.width / asset.height > 1500 / 2000) {
+                        actions.push({ resize: { width: 1500 } });
+                    } else {
+                        actions.push({ resize: { height: 2000 } });
+                    }
+                }
+
+                const manipulatedImage = await manipulateAsync(
+                    asset.uri,
+                    actions,
+                    { compress: 0.7, format: SaveFormat.JPEG }
+                );
+
+                const uploadedUrl = await uploadImage(manipulatedImage.uri);
 
                 if (uploadedUrl) {
                     setFormData(prev => ({ ...prev, image_url: uploadedUrl }));

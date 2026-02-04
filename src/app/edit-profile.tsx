@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, TextInput, Alert, Image, ActionSheetIOS, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -90,7 +91,22 @@ const EditProfileScreen = () => {
     });
 
     if (!result.canceled && result.assets[0]) {
-      await uploadAvatar(result.assets[0].uri);
+      const asset = result.assets[0];
+      const actions: any[] = [];
+      if (asset.width > 1500 || asset.height > 2000) {
+        if (asset.width / asset.height > 1500 / 2000) {
+          actions.push({ resize: { width: 1500 } });
+        } else {
+          actions.push({ resize: { height: 2000 } });
+        }
+      }
+
+      const manipulatedImage = await manipulateAsync(
+        asset.uri,
+        actions,
+        { compress: 0.7, format: SaveFormat.JPEG }
+      );
+      await uploadAvatar(manipulatedImage.uri);
     }
   };
 
@@ -109,7 +125,22 @@ const EditProfileScreen = () => {
     });
 
     if (!result.canceled && result.assets[0]) {
-      await uploadAvatar(result.assets[0].uri);
+      const asset = result.assets[0];
+      const actions: any[] = [];
+      if (asset.width > 1500 || asset.height > 2000) {
+        if (asset.width / asset.height > 1500 / 2000) {
+          actions.push({ resize: { width: 1500 } });
+        } else {
+          actions.push({ resize: { height: 2000 } });
+        }
+      }
+
+      const manipulatedImage = await manipulateAsync(
+        asset.uri,
+        actions,
+        { compress: 0.7, format: SaveFormat.JPEG }
+      );
+      await uploadAvatar(manipulatedImage.uri);
     }
   };
 
@@ -119,7 +150,7 @@ const EditProfileScreen = () => {
 
     setIsUploadingAvatar(true);
     try {
-      const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileExt = 'jpg';
       const fileName = `${user.id}_${Date.now()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 

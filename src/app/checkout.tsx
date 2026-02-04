@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -301,7 +302,22 @@ const CheckoutScreen = () => {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      setPaymentProofImage(result.assets[0].uri);
+      const asset = result.assets[0];
+      const actions: any[] = [];
+      if (asset.width > 1500 || asset.height > 2000) {
+        if (asset.width / asset.height > 1500 / 2000) {
+          actions.push({ resize: { width: 1500 } });
+        } else {
+          actions.push({ resize: { height: 2000 } });
+        }
+      }
+
+      const manipulatedImage = await manipulateAsync(
+        asset.uri,
+        actions,
+        { compress: 0.7, format: SaveFormat.JPEG }
+      );
+      setPaymentProofImage(manipulatedImage.uri);
     }
   };
 
@@ -317,7 +333,22 @@ const CheckoutScreen = () => {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      setPaymentProofImage(result.assets[0].uri);
+      const asset = result.assets[0];
+      const actions: any[] = [];
+      if (asset.width > 1500 || asset.height > 2000) {
+        if (asset.width / asset.height > 1500 / 2000) {
+          actions.push({ resize: { width: 1500 } });
+        } else {
+          actions.push({ resize: { height: 2000 } });
+        }
+      }
+
+      const manipulatedImage = await manipulateAsync(
+        asset.uri,
+        actions,
+        { compress: 0.7, format: SaveFormat.JPEG }
+      );
+      setPaymentProofImage(manipulatedImage.uri);
     }
   };
 
