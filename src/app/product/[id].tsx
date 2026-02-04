@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { Typography, ProductCard, ProductReviews, CartIcon } from '@/components';
-import { useTheme, useLanguage, useCart } from '@/contexts';
+import { useTheme, useLanguage, useCart, useAuth } from '@/contexts';
 import { fetchProductDetail, fetchRelatedProducts, fetchProductsByIds } from '@/services/supabase';
 import type { ProductDetail, ProductVariant, Product } from '@/types/database.types';
 import { getLocalizedContent } from '@/utils/language';
@@ -113,6 +113,7 @@ const ProductDetailScreen = () => {
   const theme = useTheme();
   const { t, language } = useLanguage();
   const { addItem } = useCart();
+  const { user } = useAuth();
   const { formatPrice } = useCurrency(); // Hook usage
   const { width } = useWindowDimensions();
   const styles = createStyles(theme);
@@ -190,12 +191,20 @@ const ProductDetailScreen = () => {
   }, [id]);
 
   const handleAddToCart = () => {
+    if (!user) {
+      router.push('/signin');
+      return;
+    }
     if (!product || isAdded) return;
     addItem(product, selectedVariant, quantity);
     playSuccessAnimation();
   };
 
   const handleBuyNow = () => {
+    if (!user) {
+      router.push('/signin');
+      return;
+    }
     if (!product) return;
     addItem(product, selectedVariant, quantity);
     router.push('/cart');

@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { Typography } from '@/components';
+import { Typography, AuthProtect } from '@/components';
 import { useTheme, useLanguage, useCart } from '@/contexts';
 
 import { useCurrency } from '@/hooks';
@@ -88,8 +88,10 @@ const CartScreen = () => {
 
   const isAllSelected = selectedItems.size === inStockItemsCount && inStockItemsCount > 0;
 
-  if (items.length === 0) {
-    return (
+  // if (items.length === 0) { ... } logic moved inside return
+
+  return (
+    <AuthProtect>
       <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -97,249 +99,240 @@ const CartScreen = () => {
             <Feather name='arrow-left' size={24} color={theme.colors.text.primary} />
           </Pressable>
           <Typography variant='text' size='lg' weight='bold'>
-            {t('cart.title')}
+            {items.length > 0
+              ? `${t('cart.title')} (${getItemCount()} ${t('cart.itemCount')})`
+              : t('cart.title')}
           </Typography>
           <View style={{ width: 40 }} />
         </View>
 
-        <View style={styles.emptyContainer}>
-          <Feather name='shopping-cart' size={80} color='#E5E7EB' />
-          <Typography variant='text' size='lg' weight='semiBold' style={styles.emptyTitle}>
-            {t('cart.empty')}
-          </Typography>
-          <Typography variant='text' size='sm' style={styles.emptyDescription}>
-            {t('cart.emptyDescription')}
-          </Typography>
-          <Pressable style={styles.continueButton} onPress={() => router.back()}>
-            <Typography
-              variant='text'
-              size='md'
-              weight='semiBold'
-              style={styles.continueButtonText}
-            >
-              {t('cart.continueShopping')}
+        {items.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Feather name='shopping-cart' size={80} color='#E5E7EB' />
+            <Typography variant='text' size='lg' weight='semiBold' style={styles.emptyTitle}>
+              {t('cart.empty')}
             </Typography>
-          </Pressable>
-        </View>
-      </SafeAreaView>
-    );
-  }
+            <Typography variant='text' size='sm' style={styles.emptyDescription}>
+              {t('cart.emptyDescription')}
+            </Typography>
+            <Pressable style={styles.continueButton} onPress={() => router.back()}>
+              <Typography
+                variant='text'
+                size='md'
+                weight='semiBold'
+                style={styles.continueButtonText}
+              >
+                {t('cart.continueShopping')}
+              </Typography>
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+              {/* Cart Items */}
+              {items.map((item, index) => {
+                const itemKey = `${item.product.id}-${item.variant?.id || 'default'}`;
+                const isSelected = selectedItems.has(itemKey);
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Feather name='arrow-left' size={24} color={theme.colors.text.primary} />
-        </Pressable>
-        <Typography variant='text' size='lg' weight='bold'>
-          {t('cart.title')} ({getItemCount()} {t('cart.itemCount')})
-        </Typography>
-        <View style={{ width: 40 }} />
-      </View>
+                // Check if out of stock
+                const stockQty = item.variant?.stock_quantity ?? (item.product as any).stock_quantity ?? null;
+                const isOutOfStock = stockQty === 0;
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Cart Items */}
-        {items.map((item, index) => {
-          const itemKey = `${item.product.id}-${item.variant?.id || 'default'}`;
-          const isSelected = selectedItems.has(itemKey);
+                // Get price - variant has price, product has sale_price or base_price
+                const salePrice = item.variant
+                  ? item.variant.price
+                  : (item.product.sale_price || item.product.base_price || 0);
 
-          // Check if out of stock
-          const stockQty = item.variant?.stock_quantity ?? (item.product as any).stock_quantity ?? null;
-          const isOutOfStock = stockQty === 0;
+                // Get original price (base_price) if there's a sale
+                const originalPrice = item.variant
+                  ? null // variants don't have original price concept
+                  : (item.product.sale_price && item.product.base_price ? item.product.base_price : null);
 
-          // Get price - variant has price, product has sale_price or base_price
-          const salePrice = item.variant
-            ? item.variant.price
-            : (item.product.sale_price || item.product.base_price || 0);
+                // Get image - product has image_urls array or thumbnail_url
+                const imageUrl = item.product.image_urls?.[0] || item.product.thumbnail_url;
 
-          // Get original price (base_price) if there's a sale
-          const originalPrice = item.variant
-            ? null // variants don't have original price concept
-            : (item.product.sale_price && item.product.base_price ? item.product.base_price : null);
+                // Get variant display name from options JSON
+                let variantName = '';
+                if (item.variant) {
+                  const options = typeof item.variant.options === 'object' && item.variant.options !== null
+                    ? (item.variant.options as { name?: string; color?: string; storage?: string })
+                    : {};
+                  variantName = options.name || `${options.color || ''} ${options.storage || ''}`.trim() || item.variant.sku || '';
+                }
 
-          // Get image - product has image_urls array or thumbnail_url
-          const imageUrl = item.product.image_urls?.[0] || item.product.thumbnail_url;
+                const priceFormatted = formatPrice(salePrice);
+                const originalPriceFormatted = originalPrice ? formatPrice(originalPrice) : null;
 
-          // Get variant display name from options JSON
-          let variantName = '';
-          if (item.variant) {
-            const options = typeof item.variant.options === 'object' && item.variant.options !== null
-              ? (item.variant.options as { name?: string; color?: string; storage?: string })
-              : {};
-            variantName = options.name || `${options.color || ''} ${options.storage || ''}`.trim() || item.variant.sku || '';
-          }
-
-          const priceFormatted = formatPrice(salePrice);
-          const originalPriceFormatted = originalPrice ? formatPrice(originalPrice) : null;
-
-          return (
-            <View
-              key={itemKey}
-              style={[styles.cartItem, isOutOfStock && styles.cartItemDisabled]}
-            >
-              {/* Checkbox - only for in-stock items */}
-              {!isOutOfStock ? (
-                <Pressable
-                  style={styles.checkboxContainer}
-                  onPress={() => toggleItemSelection(itemKey)}
-                >
-                  <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                    {isSelected && (
-                      <MaterialIcons name='check' size={16} color='#FFFFFF' />
-                    )}
-                  </View>
-                </Pressable>
-              ) : (
-                <View style={styles.checkboxPlaceholder} />
-              )}
-
-              {/* Product Image with Out of Stock Badge */}
-              <View style={styles.imageContainer}>
-                <Image
-                  source={{ uri: imageUrl || 'https://via.placeholder.com/100' }}
-                  style={[styles.itemImage, isOutOfStock && styles.itemImageDisabled]}
-                  contentFit='cover'
-                />
-                {isOutOfStock && (
-                  <View style={styles.outOfStockBadge}>
-                    <Typography variant='text' size='xs' weight='semiBold' style={styles.outOfStockText}>
-                      Hết hàng
-                    </Typography>
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.itemInfo}>
-                {/* Header row with name and delete button */}
-                <View style={styles.itemHeader}>
-                  <Typography
-                    variant='text'
-                    size='md'
-                    weight='medium'
-                    numberOfLines={2}
-                    style={[styles.itemName, isOutOfStock && styles.textDisabled]}
+                return (
+                  <View
+                    key={itemKey}
+                    style={[styles.cartItem, isOutOfStock && styles.cartItemDisabled]}
                   >
-                    {item.product.name}
-                  </Typography>
-                  <Pressable
-                    style={styles.removeButton}
-                    onPress={() => removeItem(item.product.id, item.variant?.id)}
-                  >
-                    <Feather name='trash-2' size={20} color={theme.colors.text.tertiary} />
-                  </Pressable>
-                </View>
-
-                {variantName && (
-                  <View style={styles.variantBadge}>
-                    <Typography variant='text' size='xs' style={styles.variantBadgeText}>
-                      {variantName}
-                    </Typography>
-                  </View>
-                )}
-
-                {/* Prices */}
-                <View style={styles.priceRow}>
-                  <Typography
-                    variant='text'
-                    size='md'
-                    weight='bold'
-                    style={[styles.itemPrice, isOutOfStock && styles.textDisabled]}
-                  >
-                    {priceFormatted.jpy}
-                  </Typography>
-                  {originalPriceFormatted && (
-                    <Typography
-                      variant='text'
-                      size='sm'
-                      style={styles.originalPrice}
-                    >
-                      {originalPriceFormatted.jpy}
-                    </Typography>
-                  )}
-                </View>
-                <Typography
-                  variant='text'
-                  size='sm'
-                  style={[styles.itemPriceVnd, isOutOfStock && styles.textDisabled]}
-                >
-                  {priceFormatted.vnd}
-                </Typography>
-
-                {/* Quantity controls below price, aligned right */}
-                {!isOutOfStock && (
-                  <View style={styles.quantityWrapper}>
-                    <View style={styles.quantityControls}>
+                    {/* Checkbox - only for in-stock items */}
+                    {!isOutOfStock ? (
                       <Pressable
-                        style={[
-                          styles.quantityButton,
-                          item.quantity <= 1 && styles.quantityButtonDisabled
-                        ]}
-                        onPress={() =>
-                          updateQuantity(item.product.id, item.variant?.id, item.quantity - 1)
-                        }
-                        disabled={item.quantity <= 1}
+                        style={styles.checkboxContainer}
+                        onPress={() => toggleItemSelection(itemKey)}
                       >
-                        <Feather name='minus' size={14} color='#FFFFFF' />
+                        <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                          {isSelected && (
+                            <MaterialIcons name='check' size={16} color='#FFFFFF' />
+                          )}
+                        </View>
                       </Pressable>
+                    ) : (
+                      <View style={styles.checkboxPlaceholder} />
+                    )}
+
+                    {/* Product Image with Out of Stock Badge */}
+                    <View style={styles.imageContainer}>
+                      <Image
+                        source={{ uri: imageUrl || 'https://via.placeholder.com/100' }}
+                        style={[styles.itemImage, isOutOfStock && styles.itemImageDisabled]}
+                        contentFit='cover'
+                      />
+                      {isOutOfStock && (
+                        <View style={styles.outOfStockBadge}>
+                          <Typography variant='text' size='xs' weight='semiBold' style={styles.outOfStockText}>
+                            Hết hàng
+                          </Typography>
+                        </View>
+                      )}
+                    </View>
+
+                    <View style={styles.itemInfo}>
+                      {/* Header row with name and delete button */}
+                      <View style={styles.itemHeader}>
+                        <Typography
+                          variant='text'
+                          size='md'
+                          weight='medium'
+                          numberOfLines={2}
+                          style={[styles.itemName, isOutOfStock && styles.textDisabled]}
+                        >
+                          {item.product.name}
+                        </Typography>
+                        <Pressable
+                          style={styles.removeButton}
+                          onPress={() => removeItem(item.product.id, item.variant?.id)}
+                        >
+                          <Feather name='trash-2' size={20} color={theme.colors.text.tertiary} />
+                        </Pressable>
+                      </View>
+
+                      {variantName && (
+                        <View style={styles.variantBadge}>
+                          <Typography variant='text' size='xs' style={styles.variantBadgeText}>
+                            {variantName}
+                          </Typography>
+                        </View>
+                      )}
+
+                      {/* Prices */}
+                      <View style={styles.priceRow}>
+                        <Typography
+                          variant='text'
+                          size='md'
+                          weight='bold'
+                          style={[styles.itemPrice, isOutOfStock && styles.textDisabled]}
+                        >
+                          {priceFormatted.jpy}
+                        </Typography>
+                        {originalPriceFormatted && (
+                          <Typography
+                            variant='text'
+                            size='sm'
+                            style={styles.originalPrice}
+                          >
+                            {originalPriceFormatted.jpy}
+                          </Typography>
+                        )}
+                      </View>
                       <Typography
                         variant='text'
                         size='sm'
-                        weight='semiBold'
-                        style={styles.quantityValue}
+                        style={[styles.itemPriceVnd, isOutOfStock && styles.textDisabled]}
                       >
-                        {item.quantity}
+                        {priceFormatted.vnd}
                       </Typography>
-                      <Pressable
-                        style={styles.quantityButton}
-                        onPress={() =>
-                          updateQuantity(item.product.id, item.variant?.id, item.quantity + 1)
-                        }
-                      >
-                        <Feather name='plus' size={14} color='#FFFFFF' />
-                      </Pressable>
+
+                      {/* Quantity controls below price, aligned right */}
+                      {!isOutOfStock && (
+                        <View style={styles.quantityWrapper}>
+                          <View style={styles.quantityControls}>
+                            <Pressable
+                              style={[
+                                styles.quantityButton,
+                                item.quantity <= 1 && styles.quantityButtonDisabled
+                              ]}
+                              onPress={() =>
+                                updateQuantity(item.product.id, item.variant?.id, item.quantity - 1)
+                              }
+                              disabled={item.quantity <= 1}
+                            >
+                              <Feather name='minus' size={14} color='#FFFFFF' />
+                            </Pressable>
+                            <Typography
+                              variant='text'
+                              size='sm'
+                              weight='semiBold'
+                              style={styles.quantityValue}
+                            >
+                              {item.quantity}
+                            </Typography>
+                            <Pressable
+                              style={styles.quantityButton}
+                              onPress={() =>
+                                updateQuantity(item.product.id, item.variant?.id, item.quantity + 1)
+                              }
+                            >
+                              <Feather name='plus' size={14} color='#FFFFFF' />
+                            </Pressable>
+                          </View>
+                        </View>
+                      )}
                     </View>
                   </View>
-                )}
+                );
+              })}
+
+              <View style={{ height: 120 }} />
+            </ScrollView>
+
+            {/* Bottom Bar */}
+            <View style={styles.bottomBar}>
+              <View style={styles.totalContainer}>
+                <Typography variant='text' size='sm' style={styles.totalLabel}>
+                  {t('cart.total')}
+                </Typography>
+                <Typography variant='text' size='xl' weight='bold' style={styles.totalAmount}>
+                  {totalFormatted.jpy}
+                </Typography>
+                <Typography variant='text' size='xs' style={{ color: theme.colors.text.tertiary }}>
+                  {totalFormatted.vnd}
+                </Typography>
               </View>
+              <Pressable
+                style={[styles.checkoutButton, { backgroundColor: selectedItems.size > 0 ? '#2E8FF9' : '#D1D5DB' }]}
+                onPress={async () => {
+                  // Save selected item keys to AsyncStorage
+                  await AsyncStorage.setItem('selectedCartItems', JSON.stringify(Array.from(selectedItems)));
+                  router.push('/checkout');
+                }}
+                disabled={selectedItems.size === 0}
+              >
+                <View style={styles.checkoutGradient}>
+                  <Typography variant='text' size='md' weight='bold' style={styles.checkoutText}>
+                    {t('cart.checkout')}
+                  </Typography>
+                  <Feather name='arrow-right' size={20} color='#FFF' />
+                </View>
+              </Pressable>
             </View>
-          );
-        })}
-
-        <View style={{ height: 120 }} />
-      </ScrollView>
-
-      {/* Bottom Bar */}
-      <View style={styles.bottomBar}>
-        <View style={styles.totalContainer}>
-          <Typography variant='text' size='sm' style={styles.totalLabel}>
-            {t('cart.total')}
-          </Typography>
-          <Typography variant='text' size='xl' weight='bold' style={styles.totalAmount}>
-            {totalFormatted.jpy}
-          </Typography>
-          <Typography variant='text' size='xs' style={{ color: theme.colors.text.tertiary }}>
-            {totalFormatted.vnd}
-          </Typography>
-        </View>
-        <Pressable
-          style={[styles.checkoutButton, { backgroundColor: selectedItems.size > 0 ? '#2E8FF9' : '#D1D5DB' }]}
-          onPress={async () => {
-            // Save selected item keys to AsyncStorage
-            await AsyncStorage.setItem('selectedCartItems', JSON.stringify(Array.from(selectedItems)));
-            router.push('/checkout');
-          }}
-          disabled={selectedItems.size === 0}
-        >
-          <View style={styles.checkoutGradient}>
-            <Typography variant='text' size='md' weight='bold' style={styles.checkoutText}>
-              {t('cart.checkout')}
-            </Typography>
-            <Feather name='arrow-right' size={20} color='#FFF' />
-          </View>
-        </Pressable>
-      </View>
-    </SafeAreaView>
+          </>
+        )}
+      </SafeAreaView>
+    </AuthProtect>
   );
 };
 

@@ -20,6 +20,12 @@ import { OTAAutoUpdate } from '@/services/OTA-update/OTAAutoUpdate';
 
 const queryClient = new QueryClient();
 
+import { ProfileCompletionGuard } from '@/components/auth/ProfileCompletionGuard';
+
+// ... imports
+
+// ... imports
+
 const RootLayout = () => {
   const theme = useTheme();
 

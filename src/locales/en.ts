@@ -16,6 +16,7 @@ export const en = {
     continueShopping: 'Continue Shopping',
     variant: 'Variant',
     all: 'All',
+    products: 'Products',
   },
   home: {
     welcome: 'Welcome',
@@ -107,7 +108,7 @@ export const en = {
     addresses: 'Delivery Addresses',
     paymentMethods: 'Payment Methods',
     help: 'Help',
-    guestUser: 'Guest',
+    guestUser: 'Member',
     loginToSeeMore: 'Login to see more',
     // Menu sections
     account: 'Account',
@@ -436,6 +437,7 @@ export const en = {
       cancelled: 'Cancelled',
       completed: 'Completed',
     },
+    paymentStatusLabel: 'Payment Status',
     paymentStatus: {
       pending: 'Payment Pending',
       paid: 'Paid',
@@ -476,7 +478,7 @@ export const en = {
       detailedAddress: 'Detailed Address',
       // New fields
       nickname: 'Nickname',
-      nicknamePlaceholder: 'Home',
+      nicknamePlaceholder: 'Reminiscent name',
       phone: 'Phone Number',
       phonePlaceholder: 'Enter phone number',
       lastName: 'Last Name (No accent)',

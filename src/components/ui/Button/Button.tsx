@@ -82,7 +82,7 @@ const Button: React.FC<ButtonProps> = ({
             size={startIconSize}
             color={startIconColor}
             strokeWidth={startIconStrokeWidth}
-            // Icon component does not support variant
+          // Icon component does not support variant
           />
         ) : null}
         {!isIconOnly && (
@@ -109,7 +109,7 @@ const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <ActivityIndicator
           size='small'
-          color={theme.colors.text.gray_primary}
+          color='white'
           style={{ position: 'absolute' }}
         />
       ) : null}
@@ -419,28 +419,28 @@ function makeButtonStyles(
       // Only override padding for link variant, preserve sizeStyles padding for others
       ...(normalizedVariant === 'link'
         ? {
-            paddingHorizontal: 0,
-            paddingVertical: 0,
-            padding: 0,
-          }
+          paddingHorizontal: 0,
+          paddingVertical: 0,
+          padding: 0,
+        }
         : {
-            // For non-link variants, use sizeStyles padding but allow icon-only override
-            paddingHorizontal: sizeStyles[size].paddingHorizontal,
-            paddingVertical: sizeStyles[size].paddingVertical,
-            ...(isIconOnly ? { padding: theme.spacing(2) } : {}),
-          }),
+          // For non-link variants, use sizeStyles padding but allow icon-only override
+          paddingHorizontal: sizeStyles[size].paddingHorizontal,
+          paddingVertical: sizeStyles[size].paddingVertical,
+          ...(isIconOnly ? { padding: theme.spacing(2) } : {}),
+        }),
       backgroundColor: variantStyles.backgroundColor,
       borderWidth: variantStyles.borderWidth,
       borderColor: variantStyles.borderColor,
       // Apply whiteShadow outer shadow when requested
       ...(isWhiteShadow
         ? {
-            shadowColor: 'white',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 3.84,
-            elevation: 5,
-          }
+          shadowColor: 'white',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.25,
+          shadowRadius: 3.84,
+          elevation: 5,
+        }
         : {}),
       // Apply custom shadow when not whiteShadow variant and shadow is not 'none'
       ...(!isWhiteShadow && shadow !== 'none' ? shadowStyles[shadow] : {}),

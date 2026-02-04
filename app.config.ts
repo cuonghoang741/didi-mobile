@@ -32,7 +32,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: BUNDLE_IDENTIFIER,
-    appleTeamId: '20174103150',
+    // appleTeamId: '20174103150',
     buildNumber: '1', // Increment this number for each new build
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
@@ -83,12 +83,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         isAccessMediaLocationEnabled: false,
       },
     ],
-    [
-      'onesignal-expo-plugin',
-      {
-        mode: 'production',
-      },
-    ],
+    // [
+    //   'onesignal-expo-plugin',
+    //   {
+    //     mode: 'production',
+    //   },
+    // ],
   ],
   updates: {
     url: `https://u.expo.dev/${EAS_PROJECT_ID}`,

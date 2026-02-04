@@ -484,7 +484,7 @@ const CheckoutScreen = () => {
       </View>
 
       {items.map((item) => (
-        <View key={item.id || item.product_id} style={styles.productRow}>
+        <View key={item.id || `${item.product.id}-${item.variant?.id || 'default'}`} style={styles.productRow}>
           <Image
             source={{ uri: item.product?.thumbnail_url || item.product?.image_urls?.[0] }}
             style={styles.productImage}

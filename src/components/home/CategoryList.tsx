@@ -75,6 +75,9 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     categoryItem: {
       alignItems: 'center',
       width: ITEM_WIDTH,
+      backgroundColor: "white",
+      borderRadius: 12,
+      paddingBottom: 6,
     },
     imageContainer: {
       width: ITEM_WIDTH - 10,

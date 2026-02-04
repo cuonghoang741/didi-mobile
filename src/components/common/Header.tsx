@@ -147,9 +147,9 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
         searchInput: {
             flex: 1,
             color: theme.colors.text.primary,
-            fontSize: 14,
             fontFamily: 'Inter_400Regular',
             padding: 0,
+            ...theme.typography.text.sm,
         },
         iconButton: {
             padding: 4,

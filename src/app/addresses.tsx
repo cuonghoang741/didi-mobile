@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
@@ -69,9 +69,11 @@ const AddressesScreen = () => {
         }
     }, [user?.id]);
 
-    useEffect(() => {
-        fetchAddresses();
-    }, [fetchAddresses]);
+    useFocusEffect(
+        useCallback(() => {
+            fetchAddresses();
+        }, [fetchAddresses])
+    );
 
     const handleRefresh = () => {
         setIsRefreshing(true);
@@ -152,7 +154,6 @@ const AddressesScreen = () => {
             key={address.id}
             style={[
                 styles.addressCard,
-                address.is_default && styles.addressCardSelected,
             ]}
             onPress={() => {
                 if (isSelectMode) {
@@ -194,11 +195,21 @@ const AddressesScreen = () => {
                         </Typography>
                     </View>
 
-                    {/* Location Badge */}
-                    <View style={styles.locationBadge}>
-                        <Typography variant='text' size='xs' style={styles.locationBadgeText}>
-                            {getLocationLabel(address)}
-                        </Typography>
+                    {/* Badges Row */}
+                    <View style={styles.badgesRow}>
+                        {address.is_default && (
+                            <View style={styles.defaultBadge}>
+                                <Feather name='check-circle' size={12} color='#03543F' />
+                                <Typography variant='text' size='xs' style={styles.defaultBadgeText}>
+                                    {t('addresses.default')}
+                                </Typography>
+                            </View>
+                        )}
+                        <View style={styles.locationBadge}>
+                            <Typography variant='text' size='xs' style={styles.locationBadgeText}>
+                                {getLocationLabel(address)}
+                            </Typography>
+                        </View>
                     </View>
                 </View>
 
@@ -290,7 +301,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
         },
         // Address Card Styles
         addressCard: {
-            backgroundColor: theme.colors.background.primary,
+            backgroundColor: 'white',
             borderRadius: 12,
             marginBottom: 12,
             shadowColor: '#000',
@@ -298,11 +309,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
             shadowOpacity: 0.05,
             shadowRadius: 2,
             elevation: 1,
-            borderWidth: 2,
-            borderColor: 'transparent',
-        },
-        addressCardSelected: {
-            borderColor: theme.colors.foreground.brand_primary,
         },
         radioContainer: {
             marginRight: 12,
@@ -347,15 +353,34 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
         phoneText: {
             color: theme.colors.text.primary,
         },
+        badgesRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+        },
         locationBadge: {
             alignSelf: 'flex-start',
-            backgroundColor: '#FEE2E2',
+            backgroundColor: '#F3F4F6',
             paddingHorizontal: 10,
             paddingVertical: 4,
             borderRadius: 4,
         },
         locationBadgeText: {
-            color: '#DC2626',
+            color: theme.colors.text.secondary,
+            fontWeight: '500',
+        },
+        defaultBadge: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            alignSelf: 'flex-start',
+            backgroundColor: '#DEF7EC',
+            paddingHorizontal: 10,
+            paddingVertical: 4,
+            borderRadius: 4,
+        },
+        defaultBadgeText: {
+            color: '#03543F',
             fontWeight: '500',
         },
         deleteButton: {

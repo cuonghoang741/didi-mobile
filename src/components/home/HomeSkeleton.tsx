@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const SkeletonBox: React.FC<{
+export const SkeletonBox: React.FC<{
     width: number | string;
     height: number;
     borderRadius?: number;
@@ -74,102 +74,91 @@ const SkeletonBox: React.FC<{
     );
 };
 
+export const BannerSkeleton: React.FC = () => {
+    const theme = useTheme();
+    const styles = createStyles(theme);
+
+    return (
+        <View style={styles.bannerContainer}>
+            <SkeletonBox width={SCREEN_WIDTH - 32} height={180} borderRadius={16} />
+            <View style={styles.dotsContainer}>
+                <SkeletonBox width={24} height={8} borderRadius={4} />
+                <SkeletonBox width={8} height={8} borderRadius={4} style={{ marginLeft: 6 }} />
+                <SkeletonBox width={8} height={8} borderRadius={4} style={{ marginLeft: 6 }} />
+            </View>
+        </View>
+    );
+};
+
+export const HomeCategoriesSkeleton: React.FC = () => {
+    const theme = useTheme();
+    const styles = createStyles(theme);
+    const CATEGORY_SIZE = (SCREEN_WIDTH - 32 - 36) / 4;
+
+    return (
+        <View style={styles.categoriesContainer}>
+            <View style={styles.categoriesRow}>
+                {[1, 2, 3, 4].map((i) => (
+                    <View key={i} style={styles.categoryItem}>
+                        <SkeletonBox width={CATEGORY_SIZE - 10} height={CATEGORY_SIZE - 10} borderRadius={(CATEGORY_SIZE - 10) / 2} />
+                        <SkeletonBox width={CATEGORY_SIZE - 20} height={12} borderRadius={4} style={{ marginTop: 8 }} />
+                    </View>
+                ))}
+            </View>
+            <View style={[styles.categoriesRow, { marginTop: 12 }]}>
+                {[5, 6, 7, 8].map((i) => (
+                    <View key={i} style={styles.categoryItem}>
+                        <SkeletonBox width={CATEGORY_SIZE - 10} height={CATEGORY_SIZE - 10} borderRadius={(CATEGORY_SIZE - 10) / 2} />
+                        <SkeletonBox width={CATEGORY_SIZE - 20} height={12} borderRadius={4} style={{ marginTop: 8 }} />
+                    </View>
+                ))}
+            </View>
+        </View>
+    );
+};
+
+export const SectionSkeleton: React.FC<{
+    isFlashSale?: boolean;
+}> = ({ isFlashSale = false }) => {
+    const theme = useTheme();
+    const styles = createStyles(theme);
+
+    return (
+        <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+                <SkeletonBox width={isFlashSale ? 120 : 140} height={20} borderRadius={4} />
+                <SkeletonBox width={isFlashSale ? 80 : 60} height={16} borderRadius={4} />
+            </View>
+            <View style={styles.productsRow}>
+                {[1, 2, 3].map((i) => (
+                    <View key={i} style={isFlashSale ? styles.flashSaleCard : styles.productCard}>
+                        {isFlashSale
+                            ? <SkeletonBox width={140} height={120} borderRadius={8} />
+                            : <SkeletonBox width={150} height={150} borderRadius={12} />
+                        }
+                        <View style={styles.productInfo}>
+                            <SkeletonBox width={isFlashSale ? 120 : 130} height={14} borderRadius={4} />
+                            <SkeletonBox width={isFlashSale ? 80 : 90} height={16} borderRadius={4} style={{ marginTop: 6 }} />
+                            {isFlashSale && <SkeletonBox width={100} height={8} borderRadius={4} style={{ marginTop: 8 }} />}
+                        </View>
+                    </View>
+                ))}
+            </View>
+        </View>
+    );
+};
+
 const HomeSkeleton: React.FC = () => {
     const theme = useTheme();
     const styles = createStyles(theme);
 
-    const CATEGORY_SIZE = (SCREEN_WIDTH - 32 - 36) / 4;
-
     return (
         <View style={styles.container}>
-            {/* Banner Skeleton */}
-            <View style={styles.bannerContainer}>
-                <SkeletonBox width={SCREEN_WIDTH - 32} height={180} borderRadius={16} />
-                {/* Dots */}
-                <View style={styles.dotsContainer}>
-                    <SkeletonBox width={24} height={8} borderRadius={4} />
-                    <SkeletonBox width={8} height={8} borderRadius={4} style={{ marginLeft: 6 }} />
-                    <SkeletonBox width={8} height={8} borderRadius={4} style={{ marginLeft: 6 }} />
-                </View>
-            </View>
-
-            {/* Categories Skeleton */}
-            <View style={styles.categoriesContainer}>
-                <View style={styles.categoriesRow}>
-                    {[1, 2, 3, 4].map((i) => (
-                        <View key={i} style={styles.categoryItem}>
-                            <SkeletonBox width={CATEGORY_SIZE - 10} height={CATEGORY_SIZE - 10} borderRadius={(CATEGORY_SIZE - 10) / 2} />
-                            <SkeletonBox width={CATEGORY_SIZE - 20} height={12} borderRadius={4} style={{ marginTop: 8 }} />
-                        </View>
-                    ))}
-                </View>
-                <View style={[styles.categoriesRow, { marginTop: 12 }]}>
-                    {[5, 6, 7, 8].map((i) => (
-                        <View key={i} style={styles.categoryItem}>
-                            <SkeletonBox width={CATEGORY_SIZE - 10} height={CATEGORY_SIZE - 10} borderRadius={(CATEGORY_SIZE - 10) / 2} />
-                            <SkeletonBox width={CATEGORY_SIZE - 20} height={12} borderRadius={4} style={{ marginTop: 8 }} />
-                        </View>
-                    ))}
-                </View>
-            </View>
-
-            {/* Flash Sale Section Skeleton */}
-            <View style={styles.sectionContainer}>
-                <View style={styles.sectionHeader}>
-                    <SkeletonBox width={120} height={20} borderRadius={4} />
-                    <SkeletonBox width={80} height={16} borderRadius={4} />
-                </View>
-                <View style={styles.productsRow}>
-                    {[1, 2, 3].map((i) => (
-                        <View key={i} style={styles.flashSaleCard}>
-                            <SkeletonBox width={140} height={120} borderRadius={8} />
-                            <View style={styles.productInfo}>
-                                <SkeletonBox width={120} height={14} borderRadius={4} />
-                                <SkeletonBox width={80} height={16} borderRadius={4} style={{ marginTop: 6 }} />
-                                <SkeletonBox width={100} height={8} borderRadius={4} style={{ marginTop: 8 }} />
-                            </View>
-                        </View>
-                    ))}
-                </View>
-            </View>
-
-            {/* Featured Products Section Skeleton */}
-            <View style={styles.sectionContainer}>
-                <View style={styles.sectionHeader}>
-                    <SkeletonBox width={140} height={20} borderRadius={4} />
-                    <SkeletonBox width={60} height={16} borderRadius={4} />
-                </View>
-                <View style={styles.productsRow}>
-                    {[1, 2, 3].map((i) => (
-                        <View key={i} style={styles.productCard}>
-                            <SkeletonBox width={150} height={150} borderRadius={12} />
-                            <View style={styles.productInfo}>
-                                <SkeletonBox width={130} height={14} borderRadius={4} />
-                                <SkeletonBox width={90} height={16} borderRadius={4} style={{ marginTop: 6 }} />
-                            </View>
-                        </View>
-                    ))}
-                </View>
-            </View>
-
-            {/* Category Products Section Skeleton */}
-            <View style={styles.sectionContainer}>
-                <View style={styles.sectionHeader}>
-                    <SkeletonBox width={100} height={20} borderRadius={4} />
-                    <SkeletonBox width={60} height={16} borderRadius={4} />
-                </View>
-                <View style={styles.productsRow}>
-                    {[1, 2, 3].map((i) => (
-                        <View key={i} style={styles.productCard}>
-                            <SkeletonBox width={150} height={150} borderRadius={12} />
-                            <View style={styles.productInfo}>
-                                <SkeletonBox width={130} height={14} borderRadius={4} />
-                                <SkeletonBox width={90} height={16} borderRadius={4} style={{ marginTop: 6 }} />
-                            </View>
-                        </View>
-                    ))}
-                </View>
-            </View>
+            <BannerSkeleton />
+            <HomeCategoriesSkeleton />
+            <SectionSkeleton isFlashSale />
+            <SectionSkeleton />
+            <SectionSkeleton />
         </View>
     );
 };

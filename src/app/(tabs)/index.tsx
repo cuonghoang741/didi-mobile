@@ -22,9 +22,20 @@ import {
   Header,
   FloatingContactButton,
   HomeSkeleton,
+  BannerSkeleton,
+  HomeCategoriesSkeleton,
+  SectionSkeleton,
 } from '@/components';
 import { useTheme, useLanguage, useCart } from '@/contexts';
-import { fetchHomeData, HomeData } from '@/services/supabase';
+import {
+  fetchHomeData,
+  fetchBanners,
+  fetchHomeCategories,
+  fetchActiveFlashSale,
+  fetchFeaturedProducts,
+  fetchCategoriesWithProducts,
+  HomeData,
+} from '@/services/supabase';
 import type { Banner, Product } from '@/types/database.types';
 import { getLocalizedContent } from '@/utils/language';
 
@@ -37,18 +48,51 @@ const Home = () => {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [data, setData] = useState<HomeData | null>(null);
+  const [data, setData] = useState<Partial<HomeData>>({});
 
   const loadData = async () => {
-    try {
-      const homeData = await fetchHomeData();
-      setData(homeData);
-    } catch (error) {
-      console.error('Failed to load home data:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    // Reset refreshing state if we are pulling to refresh, but don't wipe data immediately to avoid flash
+    // unless it's a full reload. For smooth update, we keep old data until new comes?
+    // User wants "loading xong phần nào hiện phần đó".
+    // If refreshing, maybe we want to keep showing old data or show skeletons? Standard is spinner on top.
+
+    // Independent fetches
+    const fetchBannersTask = fetchBanners().then(banners => {
+      setData(prev => ({ ...prev, banners }));
+    }).catch(err => console.error('Banners fetch error', err));
+
+    const fetchCategoriesTask = fetchHomeCategories().then(categories => {
+      setData(prev => ({ ...prev, categories }));
+    }).catch(err => console.error('Categories fetch error', err));
+
+    const fetchFlashSaleTask = fetchActiveFlashSale().then(result => {
+      setData(prev => ({
+        ...prev,
+        flashSale: result.flashSale,
+        flashSaleProducts: result.products
+      }));
+    }).catch(err => console.error('Flash sale fetch error', err));
+
+    const fetchFeaturedTask = fetchFeaturedProducts().then(featuredProducts => {
+      setData(prev => ({ ...prev, featuredProducts }));
+    }).catch(err => console.error('Featured products fetch error', err));
+
+    // Load categories with products (split into initial batch and rest if needed, but 5 is okay)
+    const fetchCatProductsTask = fetchCategoriesWithProducts(5, 5).then(categoriesWithProducts => {
+      setData(prev => ({ ...prev, categoriesWithProducts }));
+    }).catch(err => console.error('Category products fetch error', err));
+
+    // We don't await all here for the UI update, but we want to know when to stop "refreshing" spinner
+    await Promise.allSettled([
+      fetchBannersTask,
+      fetchCategoriesTask,
+      fetchFlashSaleTask,
+      fetchFeaturedTask,
+      fetchCatProductsTask
+    ]);
+
+    setLoading(false);
+    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -57,6 +101,8 @@ const Home = () => {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    // Optional: Only clear data if you want to show skeletons again. 
+    // Usually keep data and just show spinner.
     loadData();
   }, []);
 
@@ -80,14 +126,7 @@ const Home = () => {
     router.push({ pathname: '/(tabs)/categories', params: { id: category.id } });
   };
 
-  if (loading && !data) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <Header searchPlaceholder={t('home.searchPlaceholder')} />
-        <HomeSkeleton />
-      </SafeAreaView>
-    );
-  }
+
 
 
   return (
@@ -99,61 +138,90 @@ const Home = () => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
-        {data?.banners && data.banners.length > 0 && (
-          <BannerCarousel banners={data.banners} onBannerPress={handleBannerPress} />
+        {data.banners ? (
+          data.banners.length > 0 && (
+            <BannerCarousel banners={data.banners} onBannerPress={handleBannerPress} />
+          )
+        ) : (
+          <View style={{ paddingTop: 16 }}>
+            <BannerSkeleton />
+          </View>
         )}
 
         {/* Categories Section */}
-        {data?.categories && data.categories.length > 0 && (
-          <CategoryList
-            categories={data.categories.map((c) => ({
-              ...c,
-              name: getLocalizedContent(c.languages, 'name', language, c.name),
-            }))}
-            onCategoryPress={handleCategoryPress}
-          />
+        {data.categories ? (
+          data.categories.length > 0 && (
+            <CategoryList
+              categories={data.categories.map((c) => ({
+                ...c,
+                name: getLocalizedContent(c.languages, 'name', language, c.name),
+              }))}
+              onCategoryPress={handleCategoryPress}
+            />
+          )
+        ) : (
+          <HomeCategoriesSkeleton />
         )}
 
-        {data?.flashSale && data.flashSaleProducts.length > 0 && (
-          <FlashSaleSection
-            flashSale={data.flashSale}
-            products={data.flashSaleProducts.map((p) => ({
-              ...p,
-              name: getLocalizedContent(p.language, 'name', language, p.name),
-            }))}
-            onProductPress={handleProductPress}
-            onViewAll={() => console.log('View all flash sale')}
-          />
+        {/* Flash Sale - Only show if we have data or handle loading? 
+            Standard: Show skeleton until loaded. If loaded and no flash sale, show nothing.
+        */}
+        {data.flashSaleProducts ? (
+          data.flashSale && data.flashSaleProducts.length > 0 && (
+            <FlashSaleSection
+              flashSale={data.flashSale}
+              products={data.flashSaleProducts.map((p) => ({
+                ...p,
+                name: getLocalizedContent(p.language, 'name', language, p.name),
+              }))}
+              onProductPress={handleProductPress}
+              onViewAll={() => router.push('/(tabs)/categories')}
+            />
+          )
+        ) : (
+          <SectionSkeleton isFlashSale />
         )}
 
-        {data?.featuredProducts && data.featuredProducts.length > 0 && (
-          <ProductSection
-            title={t('home.featuredProducts')}
-            products={data.featuredProducts.map((p) => ({
-              ...p,
-              name: getLocalizedContent(p.language, 'name', language, p.name),
-            }))}
-            onProductPress={handleProductPress}
-            onViewAll={() => console.log('View all featured')}
-            showHotBadge={true}
-          />
+        {data.featuredProducts ? (
+          data.featuredProducts.length > 0 && (
+            <ProductSection
+              title={t('home.featuredProducts')}
+              products={data.featuredProducts.map((p) => ({
+                ...p,
+                name: getLocalizedContent(p.language, 'name', language, p.name),
+              }))}
+              onProductPress={handleProductPress}
+              onViewAll={() => router.push('/(tabs)/categories')}
+              showHotBadge={true}
+            />
+          )
+        ) : (
+          <SectionSkeleton />
         )}
 
-        {data?.categoriesWithProducts.slice(0, 2).map((item) => (
-          <ProductSection
-            key={item.category.id}
-            title={getLocalizedContent(item.category.languages, 'name', language, item.category.name)}
-            products={item.products.map((p) => ({
-              ...p,
-              name: getLocalizedContent(p.language, 'name', language, p.name),
-            }))}
-            onProductPress={handleProductPress}
-            onViewAll={() => console.log(`View all ${item.category.name}`)}
-          />
-        ))}
+        {data.categoriesWithProducts ? (
+          data.categoriesWithProducts.slice(0, 2).map((item) => (
+            <ProductSection
+              key={item.category.id}
+              title={getLocalizedContent(item.category.languages, 'name', language, item.category.name)}
+              products={item.products.map((p) => ({
+                ...p,
+                name: getLocalizedContent(p.language, 'name', language, p.name),
+              }))}
+              onProductPress={handleProductPress}
+              onViewAll={() => handleCategoryPress(item.category)}
+            />
+          ))
+        ) : (
+          // Show a couple of section skeletons
+          <>
+            <SectionSkeleton />
+            <SectionSkeleton />
+          </>
+        )}
 
         {/* Display first 2 banners after top 2 categories */}
-        {data?.banners && data.banners.length > 0 && (
+        {data.banners && data.banners.length > 0 && (
           <View style={styles.secondaryBannersContainer}>
             {data.banners.slice(0, 2).map((banner) => (
               <Pressable
@@ -197,18 +265,19 @@ const Home = () => {
         )}
 
         {/* Display remaining categories */}
-        {data?.categoriesWithProducts.slice(2, 5).map((item) => (
-          <ProductSection
-            key={item.category.id}
-            title={getLocalizedContent(item.category.languages, 'name', language, item.category.name)}
-            products={item.products.map((p) => ({
-              ...p,
-              name: getLocalizedContent(p.language, 'name', language, p.name),
-            }))}
-            onProductPress={handleProductPress}
-            onViewAll={() => console.log(`View all ${item.category.name}`)}
-          />
-        ))}
+        {data.categoriesWithProducts &&
+          data.categoriesWithProducts.slice(2, 5).map((item) => (
+            <ProductSection
+              key={item.category.id}
+              title={getLocalizedContent(item.category.languages, 'name', language, item.category.name)}
+              products={item.products.map((p) => ({
+                ...p,
+                name: getLocalizedContent(p.language, 'name', language, p.name),
+              }))}
+              onProductPress={handleProductPress}
+              onViewAll={() => handleCategoryPress(item.category)}
+            />
+          ))}
 
         <View style={{ height: 100 }} />
       </ScrollView>

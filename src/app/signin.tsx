@@ -39,15 +39,29 @@ const SignInScreen = () => {
     isLoading,
     isLoggedIn,
     errorMessage,
+    user,
   } = useAuth();
   const styles = createStyles(theme);
 
   // Navigate to home when logged in successfully
   useEffect(() => {
-    if (isLoggedIn) {
-      router.replace('/');
+    if (isLoggedIn && user) {
+      // Check for missing email or phone
+      const effectivePhone = user.phone || user.user_metadata?.phone;
+      const effectiveEmail = user.email || user.user_metadata?.email;
+
+      if (!effectivePhone || !effectiveEmail) {
+        // Redirect to edit profile if missing info
+        // We replace with Home first, then push Edit Profile so user can "Skip" (Back) to Home
+        router.replace('/');
+        setTimeout(() => {
+          router.push('/edit-profile');
+        }, 300);
+      } else {
+        router.replace('/');
+      }
     }
-  }, [isLoggedIn, router]);
+  }, [isLoggedIn, user, router]);
 
   const [step, setStep] = useState<AuthStep>('phone');
   const [phone, setPhone] = useState('');
@@ -484,7 +498,6 @@ const SignInScreen = () => {
               (step === 'otp' && (!otp || otp.length < 6)) ||
               (step === 'set-password' && (!password || !confirmPassword))
             }
-            loading={isLoading}
             style={styles.primaryButton}
           >
             {step === 'phone'

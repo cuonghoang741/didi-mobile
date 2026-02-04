@@ -1,126 +1,207 @@
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Pressable, Animated, Easing } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Typography } from '@/components';
+import { Typography, Button } from '@/components';
 import { useTheme, useLanguage } from '@/contexts';
+import { useCurrency } from '@/hooks';
+import { fetchOrderDetail, Order, OrderItem } from '@/services/supabase/orderService';
+import { FakeBorderPaperOrder } from '@/components/ui/FakeBorderPaperOrder';
+
+const HERO_IMAGE = require('@/assets/images/hero-success.png');
 
 const OrderSuccessScreen = () => {
-  const { orderId, orderNumber } = useLocalSearchParams<{ orderId: string; orderNumber: string }>();
+  const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const router = useRouter();
   const theme = useTheme();
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
   const styles = createStyles(theme);
 
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-  const checkAnim = useRef(new Animated.Value(0)).current;
+  const [order, setOrder] = useState<Order | null>(null);
+  const [items, setItems] = useState<OrderItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Animate success icon
-    Animated.sequence([
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 100,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-      Animated.timing(checkAnim, {
-        toValue: 1,
-        duration: 300,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
-    ]).start();
+    const loadOrder = async () => {
+      if (!orderId) return;
+      try {
+        const { order, items } = await fetchOrderDetail(orderId);
+        setOrder(order);
+        setItems(items);
+      } catch (error) {
+        console.error('Error loading order success:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    // Fade in content
-    Animated.timing(opacityAnim, {
-      toValue: 1,
-      duration: 400,
-      delay: 300,
-      useNativeDriver: true,
-    }).start();
-  }, []);
+    loadOrder();
+  }, [orderId]);
+
+  const handleBackHome = () => {
+    router.replace('/(tabs)');
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size='large' color={theme.colors.foreground.brand_primary} />
+      </View>
+    );
+  }
+
+  if (!order) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Typography>Order not found</Typography>
+        <Button onPress={handleBackHome} style={{ marginTop: 20 }}>
+          {t('common.backToHome')}
+        </Button>
+      </View>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {/* Success Animation */}
-        <Animated.View
-          style={[
-            styles.successCircle,
-            {
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
+    <View style={styles.container}>
+      {/* Hero Image */}
+      <Image
+        source={HERO_IMAGE}
+        style={styles.heroImage}
+        contentFit="cover"
+      />
+
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <LinearGradient colors={['#10B981', '#059669']} style={styles.gradient}>
-            <Animated.View style={{ opacity: checkAnim }}>
-              <Feather name='check' size={60} color='#FFFFFF' />
-            </Animated.View>
-          </LinearGradient>
-        </Animated.View>
+          <View style={styles.ticketCard}>
+            <FakeBorderPaperOrder position="top" />
+            <View style={styles.cardBody}>
+              {/* Header Section */}
+              <View style={styles.cardHeader}>
+                <View style={styles.headerInfo}>
+                  <Typography variant='text' size='xl' weight='bold' style={styles.successTitle}>
+                    {t('order.success') || 'Đặt hàng thành công!'}
+                  </Typography>
+                  <Typography variant='text' size='sm' style={styles.orderNumber}>
+                    {t('order.orderNumber')}: #{order.order_number}
+                  </Typography>
+                </View>
+                <View style={styles.checkIconContainer}>
+                  <Feather name='check' size={24} color='white' />
+                </View>
+              </View>
 
-        {/* Content */}
-        <Animated.View style={[styles.textContent, { opacity: opacityAnim }]}>
-          <Typography variant='display' size='md' weight='bold' style={styles.title}>
-            {t('order.success')}
-          </Typography>
+              <View style={styles.dashedDivider} />
 
-          <Typography variant='text' size='md' style={styles.description}>
-            {t('order.successDesc')}
-          </Typography>
+              {/* Customer Info */}
+              <View style={styles.section}>
+                <View style={styles.infoRow}>
+                  <Feather name='user' size={20} color='#3B82F6' style={styles.infoIcon} />
+                  <View>
+                    <Typography variant='text' weight='bold'>
+                      {order.shipping_address?.full_name || 'Khách hàng'}
+                    </Typography>
+                    <Typography variant='text' size='sm' style={styles.subText}>
+                      {order.shipping_address?.phone || ''}
+                    </Typography>
+                  </View>
+                </View>
 
-          {/* Order Number */}
-          <View style={styles.orderNumberCard}>
-            <Typography variant='text' size='sm' style={styles.orderLabel}>
-              {t('order.orderNumber')}
-            </Typography>
-            <Typography variant='text' size='xl' weight='bold' style={styles.orderNumber}>
-              {orderNumber}
-            </Typography>
+                <View style={[styles.infoRow, { marginTop: 16 }]}>
+                  <Feather name='map-pin' size={20} color='#3B82F6' style={styles.infoIcon} />
+                  <View style={{ flex: 1 }}>
+                    <Typography variant='text' weight='bold'>
+                      {order.payment_method === 'at_store' ? 'Nhận tại cửa hàng' : 'Giao hàng tận nơi'}
+                    </Typography>
+                    <Typography variant='text' size='sm' style={styles.subText} numberOfLines={2}>
+                      {order.payment_method === 'at_store'
+                        ? 'Tại cửa hàng DiDi Mobile'
+                        : `${order.shipping_address?.address_line1}, ${order.shipping_address?.ward}, ${order.shipping_address?.district}, ${order.shipping_address?.city}`}
+                    </Typography>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.dashedDivider} />
+
+              {/* Products */}
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Feather name='bookmark' size={18} color='#3B82F6' />
+                  <Typography variant='text' weight='medium' style={{ marginLeft: 8 }}>
+                    {t('common.products')}
+                  </Typography>
+                </View>
+
+                {items.map((item, index) => (
+                  <View key={item.id} style={[styles.productRow, index > 0 && { marginTop: 12 }]}>
+                    <View style={{ flex: 1 }}>
+                      <Typography variant='text' weight='medium' numberOfLines={1}>
+                        {item.product_name}
+                      </Typography>
+                      <Typography variant='text' size='sm' style={styles.subText}>
+                        x{item.quantity}
+                      </Typography>
+                    </View>
+                    <Typography variant='text' weight='bold' style={styles.priceText}>
+                      {formatPrice(item.unit_price).jpy}
+                    </Typography>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.dashedDivider} />
+
+              {/* Total */}
+              <View style={styles.section}>
+                <View style={styles.totalRow}>
+                  <Typography variant='text' weight='bold'>
+                    {t('cart.total') || 'Tổng cộng'}
+                  </Typography>
+                  <Typography variant='text' size='lg' weight='bold' style={styles.totalPrice}>
+                    {formatPrice(order.total_amount).jpy}
+                  </Typography>
+                </View>
+
+                <View style={[styles.totalRow, { marginTop: 12 }]}>
+                  <Typography variant='text' style={styles.subText}>
+                    {t('order.paymentStatusLabel')}
+                  </Typography>
+                  <View style={styles.statusBadge}>
+                    <Typography variant='text' size='xs' style={styles.statusText}>
+                      {order.payment_status === 'paid' ? t('order.paymentStatus.paid') : t('order.paymentStatus.pending')}
+                    </Typography>
+                  </View>
+                </View>
+              </View>
+            </View>
+            <FakeBorderPaperOrder position="bottom" />
           </View>
 
-          {/* Info Box */}
-          <View style={styles.infoBox}>
-            <Feather name='info' size={20} color={theme.colors.text.brand_primary} />
-            <Typography variant='text' size='sm' style={styles.infoText}>
-              Chúng tôi sẽ liên hệ với bạn trong vòng 24 giờ để xác nhận đơn hàng.
-            </Typography>
-          </View>
-        </Animated.View>
+          {/* Add extra padding at bottom for the fixed button */}
+          <View style={{ height: 100 }} />
+        </ScrollView>
+      </SafeAreaView>
+
+      {/* Bottom Button */}
+      <View style={styles.bottomBar}>
+        <Button
+          variant='solid'
+          size='lg'
+          fullWidth
+          onPress={handleBackHome}
+          style={styles.homeButton}
+        >
+          {t('order.backToHome') || 'Về trang chủ'}
+        </Button>
       </View>
-
-      {/* Buttons */}
-      <Animated.View style={[styles.buttonContainer, { opacity: opacityAnim }]}>
-        <Pressable
-          style={styles.viewOrderButton}
-          onPress={() => router.replace(`/order/${orderId}`)}
-        >
-          <LinearGradient
-            colors={['#5B7CFF', '#3D4DF4']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.viewOrderGradient}
-          >
-            <Feather name='file-text' size={20} color='#FFFFFF' />
-            <Typography variant='text' size='md' weight='bold' style={styles.viewOrderText}>
-              {t('order.viewOrder')}
-            </Typography>
-          </LinearGradient>
-        </Pressable>
-
-        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
-          <Feather name='home' size={20} color={theme.colors.text.brand_primary} />
-          <Typography variant='text' size='md' weight='semiBold' style={styles.homeButtonText}>
-            {t('order.backToHome')}
-          </Typography>
-        </Pressable>
-      </Animated.View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -128,109 +209,131 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background.primary,
+      backgroundColor: '#F3F4F6', // Light gray background
     },
-    content: {
+    loadingContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 32,
+      backgroundColor: theme.colors.background.primary,
     },
-    successCircle: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      overflow: 'hidden',
-      shadowColor: '#10B981',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.3,
-      shadowRadius: 16,
-      elevation: 10,
-    },
-    gradient: {
+    heroImage: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 250, // Adjust based on image aspect ratio
       width: '100%',
-      height: '100%',
-      justifyContent: 'center',
-      alignItems: 'center',
     },
-    textContent: {
-      alignItems: 'center',
-      marginTop: 32,
+    scrollContent: {
+      paddingTop: 140, // Push content down to show hero
+      paddingHorizontal: 16,
+      paddingBottom: 20,
     },
-    title: {
+    ticketCard: {
+      backgroundColor: 'transparent',
+      // Remove borderRadius to let edges do the work
+      // Shadow logic: On iOS this shadows the opaque children. On Android 28+ it might work if outline provider is used, but usually needs background.
+      // We'll keep shadow props for iOS at least.
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 10,
+      // elevation: 5, // Android elevation won't clip to jagged edges easily.
+      marginTop: 20,
+    },
+    cardBody: {
+      backgroundColor: 'white',
+      // No border radius here, just rect
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 20,
+    },
+    headerInfo: {
+      flex: 1,
+    },
+    successTitle: {
       color: theme.colors.text.primary,
-      textAlign: 'center',
-    },
-    description: {
-      color: theme.colors.text.secondary,
-      textAlign: 'center',
-      marginTop: 12,
-      lineHeight: 22,
-    },
-    orderNumberCard: {
-      marginTop: 32,
-      backgroundColor: theme.colors.background.secondary,
-      paddingHorizontal: 32,
-      paddingVertical: 20,
-      borderRadius: 16,
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: '#E5E7EB',
-      borderStyle: 'dashed',
-    },
-    orderLabel: {
-      color: theme.colors.text.tertiary,
       marginBottom: 4,
     },
     orderNumber: {
-      color: theme.colors.text.brand_primary,
-      letterSpacing: 2,
+      color: theme.colors.text.secondary,
     },
-    infoBox: {
+    checkIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: '#10B981', // Green
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    dashedDivider: {
+      height: 1,
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+      borderStyle: 'dashed',
+      marginHorizontal: 20,
+    },
+    section: {
+      padding: 20,
+    },
+    infoRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      backgroundColor: '#EEF2FF',
-      padding: 16,
-      borderRadius: 12,
-      marginTop: 24,
       gap: 12,
     },
-    infoText: {
-      flex: 1,
+    infoIcon: {
+      marginTop: 2,
+    },
+    subText: {
       color: theme.colors.text.secondary,
-      lineHeight: 20,
     },
-    buttonContainer: {
-      padding: 24,
-      paddingBottom: 32,
-      gap: 12,
-    },
-    viewOrderButton: {
-      borderRadius: 14,
-      overflow: 'hidden',
-    },
-    viewOrderGradient: {
+    sectionHeader: {
       flexDirection: 'row',
-      justifyContent: 'center',
       alignItems: 'center',
-      paddingVertical: 16,
-      gap: 10,
+      marginBottom: 16,
     },
-    viewOrderText: {
-      color: '#FFFFFF',
+    productRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    priceText: {
+      color: '#DC2626', // Red
+    },
+    totalRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    totalPrice: {
+      color: theme.colors.text.primary,
+    },
+    statusBadge: {
+      backgroundColor: '#DBEAFE', // Light blue
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    statusText: {
+      color: '#1E40AF', // Dark blue
+    },
+    bottomBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: 'white',
+      padding: 16,
+      paddingBottom: 34, // Safe area compensation
+      borderTopWidth: 1,
+      borderTopColor: '#E5E7EB',
     },
     homeButton: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: 16,
-      borderRadius: 14,
-      borderWidth: 2,
-      borderColor: theme.colors.text.brand_primary,
-      gap: 10,
-    },
-    homeButtonText: {
-      color: theme.colors.text.brand_primary,
+      backgroundColor: '#111827', // Black/Dark
     },
   });
 

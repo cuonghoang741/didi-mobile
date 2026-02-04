@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     View,
     StyleSheet,
@@ -35,9 +35,8 @@ const db = supabase as any;
 // Rank definitions
 type RankType = 'member' | 'silver' | 'gold' | 'diamond';
 
-interface RankInfo {
+interface RankConfig {
     key: RankType;
-    name: string;
     threshold: number; // required to reach this rank
     nextThreshold: number; // required to reach next rank
     cashbackPercent: number;
@@ -45,10 +44,13 @@ interface RankInfo {
     textColor: string; // text color on card
 }
 
-const RANKS: RankInfo[] = [
+interface RankInfo extends RankConfig {
+    name: string;
+}
+
+const RANK_CONFIGS: RankConfig[] = [
     {
         key: 'member',
-        name: 'Thành viên',
         threshold: 0,
         nextThreshold: 5000000,
         cashbackPercent: 2,
@@ -57,7 +59,6 @@ const RANKS: RankInfo[] = [
     },
     {
         key: 'silver',
-        name: 'Hạng Silver',
         threshold: 5000000,
         nextThreshold: 15000000,
         cashbackPercent: 2,
@@ -66,7 +67,6 @@ const RANKS: RankInfo[] = [
     },
     {
         key: 'gold',
-        name: 'Hạng Gold',
         threshold: 15000000,
         nextThreshold: 30000000,
         cashbackPercent: 4,
@@ -75,7 +75,6 @@ const RANKS: RankInfo[] = [
     },
     {
         key: 'diamond',
-        name: 'Hạng VIP',
         threshold: 30000000,
         nextThreshold: 50000000,
         cashbackPercent: 10,
@@ -96,6 +95,13 @@ const MembershipScreen = () => {
     const { user } = useAuth();
     const { t } = useLanguage();
     const styles = createStyles(theme);
+
+    const ranks: RankInfo[] = useMemo(() => {
+        return RANK_CONFIGS.map(config => ({
+            ...config,
+            name: t(`membership.ranks.${config.key}`),
+        }));
+    }, [t]);
 
     const [isLoading, setIsLoading] = useState(true);
     const [membershipData, setMembershipData] = useState<MembershipData>({
@@ -130,9 +136,9 @@ const MembershipScreen = () => {
             const totalSpent = mockData.total_spent || 0;
             // Determine rank based on total spent
             let currentRank: RankType = 'member';
-            for (let i = RANKS.length - 1; i >= 0; i--) {
-                if (totalSpent >= RANKS[i].threshold) {
-                    currentRank = RANKS[i].key;
+            for (let i = ranks.length - 1; i >= 0; i--) {
+                if (totalSpent >= ranks[i].threshold) {
+                    currentRank = ranks[i].key;
                     break;
                 }
             }
@@ -148,7 +154,7 @@ const MembershipScreen = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [user?.id]);
+    }, [user?.id, ranks]);
 
     useEffect(() => {
         fetchMembershipData();
@@ -166,11 +172,11 @@ const MembershipScreen = () => {
     };
 
     const getCurrentRankInfo = () => {
-        return RANKS.find(r => r.key === membershipData.current_rank) || RANKS[0];
+        return ranks.find(r => r.key === membershipData.current_rank) || ranks[0];
     };
 
     const getSelectedRankInfo = () => {
-        return RANKS.find(r => r.key === selectedRank) || RANKS[0];
+        return ranks.find(r => r.key === selectedRank) || ranks[0];
     };
 
     const getProgress = () => {
@@ -191,8 +197,8 @@ const MembershipScreen = () => {
     };
 
     const getNextRankName = () => {
-        const currentIndex = RANKS.findIndex(r => r.key === membershipData.current_rank);
-        return RANKS[currentIndex + 1]?.name || '';
+        const currentIndex = ranks.findIndex(r => r.key === membershipData.current_rank);
+        return ranks[currentIndex + 1]?.name || '';
     };
 
     const renderBenefitItem = (
@@ -298,58 +304,58 @@ const MembershipScreen = () => {
                                                 </Typography>
                                             )}
                                         </View>
+                                    </View>
 
-                                        {/* Progress Bar */}
-                                        {!isMaxRank && isCurrentRank && (
-                                            <>
-                                                <View style={styles.progressBarContainer}>
-                                                    <View style={[
-                                                        styles.progressBar,
-                                                        { backgroundColor: selectedRank === 'diamond' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)' }
-                                                    ]}>
-                                                        <View
-                                                            style={[
-                                                                styles.progressFill,
-                                                                {
-                                                                    width: `${getProgress() * 100}%`,
-                                                                    backgroundColor: selectedRank === 'diamond' ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.15)'
-                                                                },
-                                                            ]}
-                                                        />
-                                                        <View
-                                                            style={[
-                                                                styles.progressThumb,
-                                                                { left: `${getProgress() * 100}%` }
-                                                            ]}
-                                                        />
-                                                    </View>
+                                    {/* Progress Bar */}
+                                    {!isMaxRank && isCurrentRank && (
+                                        <>
+                                            <View style={styles.progressBarContainer}>
+                                                <View style={[
+                                                    styles.progressBar,
+                                                    { backgroundColor: selectedRank === 'diamond' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)' }
+                                                ]}>
+                                                    <View
+                                                        style={[
+                                                            styles.progressFill,
+                                                            {
+                                                                width: `${getProgress() * 100}%`,
+                                                                backgroundColor: selectedRank === 'diamond' ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.15)'
+                                                            },
+                                                        ]}
+                                                    />
+                                                    <View
+                                                        style={[
+                                                            styles.progressThumb,
+                                                            { left: `${getProgress() * 100}%` }
+                                                        ]}
+                                                    />
                                                 </View>
-                                                <Typography
-                                                    variant="text"
-                                                    size="xs"
-                                                    style={[styles.remainingText, { color: selectedRankInfo.textColor, opacity: 0.7 }]}
-                                                >
-                                                    {t('membership.accumulateMore')} {formatCurrency(getRemainingToNextRank())} {t('membership.currency')} {t('membership.toReach')} {getNextRankName()}
-                                                </Typography>
-                                            </>
-                                        )}
-
-                                        {isMaxRank && isCurrentRank && (
+                                            </View>
                                             <Typography
                                                 variant="text"
-                                                size="sm"
-                                                style={[styles.maxRankText, { color: selectedRankInfo.textColor }]}
+                                                size="xs"
+                                                style={[styles.remainingText, { color: selectedRankInfo.textColor, opacity: 0.7 }]}
                                             >
-                                                {t('membership.maxRankReached')}
+                                                {t('membership.accumulateMore')} {formatCurrency(getRemainingToNextRank())} {t('membership.currency')} {t('membership.toReach')} {getNextRankName()}
                                             </Typography>
-                                        )}
-                                    </View>
+                                        </>
+                                    )}
+
+                                    {isMaxRank && isCurrentRank && (
+                                        <Typography
+                                            variant="text"
+                                            size="sm"
+                                            style={[styles.maxRankText, { color: selectedRankInfo.textColor }]}
+                                        >
+                                            {t('membership.maxRankReached')}
+                                        </Typography>
+                                    )}
                                 </View>
                             </ImageBackground>
 
                             {/* Rank Tabs */}
                             <View style={styles.rankTabs}>
-                                {RANKS.map((rank) => (
+                                {ranks.map((rank) => (
                                     <Pressable
                                         key={rank.key}
                                         style={[
@@ -367,7 +373,7 @@ const MembershipScreen = () => {
                                                 selectedRank === rank.key && styles.rankTabTextActive,
                                             ]}
                                         >
-                                            {rank.key === 'member' ? 'Member' : rank.key === 'diamond' ? 'Diamond' : rank.key.charAt(0).toUpperCase() + rank.key.slice(1)}
+                                            {rank.name}
                                         </Typography>
                                     </Pressable>
                                 ))}
@@ -465,7 +471,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
             justifyContent: 'center',
         },
         rankInfo: {
-            flex: 1,
+            // flex: 1,
             paddingRight: 80, // Space for the badge on right side of image
         },
         rankName: {

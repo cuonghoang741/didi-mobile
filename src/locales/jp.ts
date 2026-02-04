@@ -16,6 +16,7 @@ export const jp = {
     continueShopping: '買い物を続ける',
     variant: 'バリエーション',
     all: 'すべて',
+    products: '商品',
   },
   tabs: {
     home: 'ホーム',
@@ -107,7 +108,7 @@ export const jp = {
     addresses: '配送先住所',
     paymentMethods: '支払い方法',
     help: 'ヘルプ',
-    guestUser: 'ゲスト',
+    guestUser: 'メンバー',
     loginToSeeMore: 'ログインしてもっと見る',
     // Menu sections
     account: 'アカウント',
@@ -433,6 +434,7 @@ export const jp = {
       cancelled: 'キャンセル済み',
       completed: '完了',
     },
+    paymentStatusLabel: '支払い状況',
     paymentStatus: {
       pending: '支払い待ち',
       paid: '支払い済み',
@@ -473,7 +475,7 @@ export const jp = {
       detailedAddress: '詳細住所',
       // New fields
       nickname: 'ニックネーム',
-      nicknamePlaceholder: '自宅',
+      nicknamePlaceholder: '思い出させる名前',
       phone: '電話番号',
       phonePlaceholder: '電話番号を入力',
       lastName: '姓（ローマ字）',

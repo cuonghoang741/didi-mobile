@@ -45,6 +45,7 @@ const EditProfileScreen = () => {
           birthday: formData.birthday,
           gender: formData.gender,
           phone: formData.phone,
+          email: formData.email,
         },
       });
 
@@ -379,11 +380,23 @@ const EditProfileScreen = () => {
           <Typography variant='text' size='sm' style={styles.fieldLabel}>
             {t('editProfile.email')}
           </Typography>
-          <View style={[styles.inputContainer, styles.inputDisabled]}>
+          <View style={[styles.inputContainer, !getEmail() ? {} : styles.inputDisabled]}>
             <Feather name='mail' size={20} color={theme.colors.text.tertiary} />
-            <Typography variant='text' size='md' style={styles.emailText}>
-              {formData.email}
-            </Typography>
+            {!getEmail() ? (
+              <TextInput
+                style={styles.textInput}
+                value={formData.email}
+                onChangeText={(value) => updateField('email', value)}
+                placeholder={t('editProfile.email')}
+                placeholderTextColor={theme.colors.text.tertiary}
+                keyboardType='email-address'
+                autoCapitalize='none'
+              />
+            ) : (
+              <Typography variant='text' size='md' style={styles.emailText}>
+                {formData.email}
+              </Typography>
+            )}
           </View>
         </View>
 

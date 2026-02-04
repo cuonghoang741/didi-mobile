@@ -924,7 +924,7 @@ ${errorDetails.fullError}
   getDisplayName(): string {
     const meta = this._state.user?.user_metadata;
     return (
-      meta?.full_name || meta?.display_name || meta?.name || this._state.user?.email || 'Guest'
+      meta?.full_name || meta?.display_name || meta?.name || this._state.user?.email || 'Member'
     );
   }
 

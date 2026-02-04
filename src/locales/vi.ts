@@ -16,6 +16,7 @@ export const vi = {
     continueShopping: 'Tiếp tục mua sắm',
     variant: 'Phân loại',
     all: 'Tất cả',
+    products: 'Sản phẩm',
   },
   home: {
     welcome: 'Xin chào',
@@ -107,7 +108,7 @@ export const vi = {
     addresses: 'Địa chỉ giao hàng',
     paymentMethods: 'Phương thức thanh toán',
     help: 'Trợ giúp',
-    guestUser: 'Khách',
+    guestUser: 'Thành viên',
     loginToSeeMore: 'Đăng nhập để xem thêm',
     // Menu sections
     account: 'Tài khoản',
@@ -437,6 +438,7 @@ export const vi = {
       completed: 'Hoàn thành',
       cancelled: 'Đã hủy',
     },
+    paymentStatusLabel: 'Trạng thái thanh toán',
     paymentStatus: {
       pending: 'Chờ thanh toán',
       paid: 'Đã thanh toán',
@@ -476,8 +478,8 @@ export const vi = {
       addressInfo: 'Địa chỉ',
       detailedAddress: 'Địa chỉ chi tiết',
       // New fields
-      nickname: 'Tên gọi nhớ',
-      nicknamePlaceholder: 'Nhà',
+      nickname: 'Tên gợi nhớ',
+      nicknamePlaceholder: 'Tên gợi nhớ',
       phone: 'Số điện thoại',
       phonePlaceholder: 'Nhập số điện thoại',
       lastName: 'Họ (không dấu)',
