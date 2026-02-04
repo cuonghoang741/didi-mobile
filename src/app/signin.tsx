@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -25,6 +25,7 @@ const OTP_TIMER_DURATION = 60; // seconds
 
 const SignInScreen = () => {
   const router = useRouter();
+  const navigation = useNavigation();
   const theme = useTheme();
   const { t } = useLanguage();
   const {
@@ -250,7 +251,11 @@ const SignInScreen = () => {
       setConfirmPassword('');
       setLocalError(null);
     } else {
-      router.back();
+      if (navigation.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/');
+      }
     }
   };
 
@@ -399,7 +404,8 @@ const SignInScreen = () => {
                 )}
               </View>
             </View>
-          )}\n\n          {/* Password Input (for existing users) */}
+          )}
+          {/* Password Input (for existing users) */}
           {step === 'password' && (
             <View style={styles.inputSection}>
               <View style={[styles.inputContainer, displayError && styles.inputErrorBorder]}>
@@ -482,6 +488,7 @@ const SignInScreen = () => {
             colorScheme='brand'
             size='lg'
             variant='solid'
+            loading={isLoading}
             onPress={
               step === 'phone'
                 ? handleContinue
