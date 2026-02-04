@@ -145,33 +145,54 @@ const EditProfileScreen = () => {
   };
 
   // Upload avatar to Supabase Storage
+  // Helper function to upload image (same as in other files)
+  const uploadImage = async (uri: string): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      const filename = uri.split('/').pop() || 'image.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+      formData.append('image', {
+        uri,
+        name: filename,
+        type,
+      } as any);
+
+      const response = await fetch('https://colorme.vn/api/v1/upload-image-public', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json, text/plain, */*',
+          'Referer': 'https://colorme.vn/',
+        },
+      });
+
+      const result = await response.json();
+
+      if (result.status && result.link) {
+        return result.link;
+      }
+
+      console.error('[uploadImage] Upload failed:', result);
+      return null;
+    } catch (error) {
+      console.error('[uploadImage] Error:', error);
+      return null;
+    }
+  };
+
+  // Upload avatar using ColorMe API
   const uploadAvatar = async (imageUri: string) => {
     if (!user) return;
 
     setIsUploadingAvatar(true);
     try {
-      const fileExt = 'jpg';
-      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const publicUrl = await uploadImage(imageUri);
 
-      const response = await fetch(imageUri);
-      const blob = await response.blob();
-      const arrayBuffer = await new Response(blob).arrayBuffer();
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, arrayBuffer, {
-          contentType: `image/${fileExt}`,
-          upsert: true,
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      const publicUrl = publicUrlData.publicUrl;
+      if (!publicUrl) {
+        throw new Error('Upload failed');
+      }
 
       const { error: updateError } = await supabase.auth.updateUser({
         data: { avatar_url: publicUrl },

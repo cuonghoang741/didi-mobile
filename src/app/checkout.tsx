@@ -352,6 +352,42 @@ const CheckoutScreen = () => {
     }
   };
 
+  const uploadImage = async (uri: string): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      const filename = uri.split('/').pop() || 'image.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+      formData.append('image', {
+        uri,
+        name: filename,
+        type,
+      } as any);
+
+      const response = await fetch('https://colorme.vn/api/v1/upload-image-public', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json, text/plain, */*',
+          'Referer': 'https://colorme.vn/',
+        },
+      });
+
+      const result = await response.json();
+
+      if (result.status && result.link) {
+        return result.link;
+      }
+
+      console.error('[uploadImage] Upload failed:', result);
+      return null;
+    } catch (error) {
+      console.error('[uploadImage] Error:', error);
+      return null;
+    }
+  };
+
   const handleConfirmPayment = async () => {
     if (!paymentProofImage) {
       Alert.alert(t('common.error'), 'Vui lòng tải lên ảnh chuyển khoản');
@@ -361,6 +397,16 @@ const CheckoutScreen = () => {
 
     setUploadingProof(true);
     try {
+      const uploadedUrl = await uploadImage(paymentProofImage);
+
+      if (!uploadedUrl) {
+        Alert.alert(t('common.error'), 'Không thể tải ảnh lên. Vui lòng thử lại');
+        return;
+      }
+
+      // TODO: Update order with payment proof URL if backend supports it
+      // For now we just pass it to success screen or assume it's handled
+
       setShowPaymentModal(false);
       router.replace({
         pathname: '/order-success',
@@ -368,8 +414,12 @@ const CheckoutScreen = () => {
           orderId: pendingOrder.id,
           orderNumber: pendingOrder.order_number,
           pendingPayment: 'true',
+          paymentProofUrl: uploadedUrl
         },
       });
+    } catch (error) {
+      console.error('Error in payment confirmation:', error);
+      Alert.alert(t('common.error'), 'Đã có lỗi xảy ra');
     } finally {
       setUploadingProof(false);
     }
