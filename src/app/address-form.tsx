@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography, Button, AuthProtect } from '@/components';
 import { useTheme, useAuth, useLanguage } from '@/contexts';
 import { supabase } from '@/services/supabase';
+import { uploadImage } from '@/services/imageUpload';
 
 // Type assertion helper for tables not yet in generated types
 const db = supabase as any;
@@ -55,45 +56,7 @@ const initialFormData: AddressFormData = {
     image_url: '',
 };
 
-// Upload image to ColorMe API
-const uploadImage = async (uri: string): Promise<string | null> => {
-    try {
-        // Create form data
-        const formData = new FormData();
 
-        // Get file info from URI
-        const filename = uri.split('/').pop() || 'image.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
-
-        formData.append('image', {
-            uri,
-            name: filename,
-            type,
-        } as any);
-
-        const response = await fetch('https://colorme.vn/api/v1/upload-image-public', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'Accept': 'application/json, text/plain, */*',
-                'Referer': 'https://colorme.vn/',
-            },
-        });
-
-        const result = await response.json();
-
-        if (result.status && result.link) {
-            return result.link;
-        }
-
-        console.error('[uploadImage] Upload failed:', result);
-        return null;
-    } catch (error) {
-        console.error('[uploadImage] Error:', error);
-        return null;
-    }
-};
 
 const AddressFormScreen = () => {
     const router = useRouter();

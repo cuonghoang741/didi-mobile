@@ -172,13 +172,13 @@ const ProductReviewsScreen = () => {
                                                 <Image source={{ uri: review.user.avatar_url }} style={styles.avatarImg} />
                                             ) : (
                                                 <Typography variant='text' size='md' weight='bold' style={styles.avatarText}>
-                                                    {(review.user?.full_name || 'U').charAt(0).toUpperCase()}
+                                                    {((review as any).reviewer_name || review.user?.full_name || 'U').charAt(0).toUpperCase()}
                                                 </Typography>
                                             )}
                                         </View>
                                         <View style={styles.reviewInfo}>
                                             <Typography variant='text' size='md' weight='bold'>
-                                                {review.user?.full_name || 'Người dùng'}
+                                                {(review as any).reviewer_name || review.user?.full_name || 'Người dùng'}
                                             </Typography>
                                             <View style={styles.reviewMeta}>
                                                 {renderStars(review.rating, 12)}
@@ -190,13 +190,10 @@ const ProductReviewsScreen = () => {
                                                 </Typography>
                                             </View>
                                         </View>
-                                        <Pressable style={{ padding: 4 }}>
-                                            <Feather name='more-vertical' size={20} color='#9CA3AF' />
-                                        </Pressable>
                                     </View>
 
                                     <Typography variant='text' size='md' style={styles.comment}>
-                                        {review.comment}
+                                        {(review as any).content || review.comment}
                                     </Typography>
 
                                     {imageUrls.length > 0 && (
@@ -215,6 +212,23 @@ const ProductReviewsScreen = () => {
                                     <Typography variant='text' size='xs' style={styles.absoluteTime}>
                                         {dayjs(review.created_at).format('D/M/YYYY HH:mm')}
                                     </Typography>
+
+                                    {/* Admin/Seller Reply */}
+                                    {((review as any).admin_reply) && (
+                                        <View style={styles.sellerReplyContainer}>
+                                            <Typography variant='text' size='sm' weight='bold' style={styles.sellerName}>
+                                                {t('product.sellerResponse')}
+                                            </Typography>
+                                            <Typography variant='text' size='md' style={styles.sellerContent}>
+                                                {(review as any).admin_reply}
+                                            </Typography>
+                                            {(review as any).admin_reply_at && (
+                                                <Typography variant='text' size='xs' style={styles.timeText}>
+                                                    {dayjs((review as any).admin_reply_at).fromNow()}
+                                                </Typography>
+                                            )}
+                                        </View>
+                                    )}
                                 </View>
                             );
                         })
@@ -373,6 +387,23 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
             color: theme.colors.text.tertiary,
             textAlign: 'center',
             paddingVertical: 20,
+        },
+        sellerReplyContainer: {
+            marginTop: 12,
+            padding: 12,
+            backgroundColor: '#F9FAFB',
+            borderRadius: 8,
+            borderLeftWidth: 3,
+            borderLeftColor: theme.colors.text.brand_primary,
+        },
+        sellerName: {
+            marginBottom: 4,
+            color: theme.colors.text.primary,
+        },
+        sellerContent: {
+            lineHeight: 22,
+            color: theme.colors.text.secondary,
+            marginBottom: 4,
         },
     });
 

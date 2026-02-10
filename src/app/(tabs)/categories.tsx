@@ -93,11 +93,33 @@ const Categories = () => {
 
     setLoadingProducts(true);
     try {
+      // 1. Get product_ids from junction table
+      const { data: junctionData, error: junctionError } = await supabase
+        .from('product_categories_junction')
+        .select('product_id')
+        .eq('category_id', selectedCategory.id);
+
+      if (junctionError) {
+        console.error('Error fetching junction:', junctionError);
+        setProducts([]);
+        return;
+      }
+
+      const productIds = junctionData?.map((j) => j.product_id) || [];
+
+      if (productIds.length === 0) {
+        setProducts([]);
+        return;
+      }
+
+      // 2. Fetch products details
       let query = supabase
         .from('products')
         .select('*')
-        .eq('category_id', selectedCategory.id)
+        .in('id', productIds)
         .is('deleted_at', null)
+        // @ts-ignore: status column exists in DB but not in types
+        .eq('status', 'active')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 

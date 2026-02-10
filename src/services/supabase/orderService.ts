@@ -38,6 +38,7 @@ export interface Order {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  is_reviewed?: boolean;
 }
 
 /**
@@ -252,7 +253,7 @@ export const fetchUserOrders = async (
 
   const { data, error, count } = await supabase
     .from('orders')
-    .select('*, items:order_items(*)', { count: 'exact' })
+    .select('*, items:order_items(*), product_reviews(id)', { count: 'exact' })
     .eq('customer_id', userId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -283,6 +284,7 @@ export const fetchUserOrders = async (
     updated_at: order.updated_at,
     deleted_at: order.deleted_at,
     items: order.items || [],
+    is_reviewed: order.product_reviews && order.product_reviews.length > 0,
   })) || [];
 
   return {

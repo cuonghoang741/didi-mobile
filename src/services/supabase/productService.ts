@@ -2,11 +2,31 @@ import { supabase } from './client';
 import type {
   Product,
   ProductVariant,
-  ProductReview,
   ProductDetail,
-  User,
   Brand,
 } from '@/types/database.types';
+
+export interface ProductReview {
+  id: string;
+  user_id: string;
+  product_id: string;
+  order_id: string;
+  rating: number;
+  content: string | null;
+  images: string[] | null;
+  is_verified_purchase: boolean;
+  is_approved: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  user?: any; // User details joined
+}
+
+export interface User {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+}
 
 /**
  * Fetch product detail by ID with variants and reviews
@@ -18,6 +38,8 @@ export const fetchProductDetail = async (productId: string): Promise<ProductDeta
     .select('*')
     .eq('id', productId)
     .is('deleted_at', null)
+    // @ts-ignore
+    .eq('status', 'active')
     .single();
 
   if (productError || !product) {
@@ -147,19 +169,38 @@ export const fetchRelatedProducts = async (
   categoryId: string | null,
   limit: number = 6,
 ): Promise<Product[]> => {
+  let productIds: string[] = [];
+
+  if (categoryId) {
+    const { data: junctionData } = await supabase
+      .from('product_categories_junction')
+      .select('product_id')
+      .eq('category_id', categoryId);
+
+    if (junctionData) {
+      productIds = junctionData.map(j => j.product_id);
+    }
+  }
+
   let query = supabase
     .from('products')
     .select('*')
     .neq('id', productId)
+    // @ts-ignore
+    .eq('status', 'active')
     .eq('is_active', true)
-    .is('deleted_at', null)
-    .limit(limit);
+    .is('deleted_at', null);
 
   if (categoryId) {
-    query = query.eq('category_id', categoryId);
+    if (productIds.length > 0) {
+      query = query.in('id', productIds);
+    } else {
+      // Category provided but no products found in junction, return empty
+      return [];
+    }
   }
 
-  const { data, error } = await query.order('created_at', { ascending: false });
+  const { data, error } = await query.limit(limit).order('created_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching related products:', error);
@@ -179,6 +220,8 @@ export const fetchProductsByIds = async (ids: string[]): Promise<Product[]> => {
     .from('products')
     .select('*')
     .in('id', ids)
+    // @ts-ignore
+    .eq('status', 'active')
     .eq('is_active', true)
     .is('deleted_at', null);
 
@@ -212,14 +255,31 @@ export const searchProducts = async (
     .from('products')
     .select('*')
     .ilike('name', `%${queryText}%`)
+    // @ts-ignore
+    .eq('status', 'active')
     .eq('is_active', true)
     .is('deleted_at', null);
 
   if (filter?.categoryIds && filter.categoryIds.length > 0) {
-    // Note: This only checks direct category_id column.
-    // For many-to-many, we'd need a more complex query or junction filtering.
-    // Assuming simple category structure for now based on 'category_id' column existence.
-    query = query.in('category_id', filter.categoryIds);
+    // Get product IDs from junction table
+    const { data: junctionData, error: junctionError } = await supabase
+      .from('product_categories_junction')
+      .select('product_id')
+      .in('category_id', filter.categoryIds);
+
+    if (junctionError) {
+      console.error('Error fetching junction in search:', junctionError);
+      return [];
+    }
+
+    const categoryProductIds = junctionData?.map(j => j.product_id) || [];
+
+    if (categoryProductIds.length > 0) {
+      query = query.in('id', categoryProductIds);
+    } else {
+      // Filter provided but no products match category, return empty
+      return [];
+    }
   }
 
   if (filter?.brand) {
@@ -294,10 +354,11 @@ export interface SubmitReviewParams {
   orderId: string;
   rating: number;
   comment: string | null;
+  images?: string[];
 }
 
 export const submitProductReview = async (params: SubmitReviewParams): Promise<boolean> => {
-  const { productId, userId, orderId, rating, comment } = params;
+  const { productId, userId, orderId, rating, comment, images } = params;
 
   // Check if user already reviewed this product for this order
   const { data: existing } = await supabase
@@ -316,6 +377,7 @@ export const submitProductReview = async (params: SubmitReviewParams): Promise<b
       .update({
         rating,
         content: comment,
+        images: images || [],
         updated_at: new Date().toISOString(),
       })
       .eq('id', existing.id);
@@ -332,6 +394,7 @@ export const submitProductReview = async (params: SubmitReviewParams): Promise<b
       order_id: orderId,
       rating,
       content: comment,
+      images: images || [],
       is_verified_purchase: true,
     });
 
@@ -368,6 +431,28 @@ export const checkOrderReviewed = async (
     reviewed: reviewedProductIds.length > 0,
     reviewedProductIds,
   };
+};
+
+/**
+ * Fetch full reviews for an order
+ */
+export const fetchReviewsForOrder = async (
+  orderId: string,
+  userId: string,
+): Promise<ProductReview[]> => {
+  const { data, error } = await supabase
+    .from('product_reviews')
+    .select('*')
+    .eq('order_id', orderId)
+    .eq('user_id', userId)
+    .is('deleted_at', null);
+
+  if (error) {
+    console.error('Error fetching order reviews:', error);
+    return [];
+  }
+
+  return (data as unknown as ProductReview[]) || [];
 };
 
 /**

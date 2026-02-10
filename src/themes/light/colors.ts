@@ -28,7 +28,7 @@ const text = {
   error_primary: palette.error[600],
   warning_primary: palette.warning[600],
   success_primary: palette.success[600],
-  gray_primary: palette.grayLight[600],
+  gray_primary: palette.grayLight[800],
 
   price: palette.error[600],
 } as const;

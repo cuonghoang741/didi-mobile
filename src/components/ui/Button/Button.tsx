@@ -341,7 +341,7 @@ function makeButtonStyles(
       backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: colors.border,
-      textColor: colors.bg,
+      textColor: colors.text,
     },
     ghost: {
       backgroundColor: 'transparent',

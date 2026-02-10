@@ -64,14 +64,20 @@ const OrderItemCard = ({ order, onPress, onReview }: { order: OrderWithItems; on
     switch (status) {
       case 'pending':
         return '#FF9500'; // Orange
-      case 'processing':
+      case 'confirmed':
         return '#007AFF'; // Blue
+      case 'processing':
+        return '#5AC8FA'; // Light Blue
       case 'shipping':
         return '#5856D6'; // Indigo
+      case 'delivered':
+        return '#34C759'; // Green
       case 'completed':
         return '#34C759'; // Green
       case 'cancelled':
         return '#FF3B30'; // Red
+      case 'refunded':
+        return '#8E8E93'; // Gray
       default:
         return theme.colors.text.secondary;
     }
@@ -81,14 +87,20 @@ const OrderItemCard = ({ order, onPress, onReview }: { order: OrderWithItems; on
     switch (status) {
       case 'pending':
         return t('order.status.pending');
+      case 'confirmed':
+        return t('order.status.confirmed');
       case 'processing':
         return t('order.status.processing');
       case 'shipping':
         return t('order.status.shipping');
+      case 'delivered':
+        return t('order.status.delivered');
       case 'completed':
         return t('order.status.completed');
       case 'cancelled':
         return t('order.status.cancelled');
+      case 'refunded':
+        return t('order.status.refunded');
       default:
         return status;
     }
@@ -179,12 +191,17 @@ const OrderItemCard = ({ order, onPress, onReview }: { order: OrderWithItems; on
               {t('order.action.cancel')}
             </Button>
           )}
-          {order.status === 'completed' && onReview && (
+          {onReview && !order.is_reviewed && (
             <Button size='sm' variant='solid' colorScheme='brand' onPress={onReview}>
               {t('order.action.review')}
             </Button>
           )}
-          <Button size='sm' variant='outline' colorScheme='gray' onPress={onPress}>
+          {order.is_reviewed && (
+            <Button size='sm' variant='outline' colorScheme='gray' disabled style={{ opacity: 0.7 }}>
+              {t('order.review.reviewed')}
+            </Button>
+          )}
+          <Button size='sm' variant='outline' colorScheme='brand' onPress={onPress}>
             {t('order.action.viewDetail')}
           </Button>
         </View>
@@ -296,7 +313,11 @@ const OrdersScreen = () => {
               <OrderItemCard
                 order={item}
                 onPress={() => router.push(`/order/${item.id}`)}
-                onReview={item.status === 'completed' ? () => handleOpenReview(item) : undefined}
+                onReview={
+                  ['completed', 'delivered'].includes(item.status)
+                    ? () => handleOpenReview(item)
+                    : undefined
+                }
               />
             )}
             contentContainerStyle={styles.listContent}
@@ -347,7 +368,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5EA',
   },
@@ -361,9 +381,6 @@ const styles = StyleSheet.create({
     width: 40,
   },
   tabsContainer: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
   },
   tabsContent: {
     paddingHorizontal: 8,

@@ -440,6 +440,7 @@ export type Database = {
           is_active: boolean | null
           is_featured: boolean | null
           is_popular: boolean | null
+          language: Json | null
           name: string
           origin: string | null
           price: number
@@ -462,6 +463,7 @@ export type Database = {
           is_active?: boolean | null
           is_featured?: boolean | null
           is_popular?: boolean | null
+          language?: Json | null
           name: string
           origin?: string | null
           price: number
@@ -484,6 +486,7 @@ export type Database = {
           is_active?: boolean | null
           is_featured?: boolean | null
           is_popular?: boolean | null
+          language?: Json | null
           name?: string
           origin?: string | null
           price?: number
@@ -718,5 +721,23 @@ export type Banner = Tables<'banners'>;
 export type ProductVariant = Tables<'product_variants'>;
 export type ProductDetail = Product & {
   variants: ProductVariant[];
+  product_variants: ProductVariant[];
   images: Tables<'product_images'>[];
+  avg_rating?: number;
+  review_count?: number;
+  specifications?: Record<string, string | number> | null;
+};
+
+export type CartItem = {
+  id?: string;
+  product: Product;
+  variant?: ProductVariant | null;
+  quantity: number;
+};
+
+export type MultiLanguageData = {
+  name?: Record<string, string>;
+  short_description?: Record<string, string>;
+  description?: Record<string, string>;
+  warranty?: Record<string, string>;
 };

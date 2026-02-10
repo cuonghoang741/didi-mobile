@@ -125,9 +125,10 @@ const ProductDetailScreen = () => {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const imageListRef = useRef<FlatList>(null);
+  const thumbnailListRef = useRef<FlatList>(null);
 
-  console.log("variant", product?.product_variants);
 
   // Button animation states
   const [isAdded, setIsAdded] = useState(false);
@@ -140,6 +141,19 @@ const ProductDetailScreen = () => {
       setIsAdded(false);
     }, 1500);
   }, []);
+
+  // Warranty Animation
+  const warrantyAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (product) {
+      Animated.timing(warrantyAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [product]);
 
   // ... (keep useEffect and handlers)
 
@@ -262,6 +276,21 @@ const ProductDetailScreen = () => {
     return result;
   }, [product]);
 
+  // Sync thumbnail scroll
+  useEffect(() => {
+    if (images.length > 1 && thumbnailListRef.current) {
+      try {
+        thumbnailListRef.current.scrollToIndex({
+          index: currentImageIndex,
+          animated: true,
+          viewPosition: 0.5,
+        });
+      } catch (e) {
+        // Ignore error when list is not yet measured
+      }
+    }
+  }, [currentImageIndex, images.length]);
+
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -326,28 +355,37 @@ const ProductDetailScreen = () => {
             )}
             keyExtractor={(_, index) => index.toString()}
           />
-          {images.length > 1 && (
-            <View style={styles.pagination}>
-              {images.map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.paginationDot,
-                    {
-                      backgroundColor:
-                        index === currentImageIndex ? theme.colors.text.brand_primary : '#E5E7EB',
-                    },
-                  ]}
-                />
-              ))}
-            </View>
-          )}
-          <View style={styles.imageCounter}>
-            <Typography variant='text' size='xs' style={styles.imageCounterText}>
-              {currentImageIndex + 1}/{images.length}
-            </Typography>
-          </View>
         </View>
+
+        {/* Thumbnails */}
+        {images.length > 1 && (
+          <FlatList
+            ref={thumbnailListRef}
+            data={images}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.thumbnailList}
+            contentContainerStyle={styles.thumbnailListContent}
+            renderItem={({ item, index }) => (
+              <Pressable
+                onPress={() => {
+                  setCurrentImageIndex(index);
+                  imageListRef.current?.scrollToOffset({
+                    offset: index * SCREEN_WIDTH,
+                    animated: true,
+                  });
+                }}
+                style={[
+                  styles.thumbnailItem,
+                  currentImageIndex === index && styles.thumbnailItemActive,
+                ]}
+              >
+                <Image source={{ uri: item }} style={styles.thumbnailImage} contentFit='cover' />
+              </Pressable>
+            )}
+            keyExtractor={(_, index) => index.toString()}
+          />
+        )}
 
         {/* Product Info */}
         <View style={styles.infoContainer}>
@@ -432,9 +470,11 @@ const ProductDetailScreen = () => {
                         ) : colorHex ? (
                           <View style={[allColorOnly ? styles.colorSwatchInner : styles.variantCardImage, { backgroundColor: colorHex }]} />
                         ) : (
-                          <View style={[styles.variantCardImage, styles.variantCardPlaceholder]}>
-                            <Feather name='image' size={24} color='#D1D5DB' />
-                          </View>
+                          <Image
+                            source={{ uri: product.thumbnail_url || (product.image_urls && product.image_urls[0]) }}
+                            style={styles.variantCardImage}
+                            contentFit='cover'
+                          />
                         )}
                       </Pressable>
                     );
@@ -444,44 +484,107 @@ const ProductDetailScreen = () => {
             );
           })()}
 
+          {/* Warranty Section */}
+          {(() => {
+            const warrantyText = getLocalizedContent(
+              product.language,
+              'warranty',
+              language,
+              ''
+            );
+            if (!warrantyText) return null;
+
+            return (
+              <Animated.View style={[styles.warrantySection, { opacity: warrantyAnim, transform: [{ translateY: warrantyAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
+                <View style={styles.warrantyHeader}>
+                  <Feather name="shield" size={20} color={theme.colors.text.brand_primary} />
+                  <Typography variant="text" size="md" weight="semiBold" style={styles.warrantyTitle}>
+                    {t('product.warranty')}
+                  </Typography>
+                </View>
+                <RenderHtml
+                  contentWidth={SCREEN_WIDTH - 64}
+                  source={{
+                    html: warrantyText
+                  }}
+                  tagsStyles={{
+                    p: {
+                      fontSize: 14,
+                      color: theme.colors.text.secondary,
+                      lineHeight: 20,
+                      marginBottom: 8,
+                    },
+                    b: { fontWeight: 'bold' },
+                    strong: { fontWeight: 'bold' },
+                    ul: { marginBottom: 8 },
+                    li: { fontSize: 14, color: theme.colors.text.secondary, marginBottom: 4 },
+                  }}
+                />
+              </Animated.View>
+            );
+          })()}
+
+
           {/* Description */}
-          <View style={styles.descriptionSection}>
-            <Typography variant='text' size='md' weight='semiBold' style={styles.sectionTitle}>
-              {t('product.description')}
-            </Typography>
-            {product.description ? (
-              <RenderHtml
-                contentWidth={SCREEN_WIDTH - 32} // 16px padding on each side
-                source={{
-                  html: getLocalizedContent(
-                    product.language,
-                    'description',
-                    language,
-                    product.description || ''
-                  ),
-                }}
-                tagsStyles={{
-                  p: {
-                    fontSize: 14,
-                    color: theme.colors.text.secondary,
-                    lineHeight: 22,
-                    marginBottom: 8,
-                  },
-                  b: { fontWeight: 'bold' },
-                  strong: { fontWeight: 'bold' },
-                  h1: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
-                  h2: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
-                  h3: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
-                  ul: { marginBottom: 8 },
-                  li: { fontSize: 14, color: theme.colors.text.secondary, marginBottom: 4 },
-                }}
-              />
-            ) : (
-              <Typography variant='text' size='sm' style={styles.description}>
-                Chưa có mô tả
+          {product.description ? (
+            <View style={styles.descriptionSection}>
+              <Typography variant='text' size='md' weight='semiBold' style={styles.sectionTitle}>
+                {t('product.description')}
               </Typography>
-            )}
-          </View>
+              <View>
+                <View style={[
+                  styles.descriptionContent,
+                  !descriptionExpanded && styles.descriptionCollapsed,
+                ]}>
+                  <RenderHtml
+                    contentWidth={SCREEN_WIDTH - 64}
+                    source={{
+                      html: getLocalizedContent(
+                        product.language,
+                        'description',
+                        language,
+                        product.description || ''
+                      ),
+                    }}
+                    tagsStyles={{
+                      p: {
+                        fontSize: 14,
+                        color: theme.colors.text.secondary,
+                        lineHeight: 22,
+                        marginBottom: 8,
+                      },
+                      b: { fontWeight: 'bold' },
+                      strong: { fontWeight: 'bold' },
+                      h1: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
+                      h2: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+                      h3: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
+                      ul: { marginBottom: 8 },
+                      li: { fontSize: 14, color: theme.colors.text.secondary, marginBottom: 4 },
+                    }}
+                  />
+                </View>
+                {!descriptionExpanded && (
+                  <LinearGradient
+                    colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.9)', '#FFFFFF']}
+                    style={styles.descriptionOverlay}
+                  />
+                )}
+                <Pressable
+                  style={styles.viewMoreButton}
+                  onPress={() => setDescriptionExpanded(!descriptionExpanded)}
+                >
+                  <Typography variant='text' size='sm' weight='semiBold' style={styles.viewMoreText}>
+                    {descriptionExpanded ? t('product.collapse') : t('product.viewMore')}
+                  </Typography>
+                  <Feather
+                    name={descriptionExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color={theme.colors.text.brand_primary}
+                  />
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
 
           {/* Specifications */}
           {product.specifications && Object.keys(product.specifications).length > 0 && (
@@ -497,7 +600,13 @@ const ProductDetailScreen = () => {
                       style={styles.specRow}
                     >
                       <Typography variant='text' size='sm' style={styles.specKey}>
-                        {key.charAt(0).toUpperCase() + key.slice(1)}
+                        {t(`product.specs.${key}`) !== `product.specs.${key}`
+                          ? t(`product.specs.${key}`)
+                          : key
+                            .replace(/_/g, ' ')
+                            .replace(/([A-Z])/g, ' $1') // CamelCase to spaced
+                            .toUpperCase()
+                            .trim()}
                       </Typography>
                       <Typography
                         variant='text'
@@ -513,6 +622,8 @@ const ProductDetailScreen = () => {
               </View>
             </View>
           )}
+
+
 
 
 
@@ -638,19 +749,30 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       width: SCREEN_WIDTH,
       aspectRatio: 1,
     },
-    pagination: {
-      position: 'absolute',
-      bottom: 16,
-      left: 0,
-      right: 0,
-      flexDirection: 'row',
-      justifyContent: 'center',
-      gap: 6,
+    thumbnailList: {
+      marginTop: 12,
+      maxHeight: 70,
     },
-    paginationDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
+    thumbnailListContent: {
+      gap: 12,
+      paddingHorizontal: 16,
+    },
+    thumbnailItem: {
+      width: 60,
+      height: 60,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: 'transparent',
+      overflow: 'hidden',
+      backgroundColor: theme.colors.background.secondary,
+    },
+    thumbnailItemActive: {
+      borderColor: theme.colors.text.brand_primary,
+      borderWidth: 2,
+    },
+    thumbnailImage: {
+      width: '100%',
+      height: '100%',
     },
     infoContainer: {
       padding: 16,
@@ -724,6 +846,33 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     // Small color swatches for color-only variants
     variantsGridSmall: {
       gap: 10,
+    },
+    warrantySection: {
+      marginBottom: 24,
+      padding: 16,
+      backgroundColor: 'rgba(59, 130, 246, 0.1)', // Light blue tint
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.text.brand_primary,
+      // Shadow
+      shadowColor: theme.colors.text.brand_primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    warrantyHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    warrantyTitle: {
+      marginLeft: 8,
+      color: theme.colors.text.brand_primary,
+    },
+    warrantyContent: {
+      color: theme.colors.text.secondary,
+      lineHeight: 20,
     },
     colorSwatchCard: {
       width: 40,
@@ -825,6 +974,29 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       padding: 16,
       borderRadius: 12,
     },
+    descriptionContent: {
+      overflow: 'hidden',
+    },
+    descriptionCollapsed: {
+      maxHeight: 150,
+    },
+    descriptionOverlay: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 60,
+    },
+    viewMoreButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingTop: 12,
+      gap: 4,
+    },
+    viewMoreText: {
+      color: theme.colors.text.brand_primary,
+    },
     description: {
       color: theme.colors.text.secondary,
       lineHeight: 22,
@@ -853,19 +1025,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
       textAlign: 'right',
     },
-    imageCounter: {
-      position: 'absolute',
-      bottom: 16,
-      right: 16,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 16,
-    },
-    imageCounterText: {
-      color: '#FFFFFF',
-      fontWeight: '600',
-    },
+    // Removed imageCounter styles
 
     relatedSection: {
       marginBottom: 24,

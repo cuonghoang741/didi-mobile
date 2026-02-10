@@ -52,6 +52,8 @@ export const fetchFeaturedProducts = async (limit: number = 10): Promise<Product
   const { data, error } = await supabase
     .from('products')
     .select('*')
+    // @ts-ignore: status column exists in DB but not in types
+    .eq('status', 'active')
     .eq('is_active', true)
     .eq('is_featured', true)
     .is('deleted_at', null)
@@ -153,10 +155,27 @@ export const fetchCategoriesWithProducts = async (
 
     const categoryIds = [category.id, ...(subCategories?.map((c) => c.id) || [])];
 
+    // Get product IDs from junction table for these categories
+    const { data: junctionData, error: junctionError } = await supabase
+      .from('product_categories_junction')
+      .select('product_id')
+      .in('category_id', categoryIds);
+
+    if (junctionError) {
+      console.error('Error fetching product Junction:', junctionError);
+      continue;
+    }
+
+    const productIds = junctionData?.map((j) => j.product_id) || [];
+
+    if (productIds.length === 0) continue;
+
     const { data: products, error: productsError } = await supabase
       .from('products')
       .select('*')
-      .in('category_id', categoryIds)
+      .in('id', productIds)
+      // @ts-ignore: status column exists in DB but not in types
+      .eq('status', 'active')
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
