@@ -22,13 +22,15 @@ import { Typography } from '@/components';
 import { useTheme, useLanguage } from '@/contexts';
 import { useCurrency } from '@/hooks';
 import { useSettings } from '@/hooks/useSettings';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface BankAccount {
     id: string;
     bank_name: string;
+    branch_name: string;
     account_name: string;
     account_number: string;
-    branch?: string;
+    qr_code_url: string | null;
 }
 
 const BankTransferConfirmScreen = () => {
@@ -43,9 +45,11 @@ const BankTransferConfirmScreen = () => {
     const { formatJpy } = useCurrency();
     const { settings } = useSettings();
     const styles = createStyles(theme);
+    const insets = useSafeAreaInsets();
 
     const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-    const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
+    const [selectedAccountIndex, setSelectedAccountIndex] = useState(0);
+    const selectedAccount = bankAccounts[selectedAccountIndex] || null;
     const [showProofModal, setShowProofModal] = useState(false);
     const [proofImage, setProofImage] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -61,9 +65,6 @@ const BankTransferConfirmScreen = () => {
                     ? JSON.parse(settings.bank_accounts)
                     : settings.bank_accounts;
                 setBankAccounts(accounts);
-                if (accounts.length > 0) {
-                    setSelectedAccount(accounts[0]);
-                }
             } catch (e) {
                 console.error('Error parsing bank accounts:', e);
             }
@@ -203,7 +204,7 @@ const BankTransferConfirmScreen = () => {
     };
 
     return (
-        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             <StatusBar style="light" />
 
             {/* Header */}
@@ -218,12 +219,46 @@ const BankTransferConfirmScreen = () => {
             </View>
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+                {/* Bank Account Tabs */}
+                {bankAccounts.length > 1 && (
+                    <View style={styles.tabContainer}>
+                        {bankAccounts.map((account, index) => (
+                            <Pressable
+                                key={account.id}
+                                style={[
+                                    styles.tab,
+                                    selectedAccountIndex === index && styles.tabActive,
+                                ]}
+                                onPress={() => setSelectedAccountIndex(index)}
+                            >
+                                <Feather
+                                    name="credit-card"
+                                    size={14}
+                                    color={selectedAccountIndex === index ? '#FFFFFF' : '#6B7280'}
+                                />
+                                <Typography
+                                    variant="text"
+                                    size="sm"
+                                    weight={selectedAccountIndex === index ? 'semiBold' : 'regular'}
+                                    style={[
+                                        styles.tabText,
+                                        selectedAccountIndex === index && styles.tabTextActive,
+                                    ]}
+                                    numberOfLines={1}
+                                >
+                                    {account.bank_name}
+                                </Typography>
+                            </Pressable>
+                        ))}
+                    </View>
+                )}
+
                 {/* Bank Card Image */}
                 {selectedAccount && (
                     <View style={styles.bankCardContainer}>
                         <View style={styles.bankCard}>
                             <LinearGradient
-                                colors={['#4A6FA5', '#1E3A5F']}
+                                colors={selectedAccountIndex === 0 ? ['#4A6FA5', '#1E3A5F'] : ['#2D8B74', '#1A5C4E']}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 1 }}
                                 style={styles.bankCardGradient}
@@ -256,6 +291,20 @@ const BankTransferConfirmScreen = () => {
                             </LinearGradient>
                         </View>
 
+                        {/* Payment Image */}
+                        {selectedAccount.qr_code_url && (
+                            <View style={styles.qrCodeContainer}>
+                                <Typography variant="text" size="sm" weight="medium" style={styles.qrLabel}>
+                                    {t('bankTransfer.paymentImage')}
+                                </Typography>
+                                <Image
+                                    source={{ uri: selectedAccount.qr_code_url }}
+                                    style={styles.qrCodeImage}
+                                    contentFit="contain"
+                                />
+                            </View>
+                        )}
+
                         <Pressable style={styles.saveImageButton}>
                             <Feather name="download" size={18} color="#3B82F6" />
                             <Typography variant="text" size="sm" style={styles.saveImageText}>
@@ -284,6 +333,17 @@ const BankTransferConfirmScreen = () => {
                             {selectedAccount?.bank_name || '-'}
                         </Typography>
                     </View>
+
+                    {selectedAccount?.branch_name ? (
+                        <View style={styles.detailRow}>
+                            <Typography variant="text" size="md" style={styles.detailLabel}>
+                                {t('bankTransfer.branchName')}
+                            </Typography>
+                            <Typography variant="text" size="md" weight="semiBold">
+                                {selectedAccount.branch_name}
+                            </Typography>
+                        </View>
+                    ) : null}
 
                     <View style={styles.detailRow}>
                         <Typography variant="text" size="md" style={styles.detailLabel}>
@@ -347,7 +407,10 @@ const BankTransferConfirmScreen = () => {
             </ScrollView>
 
             {/* Bottom Button */}
-            <View style={styles.bottomBar}>
+            <View style={[
+                styles.bottomBar,
+                { paddingBottom: insets.bottom }
+            ]}>
                 <Pressable style={styles.confirmButton} onPress={handleConfirmTransfer}>
                     <Typography variant="text" size="md" weight="semiBold" style={styles.confirmButtonText}>
                         {t('bankTransfer.confirmTransfer')}
@@ -448,9 +511,39 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
         },
+        tabContainer: {
+            flexDirection: 'row',
+            paddingHorizontal: 16,
+            paddingTop: 20,
+            paddingBottom: 4,
+            gap: 8,
+        },
+        tab: {
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            paddingVertical: 10,
+            paddingHorizontal: 12,
+            borderRadius: 10,
+            backgroundColor: '#F3F4F6',
+            borderWidth: 1.5,
+            borderColor: 'transparent',
+        },
+        tabActive: {
+            backgroundColor: '#1E3A5F',
+            borderColor: '#3B82F6',
+        },
+        tabText: {
+            color: '#6B7280',
+        },
+        tabTextActive: {
+            color: '#FFFFFF',
+        },
         bankCardContainer: {
             alignItems: 'center',
-            paddingTop: 24,
+            paddingTop: 20,
             paddingBottom: 16,
         },
         bankCard: {
@@ -496,6 +589,28 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
         bankCardValue: {
             color: '#FFFFFF',
             marginTop: 2,
+        },
+        qrCodeContainer: {
+            alignItems: 'center',
+            marginTop: 16,
+            backgroundColor: '#FFFFFF',
+            borderRadius: 12,
+            padding: 16,
+            width: 200,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            elevation: 4,
+        },
+        qrLabel: {
+            color: theme.colors.text.secondary,
+            marginBottom: 10,
+        },
+        qrCodeImage: {
+            width: 160,
+            height: 160,
+            borderRadius: 8,
         },
         saveImageButton: {
             flexDirection: 'row',

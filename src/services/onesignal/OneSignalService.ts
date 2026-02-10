@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-const ONESIGNAL_APP_ID = '1278242a-b7fa-44b4-80a9-1e4e4fbf0500';
+const ONESIGNAL_APP_ID = 'a75669bc-e4b9-4ce1-8095-eec959dbb6f9';
 
 // Dynamic import for OneSignal to handle platform-specific loading
 let OneSignalNamespace: any = null;

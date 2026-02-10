@@ -713,177 +713,127 @@ export class AuthManager {
   }
 
   /**
-   * Sign in with LINE using Supabase Custom OIDC Provider
-   * Note: LINE must be configured as a custom OIDC provider in Supabase Dashboard
-   * Go to: Supabase Dashboard > Authentication > Providers > Add custom provider
-   * - Name: line
-   * - Client ID: Your LINE Channel ID
-   * - Client Secret: Your LINE Channel Secret
-   * - Issuer URL: https://access.line.me
-   * - Authorization URL: https://access.line.me/oauth2/v2.1/authorize
-   * - Token URL: https://api.line.me/oauth2/v2.1/token
-   * - Userinfo URL: https://api.line.me/v2/profile
+   * Sign in with LINE using Edge Functions
+   * Flow:
+   * 1. App mở browser đến LINE với redirect_uri = Edge Function (HTTPS)
+   * 2. Sau khi user đăng nhập, LINE redirect về Edge Function với code
+   * 3. Edge Function redirect về App với code
+   * 4. App gọi line-login Edge Function để đổi code lấy session
+   * 
+   * SETUP REQUIRED:
+   * 1. LINE Developer Console > LINE Login > Callback URL: https://[project].supabase.co/functions/v1/line-callback
+   * 2. Supabase Dashboard > Edge Functions > line-callback: TẮT "Enforce JWT Verification"
+   * 3. Supabase Secrets: LINE_CHANNEL_ID, LINE_CHANNEL_SECRET, SUPABASE_SERVICE_ROLE_KEY
    */
   async signInWithLINE(): Promise<void> {
     this.setState({ isLoading: true, errorMessage: null });
 
     try {
-      // LINE callback URL must be HTTPS - use edge function as intermediary
-      // The edge function will redirect back to the app with the code
+      // LINE callback URL phải là HTTPS - dùng Edge Function làm trung gian
       const lineCallbackUrl = `${SUPABASE_URL}/functions/v1/line-callback`;
-      const appRedirectUri = this.buildRedirectUri(); // didi://auth/callback
-      const state = Math.random().toString(36).substring(7);
+      const appRedirectUri = this.buildRedirectUri(); // exp://... hoặc didi://...
+
+      // Tạo state chứa redirect URI để Edge Function biết redirect về đâu
+      const stateData = {
+        nonce: Math.random().toString(36).substring(7),
+        redirectTo: appRedirectUri
+      };
+      const state = encodeURIComponent(JSON.stringify(stateData));
       const scope = 'profile openid';
 
-      console.log('[AuthManager] LINE Login - Step 1: Building auth URL', {
+      console.log('[AuthManager] LINE Login - Bước 1: Tạo auth URL', {
         lineCallbackUrl,
         appRedirectUri,
-        state,
-        scope,
         LINE_CHANNEL_ID,
       });
 
-      // Construct LINE auth URL with HTTPS callback
-      const authUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${LINE_CHANNEL_ID}&redirect_uri=${encodeURIComponent(
-        lineCallbackUrl,
-      )}&state=${state}&scope=${encodeURIComponent(scope)}`;
+      // Tạo LINE auth URL
+      const authUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${LINE_CHANNEL_ID}&redirect_uri=${encodeURIComponent(lineCallbackUrl)}&state=${state}&scope=${encodeURIComponent(scope)}`;
 
-      console.log('[AuthManager] LINE Login - Step 2: Opening browser with URL:', authUrl);
+      console.log('[AuthManager] LINE Login - Bước 2: Mở browser');
 
-      // Open browser - LINE will redirect to edge function, which redirects to app
+      // Mở browser
       const result = await WebBrowser.openAuthSessionAsync(authUrl, appRedirectUri);
 
-      console.log('[AuthManager] LINE Login - Step 3: Browser result:', {
+      console.log('[AuthManager] LINE Login - Bước 3: Kết quả browser:', {
         type: result.type,
         url: result.type === 'success' ? result.url : 'N/A',
       });
 
       if (result.type !== 'success' || !result.url) {
-        console.log(`[AuthManager] LINE login aborted with result type: ${result.type}`);
+        console.log(`[AuthManager] LINE login bị hủy: ${result.type}`);
         this.setState({ errorMessage: null, isLoading: false });
         return;
       }
 
+      // Lấy code từ URL
       const { authCode } = this.extractAuthPayloadFromUrl(result.url);
 
-      console.log('[AuthManager] LINE Login - Step 4: Extracted auth code:', {
-        authCode: authCode ? `${authCode.substring(0, 10)}...` : 'null',
-        fullUrl: result.url,
-      });
+      console.log('[AuthManager] LINE Login - Bước 4: Lấy được code:', authCode ? 'Có' : 'Không');
 
       if (!authCode) {
-        const errorMsg = `No authorization code found in URL: ${result.url}`;
-        console.error('[AuthManager]', errorMsg);
-        throw new Error(errorMsg);
+        throw new Error(`Không tìm thấy authorization code trong URL: ${result.url}`);
       }
 
-      console.log('[AuthManager] LINE Login - Step 5: Calling line-login edge function');
+      console.log('[AuthManager] LINE Login - Bước 5: Gọi line-login Edge Function');
 
-      // Call Supabase Edge Function to exchange code for session
+      // Gọi Edge Function để đổi code lấy session
       const { data, error: fnError } = await supabase.functions.invoke('line-login', {
         body: {
           code: authCode,
-          redirectUri: lineCallbackUrl, // Must match what was sent to LINE
+          redirectUri: lineCallbackUrl, // Phải khớp với redirect_uri ban đầu
         },
       });
 
-      console.log('[AuthManager] LINE Login - Step 6: Edge function response:', {
+      console.log('[AuthManager] LINE Login - Bước 6: Kết quả Edge Function:', {
         hasData: !!data,
         hasError: !!fnError,
         errorMessage: fnError?.message,
-        dataKeys: data ? Object.keys(data) : [],
       });
 
       if (fnError) {
-        console.error('[AuthManager] LINE Login - Edge function error:', {
-          message: fnError.message,
-          name: fnError.name,
-          context: fnError.context,
-          details: fnError,
-        });
-        throw fnError;
+        throw new Error(fnError.message || 'Edge Function lỗi');
       }
 
       if (!data?.session) {
-        const errorMsg = `Invalid response from server. Data: ${JSON.stringify(data)}`;
-        console.error('[AuthManager]', errorMsg);
-        throw new Error(errorMsg);
+        throw new Error(`Server trả về không hợp lệ: ${JSON.stringify(data)}`);
       }
 
       const { access_token, refresh_token, user } = data.session;
 
-      console.log('[AuthManager] LINE Login - Step 7: Setting session', {
-        hasAccessToken: !!access_token,
-        hasRefreshToken: !!refresh_token,
-        hasUser: !!user,
-        userId: user?.id,
-      });
-
-      // Set session to Supabase client
+      // Set session vào Supabase client
       const { error: setSessionError } = await supabase.auth.setSession({
         access_token,
         refresh_token: refresh_token || '',
       });
 
       if (setSessionError) {
-        console.error('[AuthManager] LINE Login - Set session error:', setSessionError);
         throw setSessionError;
       }
 
-      console.log('[AuthManager] LINE Login - Step 8: Registering user with OneSignal');
-
-      // Register user with OneSignal after LINE sign in
+      // Đăng ký OneSignal
       if (user) {
         await oneSignalService.registerUser(user.id, 'customer');
       }
 
-      console.log('[AuthManager] LINE Login - Step 9: Success! ✅');
+      console.log('[AuthManager] LINE Login - Thành công! ✅');
 
-      // Success
       this.setState({
-        session: { ...data.session, user }, // Ensure structure matches
+        session: { ...data.session, user },
         user: user,
         isLoading: false,
       });
     } catch (err: any) {
-      console.error('[AuthManager] signInWithLINE failed', err);
+      console.error('[AuthManager] signInWithLINE thất bại:', err);
 
-      // Build detailed error message for debugging
-      const errorDetails = {
-        message: err.message || 'Unknown error',
-        name: err.name,
-        code: err.code || err.error_code,
-        status: err.status,
-        details: err.details,
-        hint: err.hint,
-        fullError: JSON.stringify(err, null, 2),
-      };
-
-      const debugMessage = `
-🔴 LINE Login Error Debug Info:
-
-Message: ${errorDetails.message}
-Name: ${errorDetails.name || 'N/A'}
-Code: ${errorDetails.code || 'N/A'}
-Status: ${errorDetails.status || 'N/A'}
-Details: ${errorDetails.details || 'N/A'}
-Hint: ${errorDetails.hint || 'N/A'}
-
-Full Error:
-${errorDetails.fullError}
-      `.trim();
-
-      console.error(debugMessage);
-
-      // Show alert with detailed error
       Alert.alert(
-        'LINE Login Error',
-        debugMessage,
-        [{ text: 'OK', style: 'cancel' }]
+        'Lỗi đăng nhập LINE',
+        err.message || 'Đã có lỗi xảy ra',
+        [{ text: 'OK' }]
       );
 
       this.setState({
-        errorMessage: err.message || 'Failed to sign in with LINE',
+        errorMessage: err.message || 'Đăng nhập LINE thất bại',
         isLoading: false,
       });
     }

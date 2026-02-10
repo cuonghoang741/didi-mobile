@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Typography, ProductCard, FilterModal } from '@/components';
 import { useTheme, useLanguage } from '@/contexts';
-import { searchProducts, SearchFilter } from '@/services/supabase';
+import { searchProducts, SearchFilter, fetchFeaturedProducts } from '@/services/supabase';
 import type { Product } from '@/types/database.types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -34,10 +34,26 @@ const SearchScreen = () => {
   const [filter, setFilter] = useState<SearchFilter>({});
   const [isFilterVisible, setFilterVisible] = useState(false);
   const [results, setResults] = useState<Product[]>([]);
+  const [suggestedProducts, setSuggestedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingSuggested, setLoadingSuggested] = useState(true);
   const [hasSearched, setHasSearched] = useState(false);
 
+  // Load suggested products on mount
   useEffect(() => {
+    const loadSuggestedProducts = async () => {
+      try {
+        const products = await fetchFeaturedProducts();
+        setSuggestedProducts(products);
+      } catch (error) {
+        console.error('Error loading suggested products:', error);
+      } finally {
+        setLoadingSuggested(false);
+      }
+    };
+
+    loadSuggestedProducts();
+
     // Auto-focus on mount
     setTimeout(() => {
       inputRef.current?.focus();
@@ -53,16 +69,7 @@ const SearchScreen = () => {
   }, [query, filter]);
 
   const performSearch = async (text: string, currentFilter: SearchFilter) => {
-    // If no text and no filter, clear results?
-    // Or if filter is active, maybe show all products matching filter?
-    // Let's decide: searchProducts handles empty text by returning empty if logic stays same.
-    // Ideally if filter is applied, we might want to search even if text is empty?
-    // Currently searchProducts returns [] if query is empty.
-    // Let's modify logic: allow empty query if filter is present.
-    // But `searchProducts` implementation requires `queryText` or returns [].
-    // I should ideally update `searchProducts` to allow empty query if filter is set.
-    // For now, I will keep requiring text OR update the logic here if text is present.
-
+    // If no text and no filter, show suggested products instead
     if (!text.trim() && Object.keys(currentFilter).length === 0) {
       setResults([]);
       setHasSearched(false);
@@ -103,6 +110,10 @@ const SearchScreen = () => {
     // Effect will trigger search
   };
 
+  // Determine which products to display
+  const displayProducts = hasSearched ? results : suggestedProducts;
+  const isLoading = hasSearched ? loading : loadingSuggested;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -135,16 +146,23 @@ const SearchScreen = () => {
       </View>
 
       {/* Content */}
-      {loading ? (
+      {isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator size='large' color={theme.colors.text.brand_primary} />
         </View>
       ) : (
         <FlatList
-          data={results}
+          data={displayProducts}
           numColumns={COLUMN_count}
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.listContent}
+          ListHeaderComponent={
+            !hasSearched && displayProducts.length > 0 ? (
+              <Typography variant='text' size='md' weight='semiBold' style={styles.sectionTitle}>
+                {t('search.suggested') || 'Gợi ý cho bạn'}
+              </Typography>
+            ) : null
+          }
           renderItem={({ item }) => (
             <View style={styles.cardContainer}>
               <ProductCard
@@ -230,6 +248,10 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     cardContainer: {
       width: ITEM_WIDTH,
     },
+    sectionTitle: {
+      color: theme.colors.text.primary,
+      marginBottom: 12,
+    },
     emptyContainer: {
       flex: 1,
       justifyContent: 'center',
@@ -249,3 +271,4 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
   });
 
 export default SearchScreen;
+

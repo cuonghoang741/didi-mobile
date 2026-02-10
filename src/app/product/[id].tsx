@@ -630,13 +630,13 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       borderRadius: 20,
     },
     imageContainer: {
-      width: SCREEN_WIDTH,
-      height: SCREEN_WIDTH,
+      width: '100%',
+      aspectRatio: 1, // Keep square aspect ratio
       backgroundColor: theme.colors.background.secondary,
     },
     productImage: {
       width: SCREEN_WIDTH,
-      height: SCREEN_WIDTH,
+      aspectRatio: 1,
     },
     pagination: {
       position: 'absolute',

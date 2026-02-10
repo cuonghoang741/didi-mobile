@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import { Image, ImageLoadEventData } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState, useCallback } from 'react';
@@ -10,6 +10,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Pressable,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -38,6 +39,114 @@ import {
 } from '@/services/supabase';
 import type { Banner, Product } from '@/types/database.types';
 import { getLocalizedContent } from '@/utils/language';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SECONDARY_BANNER_MARGIN = 16;
+const SECONDARY_BANNER_WIDTH = SCREEN_WIDTH - SECONDARY_BANNER_MARGIN * 2;
+const DEFAULT_ASPECT_RATIO = 16 / 9;
+
+// Component for secondary banner with dynamic height based on aspect ratio
+interface SecondaryBannerItemProps {
+  banner: Banner;
+  onPress: (banner: Banner) => void;
+  theme: ReturnType<typeof useTheme>;
+}
+
+const SecondaryBannerItem: React.FC<SecondaryBannerItemProps> = ({ banner, onPress, theme }) => {
+  const [bannerHeight, setBannerHeight] = useState(SECONDARY_BANNER_WIDTH / DEFAULT_ASPECT_RATIO);
+
+  const handleImageLoad = (event: ImageLoadEventData) => {
+    const { width, height } = event.source;
+    if (width && height) {
+      const aspectRatio = width / height;
+      const calculatedHeight = SECONDARY_BANNER_WIDTH / aspectRatio;
+      setBannerHeight(calculatedHeight);
+    }
+  };
+
+  const styles = createSecondaryBannerStyles(theme);
+
+  return (
+    <Pressable
+      onPress={() => onPress(banner)}
+      style={[styles.globalBannerContainer, { height: bannerHeight }]}
+    >
+      <Image
+        source={{ uri: banner.mobile_image_url || banner.image_url }}
+        style={styles.globalBannerImage}
+        contentFit='cover'
+        transition={200}
+        onLoad={handleImageLoad}
+      />
+      <LinearGradient
+        colors={['transparent', banner.button_text ? 'rgba(0,0,0,0.7)' : 'transparent']}
+        style={styles.bannerOverlay}
+      >
+        <View style={styles.bannerTextContainer}>
+          {banner.button_text && banner.subtitle ? (
+            <Typography variant='text' size='sm' style={styles.bannerSubtitle}>
+              {banner.subtitle}
+            </Typography>
+          ) : null}
+          {banner.button_text && banner.title ? (
+            <Typography variant='text' size='lg' weight='bold' style={styles.bannerTitle}>
+              {banner.title}
+            </Typography>
+          ) : null}
+          {banner.button_text ? (
+            <View style={styles.bannerButton}>
+              <Typography variant='text' size='xs' weight='semiBold' style={styles.bannerButtonText}>
+                {banner.button_text}
+              </Typography>
+            </View>
+          ) : null}
+        </View>
+      </LinearGradient>
+    </Pressable>
+  );
+};
+
+const createSecondaryBannerStyles = (theme: ReturnType<typeof useTheme>) =>
+  StyleSheet.create({
+    globalBannerContainer: {
+      width: '100%',
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    globalBannerImage: {
+      width: '100%',
+      height: '100%',
+    },
+    bannerOverlay: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: '70%',
+      justifyContent: 'flex-end',
+      padding: 16,
+    },
+    bannerTextContainer: {
+      gap: 4,
+    },
+    bannerSubtitle: {
+      color: 'rgba(255,255,255,0.85)',
+    },
+    bannerTitle: {
+      color: '#FFFFFF',
+    },
+    bannerButton: {
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      alignSelf: 'flex-start',
+      marginTop: 6,
+    },
+    bannerButtonText: {
+      color: '#FFFFFF',
+    },
+  });
 
 const Home = () => {
   const router = useRouter();
@@ -224,42 +333,12 @@ const Home = () => {
         {data.banners && data.banners.length > 0 && (
           <View style={styles.secondaryBannersContainer}>
             {data.banners.slice(0, 2).map((banner) => (
-              <Pressable
+              <SecondaryBannerItem
                 key={`secondary-banner-${banner.id}`}
-                onPress={() => handleBannerPress(banner)}
-                style={styles.globalBannerContainer}
-              >
-                <Image
-                  source={{ uri: banner.mobile_image_url || banner.image_url }}
-                  style={styles.globalBannerImage}
-                  contentFit='cover'
-                  transition={200}
-                />
-                <LinearGradient
-                  colors={['transparent', banner.button_text ? 'rgba(0,0,0,0.7)' : 'transparent']}
-                  style={styles.bannerOverlay}
-                >
-                  <View style={styles.bannerTextContainer}>
-                    {banner.button_text && banner.subtitle ? (
-                      <Typography variant='text' size='sm' style={styles.bannerSubtitle}>
-                        {banner.subtitle}
-                      </Typography>
-                    ) : null}
-                    {banner.button_text && banner.title ? (
-                      <Typography variant='text' size='lg' weight='bold' style={styles.bannerTitle}>
-                        {banner.title}
-                      </Typography>
-                    ) : null}
-                    {banner.button_text ? (
-                      <View style={styles.bannerButton}>
-                        <Typography variant='text' size='xs' weight='semiBold' style={styles.bannerButtonText}>
-                          {banner.button_text}
-                        </Typography>
-                      </View>
-                    ) : null}
-                  </View>
-                </LinearGradient>
-              </Pressable>
+                banner={banner}
+                onPress={handleBannerPress}
+                theme={theme}
+              />
             ))}
           </View>
         )}
@@ -307,45 +386,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       marginBottom: 24,
       paddingHorizontal: 16,
     },
-    globalBannerContainer: {
-      width: '100%',
-      height: 150,
-      borderRadius: 12,
-      overflow: 'hidden',
-    },
-    globalBannerImage: {
-      width: '100%',
-      height: '100%',
-    },
-    bannerOverlay: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      height: '70%',
-      justifyContent: 'flex-end',
-      padding: 16,
-    },
-    bannerTextContainer: {
-      gap: 4,
-    },
-    bannerSubtitle: {
-      color: 'rgba(255,255,255,0.85)',
-    },
-    bannerTitle: {
-      color: '#FFFFFF',
-    },
-    bannerButton: {
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 20,
-      alignSelf: 'flex-start',
-      marginTop: 6,
-    },
-    bannerButtonText: {
-      color: '#FFFFFF',
-    },
   });
 
 export default Home;
+

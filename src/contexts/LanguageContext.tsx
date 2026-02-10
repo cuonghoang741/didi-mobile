@@ -1,3 +1,4 @@
+import * as Localization from 'expo-localization';
 import * as SecureStore from 'expo-secure-store';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
@@ -28,6 +29,18 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
         const savedLocale = await SecureStore.getItemAsync(STORAGE_KEYS.LANGUAGE_KEY);
         if (savedLocale && (savedLocale === 'vi' || savedLocale === 'en' || savedLocale === 'jp')) {
           setLanguageState(savedLocale as Language);
+        } else {
+          const locales = Localization.getLocales();
+          if (locales?.length > 0) {
+            const languageCode = locales[0].languageCode;
+            if (languageCode === 'vi') {
+              setLanguageState('vi');
+            } else if (languageCode === 'en') {
+              setLanguageState('en');
+            } else if (languageCode === 'ja') {
+              setLanguageState('jp');
+            }
+          }
         }
       } catch (error) {
         console.warn('Failed to load language from storage:', error);

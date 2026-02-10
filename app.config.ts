@@ -37,7 +37,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       NSPhotoLibraryUsageDescription:
-        'Ứng dụng cần quyền truy cập thư viện ảnh để bạn có thể chọn ảnh bằng chứng thanh toán.',
+        '支払証明書のアップロードなどのために、写真ライブラリへのアクセスが必要です。',
+      NSCameraUsageDescription:
+        '支払証明書の撮影、住所確認、またはプロフィール写真の設定のためにカメラへのアクセスが必要です。例：銀行振込明細書の撮影。',
     },
     // iPhone 17 Pro Max specific settings
     requireFullScreen: false,
@@ -66,7 +68,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-splash-screen',
       {
         image: './src/assets/images/logo.png',
-        imageWidth: 200,
+        imageWidth: 300,
         resizeMode: 'contain',
         backgroundColor: '#ffffff',
         color: '#ffffff',

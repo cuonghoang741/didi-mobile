@@ -64,11 +64,11 @@ const ProductReviews = ({ product, onViewAll }: ProductReviewsProps) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Typography variant='text' size='lg' weight='bold'>
-          Đánh giá sản phẩm
+          {t('product.reviews')}
         </Typography>
         <Pressable onPress={onViewAll} style={styles.viewAllBtn}>
           <Typography variant='text' size='md' style={styles.viewAllText}>
-            Xem tất cả
+            {t('common.viewAll')}
           </Typography>
           <Feather name='chevron-right' size={20} color='#3B82F6' />
         </Pressable>
@@ -84,7 +84,7 @@ const ProductReviews = ({ product, onViewAll }: ProductReviewsProps) => {
           </View>
           <View style={{ marginBottom: 6 }}>{renderStars(Math.round(avgRating), 16)}</View>
           <Typography variant='text' size='sm' style={styles.totalReviewsText}>
-            {totalReviews} đánh giá
+            {totalReviews} {t('product.rating')}
           </Typography>
         </View>
 
@@ -132,7 +132,7 @@ const ProductReviews = ({ product, onViewAll }: ProductReviewsProps) => {
                   </View>
                   <View style={styles.reviewInfo}>
                     <Typography variant='text' size='md' weight='bold'>
-                      {review.user?.full_name || 'Người dùng'}
+                      {review.user?.full_name || t('common.user') || 'User'}
                     </Typography>
                     <View style={styles.reviewMeta}>
                       {renderStars(review.rating, 12)}
@@ -174,7 +174,7 @@ const ProductReviews = ({ product, onViewAll }: ProductReviewsProps) => {
           })
         ) : (
           <Typography variant='text' size='sm' style={styles.noReviews}>
-            Chưa có đánh giá nào.
+            {t('product.noReviews')}
           </Typography>
         )}
       </View>

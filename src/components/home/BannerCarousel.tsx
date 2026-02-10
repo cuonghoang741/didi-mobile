@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+import { Image, ImageLoadEventData } from 'expo-image';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -17,7 +17,7 @@ import type { Banner } from '@/types/database.types';
 import { grayLight } from '@/themes/palette';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const BANNER_HEIGHT = 180;
+const DEFAULT_ASPECT_RATIO = 16 / 9; // Default aspect ratio for fallback
 const BANNER_MARGIN = 16;
 const BANNER_GAP = 12;
 const BANNER_WIDTH = SCREEN_WIDTH - BANNER_MARGIN * 2;
@@ -32,6 +32,14 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onBannerPress 
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Track banner heights by index, with default calculated from default aspect ratio
+  const [bannerHeights, setBannerHeights] = useState<Record<number, number>>({});
+
+  // Calculate the current banner height (use max height for consistent carousel)
+  const maxBannerHeight = Math.max(
+    BANNER_WIDTH / DEFAULT_ASPECT_RATIO,
+    ...Object.values(bannerHeights)
+  );
 
   const startAutoPlay = useCallback(() => {
     if (banners.length <= 1) return;
@@ -70,18 +78,31 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onBannerPress 
     onBannerPress?.(banner);
   };
 
-  const renderBanner = ({ item }: { item: Banner }) => (
+  const handleImageLoad = (index: number) => (event: ImageLoadEventData) => {
+    const { width, height } = event.source;
+    if (width && height) {
+      const aspectRatio = width / height;
+      const calculatedHeight = BANNER_WIDTH / aspectRatio;
+      setBannerHeights((prev) => ({
+        ...prev,
+        [index]: calculatedHeight,
+      }));
+    }
+  };
+
+  const renderBanner = ({ item, index }: { item: Banner; index: number }) => (
     <Pressable
       onPress={() => handleBannerPress(item)}
       onPressIn={stopAutoPlay}
       onPressOut={startAutoPlay}
-      style={styles.bannerContainer}
+      style={[styles.bannerContainer, { width: BANNER_WIDTH, height: maxBannerHeight }]}
     >
       <Image
         source={{ uri: item.mobile_image_url || item.image_url }}
         style={styles.bannerImage}
         contentFit='cover'
         transition={300}
+        onLoad={handleImageLoad(index)}
       />
       <LinearGradient colors={['transparent', item.button_text ? 'rgba(0,0,0,0.6)' : 'transparent']} style={styles.gradient}>
         <View style={styles.textContainer}>
@@ -167,8 +188,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: BANNER_MARGIN,
   },
   bannerContainer: {
-    width: BANNER_WIDTH,
-    height: BANNER_HEIGHT,
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#f0f0f0',

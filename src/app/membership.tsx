@@ -258,13 +258,13 @@ const MembershipScreen = () => {
                             contentContainerStyle={styles.scrollContent}
                             showsVerticalScrollIndicator={false}
                         >
-                            {/* Rank Card - Using Image as Background */}
-                            <ImageBackground
-                                source={RANK_CARDS[selectedRank]}
-                                style={styles.rankCard}
-                                imageStyle={styles.rankCardImage}
-                                resizeMode="cover"
-                            >
+                            {/* Rank Card - Using Absolute Image */}
+                            <View style={styles.rankCard}>
+                                <Image
+                                    source={RANK_CARDS[selectedRank]}
+                                    style={styles.rankCardBg}
+                                    resizeMode="cover"
+                                />
                                 <View style={styles.rankCardContent}>
                                     {/* Rank Info - Left Side */}
                                     <View style={styles.rankInfo}>
@@ -351,7 +351,7 @@ const MembershipScreen = () => {
                                         </Typography>
                                     )}
                                 </View>
-                            </ImageBackground>
+                            </View>
 
                             {/* Rank Tabs */}
                             <View style={styles.rankTabs}>
@@ -461,9 +461,14 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
             overflow: 'hidden',
             marginBottom: 16,
             minHeight: 160,
+            aspectRatio: 5 / 2,
+            width: '100%',
         },
-        rankCardImage: {
-            borderRadius: 20,
+        rankCardBg: {
+            ...StyleSheet.absoluteFillObject,
+            width: '100%',
+            height: '100%',
+            zIndex: -1,
         },
         rankCardContent: {
             flex: 1,

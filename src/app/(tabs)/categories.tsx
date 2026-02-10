@@ -22,7 +22,7 @@ import { fetchBrandsFromTable } from '@/services/supabase/productService';
 import type { Category, Product, Brand } from '@/types/database.types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const LEFT_PANEL_WIDTH = SCREEN_WIDTH * 0.22;
+const LEFT_PANEL_WIDTH = Math.min(SCREEN_WIDTH * 0.22, 100);
 
 const Categories = () => {
   const router = useRouter();
@@ -200,6 +200,8 @@ const Categories = () => {
   const renderProductItem = (item: Product) => {
     const productName = getLocalizedContent(item.language, 'name', language, item.name);
     const price = item.sale_price || item.base_price || 0;
+    const imageUri = item.thumbnail_url || item.image_urls?.[0] || 'https://via.placeholder.com/100';
+
     return (
       <Pressable
         key={item.id}
@@ -207,7 +209,7 @@ const Categories = () => {
         onPress={() => handleProductPress(item)}
       >
         <Image
-          source={{ uri: item.thumbnail_url || item.image_urls?.[0] || 'https://via.placeholder.com/100' }}
+          source={{ uri: imageUri }}
           style={styles.productImage}
           contentFit='cover'
         />
@@ -445,7 +447,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     productImage: {
       width: '100%',
-      height: 120,
+      aspectRatio: 1 / 0.825, // Match ProductCard: cardWidth / (cardHeight * 0.55) where cardHeight = cardWidth * 1.5
     },
     productInfo: {
       padding: 10,
@@ -481,3 +483,4 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
   });
 
 export default Categories;
+
