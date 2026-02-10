@@ -156,14 +156,10 @@ const BankTransferConfirmScreen = () => {
 
     const handleSkipProof = () => {
         setShowProofModal(false);
-        router.replace({
-            pathname: '/order-success',
-            params: {
-                orderId,
-                orderNumber,
-                paymentPending: 'true'
-            }
-        } as any);
+        Alert.alert(
+            t('common.notice'),
+            t('bankTransfer.pleaseTransferAndUpload')
+        );
     };
 
     const handleRemoveImage = () => {
@@ -388,7 +384,7 @@ const BankTransferConfirmScreen = () => {
             {/* Payment Proof Modal */}
             <Modal
                 visible={showProofModal}
-                animationType="slide"
+                animationType="fade"
                 transparent
                 onRequestClose={() => setShowProofModal(false)}
             >

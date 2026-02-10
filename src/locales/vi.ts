@@ -428,6 +428,7 @@ export const vi = {
     tapToUpload: 'Chạm để tải ảnh lên',
     submit: 'Gửi',
     notTransferredYet: 'Tôi chưa chuyển khoản',
+    pleaseTransferAndUpload: 'Vui lòng chuyển khoản vào 1 trong những ngân hàng trên rồi up ảnh bằng chứng thanh toán và nhấn đã thanh toán',
   },
   timeSlot: {
     title: 'Chọn khung giờ nhận hàng',

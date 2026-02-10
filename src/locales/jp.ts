@@ -425,6 +425,7 @@ export const jp = {
     tapToUpload: 'タップして画像をアップロード',
     submit: '送信',
     notTransferredYet: 'まだ振込していません',
+    pleaseTransferAndUpload: '上記の銀行のいずれかに振り込んでから、支払い証明画像をアップロードして「支払いを確認」を押してください。',
   },
   timeSlot: {
     title: '配送時間帯を選択',

@@ -428,6 +428,7 @@ export const en = {
     tapToUpload: 'Tap to upload image',
     submit: 'Submit',
     notTransferredYet: 'I have not transferred yet',
+    pleaseTransferAndUpload: 'Please transfer to one of the banks above, then upload the payment proof image and click Confirm Payment.',
   },
   timeSlot: {
     title: 'Select Delivery Time',
