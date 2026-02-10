@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Switch, Linking, Alert, Modal, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Switch, Linking, Alert, Modal, Image, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Typography, Button } from '@/components';
@@ -37,12 +37,13 @@ const Profile = () => {
   const router = useRouter();
   const theme = useTheme();
   const { t, language, setLanguage } = useLanguage();
-  const { user, logout, isLoggedIn, getDisplayName, getEmail, getAvatarUrl } = useAuth();
+  const { user, profile, refreshProfile, logout, isLoggedIn, getDisplayName, getEmail, getAvatarUrl } = useAuth();
   const { branches, fanpageUrls, contactPhone, isLoading: isLoadingSettings } = useSettings();
   const styles = createStyles(theme);
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isTogglingNotifications, setIsTogglingNotifications] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
 
   // Get initial notification subscription status
@@ -100,6 +101,18 @@ const Profile = () => {
     setLanguage(newLanguage);
     setLanguageModalVisible(false);
   };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshProfile();
+      // Also refresh settings if needed
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshProfile]);
 
   // Get user initials for avatar
   const getInitials = (name: string) => {
@@ -423,6 +436,9 @@ const Profile = () => {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* User Info Section */}
         {isLoggedIn ? renderUserCard() : renderLoginCard()}
@@ -456,7 +472,7 @@ const Profile = () => {
                     {t('profile.accumulatedPoints')}
                   </Typography>
                   <Typography variant='text' size='lg' weight='bold' style={styles.statsValue}>
-                    1.600.000
+                    {profile?.loyalty_points?.toLocaleString() || '0'}
                   </Typography>
                 </View>
               </View>
@@ -473,7 +489,7 @@ const Profile = () => {
                     {t('profile.rank')}
                   </Typography>
                   <Typography variant='text' size='lg' weight='bold' style={styles.statsValue}>
-                    {t('profile.silverRank')}
+                    {profile?.loyalty_points && profile.loyalty_points > 5000 ? 'Hạng Vàng' : profile?.loyalty_points && profile.loyalty_points > 1000 ? 'Hạng Bạc' : 'Hạng Đồng'}
                   </Typography>
                 </View>
               </View>

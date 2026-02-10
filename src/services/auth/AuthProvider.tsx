@@ -1,4 +1,5 @@
 import type { Session, User } from '@supabase/supabase-js';
+import type { User as UserProfile } from '@/models/customer';
 import React, {
   createContext,
   ReactNode,
@@ -12,11 +13,13 @@ import { authManager } from './AuthManager';
 
 interface AuthContextType {
   user: User | null;
+  profile: UserProfile | null;
   session: Session | null;
   isLoading: boolean;
   isLoggedIn: boolean;
   errorMessage: string | null;
   hasRestoredSession: boolean;
+  refreshProfile: () => Promise<void>;
   // Actions
   checkPhoneExists: (phone: string) => Promise<{ exists: boolean; hasPassword: boolean }>;
   signInWithPhone: (phone: string) => Promise<{ success: boolean; message: string }>;
@@ -61,6 +64,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isLoggedIn = !!state.session && !!state.user;
 
   // Memoize action functions
+  const refreshProfile = useCallback(() => authManager.refreshProfile(), []);
   const checkPhoneExists = useCallback((phone: string) => authManager.checkPhoneExists(phone), []);
   const signInWithPhone = useCallback((phone: string) => authManager.signInWithPhone(phone), []);
   const signInWithPhonePassword = useCallback(
@@ -90,7 +94,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const value = useMemo<AuthContextType>(
     () => ({
       ...state,
+      profile: state.profile,
       isLoggedIn,
+      refreshProfile,
       checkPhoneExists,
       signInWithPhone,
       signInWithPhonePassword,
@@ -108,7 +114,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }),
     [
       state,
+      state.profile,
       isLoggedIn,
+      refreshProfile,
       checkPhoneExists,
       signInWithPhone,
       signInWithPhonePassword,

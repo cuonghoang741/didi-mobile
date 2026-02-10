@@ -1,4 +1,5 @@
 import type { Session, User } from '@supabase/supabase-js';
+import type { User as UserProfile } from '@/models/customer';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as AuthSession from 'expo-auth-session';
 import * as Crypto from 'expo-crypto';
@@ -22,6 +23,7 @@ WebBrowser.maybeCompleteAuthSession();
 type AuthManagerState = {
   session: Session | null;
   user: User | null;
+  profile: UserProfile | null;
   isLoading: boolean;
   errorMessage: string | null;
   hasRestoredSession: boolean;
@@ -38,6 +40,7 @@ export class AuthManager {
   private _state: AuthManagerState = {
     session: null,
     user: null,
+    profile: null,
     isLoading: false,
     errorMessage: null,
     hasRestoredSession: false,
@@ -60,6 +63,20 @@ export class AuthManager {
     });
   }
 
+  private async _fetchProfile(userId: string): Promise<UserProfile | null> {
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      return data as UserProfile;
+    } catch (error) {
+      console.warn('Error fetching profile:', error);
+      return null;
+    }
+  }
+
   private async refreshSessionFromClient(): Promise<void> {
     const {
       data: { session },
@@ -68,10 +85,23 @@ export class AuthManager {
       data: { user },
     } = await supabase.auth.getUser();
 
+    let profile: UserProfile | null = null;
+    if (user) {
+      profile = await this._fetchProfile(user.id);
+    }
+
     this.setState({
       session: session ?? null,
       user: user ?? null,
+      profile,
     });
+  }
+
+  async refreshProfile(): Promise<void> {
+    if (this._state.user) {
+      const profile = await this._fetchProfile(this._state.user.id);
+      this.setState({ profile });
+    }
   }
 
   static get shared(): AuthManager {
@@ -88,6 +118,10 @@ export class AuthManager {
 
   get user(): User | null {
     return this._state.user;
+  }
+
+  get profile(): UserProfile | null {
+    return this._state.profile;
   }
 
   get isLoading(): boolean {
@@ -131,6 +165,7 @@ export class AuthManager {
     const hasChanged =
       nextState.session !== this._state.session ||
       nextState.user !== this._state.user ||
+      nextState.profile !== this._state.profile ||
       nextState.isLoading !== this._state.isLoading ||
       nextState.errorMessage !== this._state.errorMessage ||
       nextState.hasRestoredSession !== this._state.hasRestoredSession;
@@ -156,9 +191,15 @@ export class AuthManager {
         data: { user },
       } = await supabase.auth.getUser();
 
+      let profile: UserProfile | null = null;
+      if (user) {
+        profile = await this._fetchProfile(user.id);
+      }
+
       this.setState({
         session,
         user,
+        profile,
         hasRestoredSession: true,
       });
     } catch (error) {
@@ -207,7 +248,7 @@ export class AuthManager {
         PersistKeys.refreshToken,
         PersistKeys.user,
       ]);
-      this.setState({ session: null, user: null });
+      this.setState({ session: null, user: null, profile: null });
     } catch (error: any) {
       this.setState({ errorMessage: error.message || 'Failed to sign out' });
       throw error;
@@ -347,9 +388,13 @@ export class AuthManager {
       if (data.session && data.user) {
         await oneSignalService.registerUser(data.user.id, 'customer');
 
+        // Fetch profile
+        const profileData = await this._fetchProfile(data.user.id);
+
         this.setState({
           session: data.session,
           user: data.user,
+          profile: profileData as UserProfile,
           isLoading: false,
         });
         return { session: data.session, user: data.user };
@@ -536,9 +581,13 @@ export class AuthManager {
         // Register user with OneSignal (set external ID and tags)
         await oneSignalService.registerUser(data.user.id, 'customer');
 
+        // Fetch profile
+        const profileData = await this._fetchProfile(data.user.id);
+
         this.setState({
           session: data.session,
           user: data.user,
+          profile: profileData as UserProfile,
           isLoading: false,
         });
         return { session: data.session, user: data.user };
@@ -611,9 +660,15 @@ export class AuthManager {
         await oneSignalService.registerUser(data.user.id, 'customer');
       }
 
+      let profile: UserProfile | null = null;
+      if (data.user) {
+        profile = await this._fetchProfile(data.user.id);
+      }
+
       this.setState({
         session: data.session ?? null,
         user: data.user ?? null,
+        profile,
       });
     } catch (error: any) {
       if (error?.code === 'ERR_CANCELED') {
@@ -674,9 +729,15 @@ export class AuthManager {
           await oneSignalService.registerUser(sessionData.user.id, 'customer');
         }
 
+        let profile: UserProfile | null = null;
+        if (sessionData.user) {
+          profile = await this._fetchProfile(sessionData.user.id);
+        }
+
         this.setState({
           session: sessionData.session ?? null,
           user: sessionData.user ?? null,
+          profile,
         });
         return;
       }
@@ -696,9 +757,15 @@ export class AuthManager {
           await oneSignalService.registerUser(sessionData.user.id, 'customer');
         }
 
+        let profile: UserProfile | null = null;
+        if (sessionData.user) {
+          profile = await this._fetchProfile(sessionData.user.id);
+        }
+
         this.setState({
           session: sessionData.session ?? null,
           user: sessionData.user ?? null,
+          profile,
         });
         return;
       }

@@ -92,7 +92,7 @@ interface MembershipData {
 const MembershipScreen = () => {
     const router = useRouter();
     const theme = useTheme();
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const { t } = useLanguage();
     const styles = createStyles(theme);
 
@@ -112,28 +112,14 @@ const MembershipScreen = () => {
     const [selectedRank, setSelectedRank] = useState<RankType>('gold');
 
     const fetchMembershipData = useCallback(async () => {
-        if (!user?.id) return;
-
         try {
-            // TODO: Update query when membership columns are added to database
-            // For now, use mock data - the columns 'membership_rank', 'total_spent', 'points' 
-            // do not exist in customers table yet
+            if (!profile) {
+                setIsLoading(false);
+                return;
+            }
 
-            // const { data, error } = await db
-            //     .from('customers')
-            //     .select('total_spent, membership_rank, points')
-            //     .eq('id', user.id)
-            //     .single();
+            const totalSpent = Number(profile.total_spent || 0);
 
-            // if (error) throw error;
-
-            // Mock data for demonstration
-            const mockData = {
-                total_spent: 22876564,
-                points: 1500,
-            };
-
-            const totalSpent = mockData.total_spent || 0;
             // Determine rank based on total spent
             let currentRank: RankType = 'member';
             for (let i = ranks.length - 1; i >= 0; i--) {
@@ -146,29 +132,26 @@ const MembershipScreen = () => {
             setMembershipData({
                 total_spent: totalSpent,
                 current_rank: currentRank,
-                points: mockData.points || 0,
+                points: profile.loyalty_points || 0,
             });
             setSelectedRank(currentRank);
         } catch (error) {
-            console.error('[MembershipScreen] Error fetching data:', error);
+            console.error('[MembershipScreen] Error processing data:', error);
         } finally {
             setIsLoading(false);
         }
-    }, [user?.id, ranks]);
+    }, [profile, ranks]);
 
     useEffect(() => {
         fetchMembershipData();
     }, [fetchMembershipData]);
 
     const formatCurrency = (value: number) => {
-        return value.toLocaleString('ja-JP');
+        return `¥${value.toLocaleString('ja-JP')}`;
     };
 
     const formatThreshold = (value: number) => {
-        if (value >= 10000) {
-            return `${value / 10000}${t('membership.millionUnit')}`;
-        }
-        return `${formatCurrency(value)}${t('membership.currency')}`;
+        return formatCurrency(value);
     };
 
     const getCurrentRankInfo = () => {
@@ -292,7 +275,7 @@ const MembershipScreen = () => {
                                                 weight="bold"
                                                 style={[styles.amountText, { color: selectedRankInfo.textColor }]}
                                             >
-                                                {formatCurrency(membershipData.total_spent)} {t('membership.currency')}
+                                                {formatCurrency(membershipData.total_spent)}
                                             </Typography>
                                             {!isMaxRank && isCurrentRank && (
                                                 <Typography
@@ -336,7 +319,7 @@ const MembershipScreen = () => {
                                                 size="xs"
                                                 style={[styles.remainingText, { color: selectedRankInfo.textColor, opacity: 0.7 }]}
                                             >
-                                                {t('membership.accumulateMore')} {formatCurrency(getRemainingToNextRank())} {t('membership.currency')} {t('membership.toReach')} {getNextRankName()}
+                                                {t('membership.accumulateMore')} {formatCurrency(getRemainingToNextRank())} {t('membership.toReach')} {getNextRankName()}
                                             </Typography>
                                         </>
                                     )}
