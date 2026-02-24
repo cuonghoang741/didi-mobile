@@ -93,11 +93,19 @@ const Categories = () => {
 
     setLoadingProducts(true);
     try {
+      console.log('[DEBUG Categories] Loading products for category:', selectedCategory.id, selectedCategory.name);
+
       // 1. Get product_ids from junction table
       const { data: junctionData, error: junctionError } = await supabase
         .from('product_categories_junction')
         .select('product_id')
         .eq('category_id', selectedCategory.id);
+
+      console.log('[DEBUG Categories] Junction result:', {
+        junctionData: junctionData?.length || 0,
+        junctionError,
+        rawData: junctionData,
+      });
 
       if (junctionError) {
         console.error('Error fetching junction:', junctionError);
@@ -108,9 +116,12 @@ const Categories = () => {
       const productIds = junctionData?.map((j) => j.product_id) || [];
 
       if (productIds.length === 0) {
+        console.log('[DEBUG Categories] No product IDs found in junction - setting empty products');
         setProducts([]);
         return;
       }
+
+      console.log('[DEBUG Categories] Product IDs found:', productIds);
 
       // 2. Fetch products details
       let query = supabase
@@ -128,7 +139,11 @@ const Categories = () => {
         query = query.eq('brand_id', selectedBrand.id);
       }
 
-      const { data } = await query.limit(50);
+      const { data, error: productsError } = await query.limit(50);
+      console.log('[DEBUG Categories] Products query result:', {
+        productsCount: data?.length || 0,
+        productsError,
+      });
       setProducts(data || []);
     } catch (error) {
       console.error('Error loading products:', error);

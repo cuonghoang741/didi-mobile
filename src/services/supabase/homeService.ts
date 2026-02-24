@@ -8,6 +8,78 @@ import type {
 
 import { supabase } from './client';
 
+// === DEBUG: Test RLS on product_categories_junction ===
+(async () => {
+  try {
+    // Test 1: Direct query to junction table (no filters)
+    const { data: junctionAll, error: junctionErr, count } = await (supabase as any)
+      .from('product_categories_junction')
+      .select('*', { count: 'exact' })
+      .limit(5);
+
+    console.log('🔍 [RLS DEBUG] product_categories_junction query:', {
+      dataLength: junctionAll?.length ?? 'null',
+      totalCount: count,
+      error: junctionErr,
+      sampleData: junctionAll?.slice(0, 3),
+    });
+
+    // Test 2: Check categories
+    const { data: catData } = await supabase
+      .from('categories')
+      .select('id, name, parent_id')
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .is('parent_id', null)
+      .limit(5);
+
+    console.log('🔍 [RLS DEBUG] Top-level categories:', catData?.map(c => ({ id: c.id, name: c.name })));
+
+    if (catData && catData.length > 0) {
+      // Test 3: Query junction with first category's ID
+      const firstCatId = catData[0].id;
+      const { data: junctionForCat, error: jErr } = await (supabase as any)
+        .from('product_categories_junction')
+        .select('product_id')
+        .eq('category_id', firstCatId);
+
+      console.log(`🔍 [RLS DEBUG] Junction for category "${catData[0].name}" (${firstCatId}):`, {
+        dataLength: junctionForCat?.length ?? 'null',
+        error: jErr,
+        data: junctionForCat,
+      });
+
+      // Test 4: Also check subcategories
+      const { data: subCats } = await supabase
+        .from('categories')
+        .select('id, name')
+        .eq('parent_id', firstCatId)
+        .is('deleted_at', null)
+        .eq('is_active', true);
+
+      console.log(`🔍 [RLS DEBUG] Subcategories of "${catData[0].name}":`, subCats);
+
+      if (subCats && subCats.length > 0) {
+        const allCatIds = [firstCatId, ...subCats.map(s => s.id)];
+        const { data: junctionForAll, error: jErr2 } = await (supabase as any)
+          .from('product_categories_junction')
+          .select('product_id')
+          .in('category_id', allCatIds);
+
+        console.log(`🔍 [RLS DEBUG] Junction for category + subcategories:`, {
+          categoryIds: allCatIds,
+          dataLength: junctionForAll?.length ?? 'null',
+          error: jErr2,
+          data: junctionForAll,
+        });
+      }
+    }
+  } catch (e) {
+    console.error('🔍 [RLS DEBUG] Error:', e);
+  }
+})();
+// === END DEBUG ===
+
 export interface HomeData {
   banners: Banner[];
   featuredProducts: Product[];
@@ -141,6 +213,8 @@ export const fetchCategoriesWithProducts = async (
     return [];
   }
 
+  console.log('[DEBUG fetchCategoriesWithProducts] Top-level categories found:', categories.length, categories.map(c => ({ id: c.id, name: c.name })));
+
   // Fetch products for each category
   const result: CategoryWithProducts[] = [];
 
@@ -154,12 +228,19 @@ export const fetchCategoriesWithProducts = async (
       .eq('is_active', true);
 
     const categoryIds = [category.id, ...(subCategories?.map((c) => c.id) || [])];
+    console.log(`[DEBUG] Category "${category.name}" (${category.id}) - subcategories:`, subCategories?.length || 0, '- all categoryIds:', categoryIds);
 
     // Get product IDs from junction table for these categories
     const { data: junctionData, error: junctionError } = await supabase
       .from('product_categories_junction')
       .select('product_id')
       .in('category_id', categoryIds);
+
+    console.log(`[DEBUG] Junction query for category "${category.name}":`, {
+      junctionData: junctionData?.length || 0,
+      junctionError: junctionError,
+      rawData: junctionData,
+    });
 
     if (junctionError) {
       console.error('Error fetching product Junction:', junctionError);
@@ -168,7 +249,12 @@ export const fetchCategoriesWithProducts = async (
 
     const productIds = junctionData?.map((j) => j.product_id) || [];
 
-    if (productIds.length === 0) continue;
+    if (productIds.length === 0) {
+      console.log(`[DEBUG] No products found in junction for category "${category.name}" - skipping`);
+      continue;
+    }
+
+    console.log(`[DEBUG] Product IDs for category "${category.name}":`, productIds);
 
     const { data: products, error: productsError } = await supabase
       .from('products')
@@ -180,6 +266,11 @@ export const fetchCategoriesWithProducts = async (
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(productLimit);
+
+    console.log(`[DEBUG] Products query result for category "${category.name}":`, {
+      productsCount: products?.length || 0,
+      productsError: productsError,
+    });
 
     if (!productsError && products && products.length > 0) {
       result.push({

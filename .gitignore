@@ -14,3 +14,7 @@ ios
 dist
 
 build-*
+
+build
+
+google-services.json

@@ -7,7 +7,7 @@ const PROJECT_SLUG = 'didi';
 
 // App production config
 const APP_NAME = 'DiDi Moibile';
-const BUNDLE_IDENTIFIER = 'didi.mobile.app';
+const BUNDLE_IDENTIFIER = 'com.didimobile';
 const PACKAGE_NAME = 'didi.mobile.app';
 const ICON = './src/assets/images/logo.png';
 const ANDROID_ICON_FOREGROUND = './src/assets/images/logo.png';
@@ -46,6 +46,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // supportsTablet: false, // Disable tablet support for phone-only app
   },
   android: {
+    googleServicesFile: './google-services.json',
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: ANDROID_ICON_FOREGROUND,
@@ -85,12 +86,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         isAccessMediaLocationEnabled: false,
       },
     ],
-    // [
-    //   'onesignal-expo-plugin',
-    //   {
-    //     mode: 'production',
-    //   },
-    // ],
+    [
+      'onesignal-expo-plugin',
+      {
+        mode: 'production',
+      },
+    ],
   ],
   updates: {
     url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
