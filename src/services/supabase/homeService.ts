@@ -118,6 +118,43 @@ export const fetchBanners = async (): Promise<Banner[]> => {
 };
 
 /**
+ * Enrich products with lowest variant price.
+ * For each product that has active variants, set sale_price to the lowest variant price
+ * so that ProductCard and other components display the correct price (same as product detail).
+ */
+export const enrichProductsWithVariantPrices = async (products: Product[]): Promise<Product[]> => {
+  if (!products || products.length === 0) return products;
+
+  const productIds = products.map((p) => p.id);
+  const { data: variantsData } = await (supabase as any)
+    .from('product_variants')
+    .select('product_id, price')
+    .in('product_id', productIds)
+    .eq('is_active', true)
+    .is('deleted_at', null)
+    .order('price', { ascending: true });
+
+  if (!variantsData || variantsData.length === 0) return products;
+
+  // Build map: product_id -> lowest variant price
+  const priceMap: Record<string, number> = {};
+  variantsData.forEach((v: any) => {
+    if (v.product_id && !(v.product_id in priceMap)) {
+      priceMap[v.product_id] = v.price;
+    }
+  });
+
+  // Enrich products: use variant price as sale_price if available
+  return products.map((p) => {
+    const variantPrice = priceMap[p.id];
+    if (variantPrice !== undefined) {
+      return { ...p, sale_price: variantPrice } as Product;
+    }
+    return p;
+  });
+};
+
+/**
  * Fetch featured products
  */
 export const fetchFeaturedProducts = async (limit: number = 10): Promise<Product[]> => {
@@ -137,7 +174,7 @@ export const fetchFeaturedProducts = async (limit: number = 10): Promise<Product
     return [];
   }
 
-  return data || [];
+  return enrichProductsWithVariantPrices(data || []);
 };
 
 /**
@@ -273,9 +310,10 @@ export const fetchCategoriesWithProducts = async (
     });
 
     if (!productsError && products && products.length > 0) {
+      const enrichedProducts = await enrichProductsWithVariantPrices(products);
       result.push({
         category,
-        products,
+        products: enrichedProducts,
       });
     }
   }

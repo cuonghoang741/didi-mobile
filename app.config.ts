@@ -65,6 +65,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     'expo-router',
     './withCustomPodfile',
+    './withEntitlementsModification',
     [
       'expo-splash-screen',
       {

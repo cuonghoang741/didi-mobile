@@ -17,7 +17,7 @@ import { Header, Typography, CategoriesSkeleton } from '@/components';
 import { useTheme, useLanguage } from '@/contexts';
 import { useCurrency } from '@/hooks';
 import { getLocalizedContent } from '@/utils/language';
-import { fetchCategories, supabase } from '@/services/supabase';
+import { fetchCategories, supabase, enrichProductsWithVariantPrices } from '@/services/supabase';
 import { fetchBrandsFromTable } from '@/services/supabase/productService';
 import type { Category, Product, Brand } from '@/types/database.types';
 
@@ -145,6 +145,12 @@ const Categories = () => {
         productsError,
       });
       setProducts(data || []);
+
+      // 3. Enrich products with variant prices (same logic as product detail)
+      if (data && data.length > 0) {
+        const enrichedProducts = await enrichProductsWithVariantPrices(data);
+        setProducts(enrichedProducts);
+      }
     } catch (error) {
       console.error('Error loading products:', error);
     } finally {
@@ -236,8 +242,20 @@ const Categories = () => {
 
   const renderProductItem = (item: Product) => {
     const productName = getLocalizedContent(item.language, 'name', language, item.name);
+
+    // The product has already been enriched in homeService with the lowest variant price set to sale_price
+    // So we just take sale_price (or base_price as fallback)
     const price = item.sale_price || item.base_price || 0;
+
+    // Treat base_price as original price if sale_price is set, but be careful with variants
+    // As variant enrichment just sets the lowest variant price to sale_price, without keeping the base_price
+    // So we'll show discount only if there's a clear sale vs base difference
+    const originalPrice = item.base_price && item.sale_price && item.sale_price < item.base_price ? item.base_price : null;
+
     const imageUri = item.thumbnail_url || item.image_urls?.[0] || 'https://via.placeholder.com/100';
+    const discountPercent = originalPrice && originalPrice > price
+      ? Math.round(((originalPrice - price) / originalPrice) * 100)
+      : 0;
 
     return (
       <Pressable
@@ -257,6 +275,16 @@ const Categories = () => {
           <Typography variant='text' size='sm' weight='bold' style={styles.productPrice}>
             {formatJpy(price)}
           </Typography>
+          {originalPrice && discountPercent > 0 ? (
+            <View style={styles.originalPriceRow}>
+              <Typography variant='text' size='xs' style={styles.originalPrice}>
+                {formatJpy(originalPrice)}
+              </Typography>
+              <Typography variant='text' size='xs' weight='medium' style={styles.discountPercent}>
+                -{discountPercent}%
+              </Typography>
+            </View>
+          ) : null}
         </View>
       </Pressable>
     );
@@ -497,6 +525,20 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     productPrice: {
       color: '#EF4444',
+    },
+    originalPriceRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 4,
+      marginTop: 2,
+    },
+    originalPrice: {
+      color: theme.colors.text.tertiary,
+      textDecorationLine: 'line-through' as const,
+    },
+    discountPercent: {
+      color: '#EF4444',
+      fontSize: 11,
     },
     // Empty state
     emptyState: {

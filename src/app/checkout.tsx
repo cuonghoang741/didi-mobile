@@ -143,7 +143,7 @@ const CheckoutScreen = () => {
     const price = item.variant?.price || item.product?.sale_price || item.product?.base_price || 0;
     return total + (price * item.quantity);
   }, 0);
-  const shipping = paymentMethod === 'at_store' ? 0 : 500;
+  const shipping = paymentMethod === 'at_store' ? 0 : paymentMethod === 'daibiki' ? 1500 : 0;
 
   // Calculate discount based on selected voucher
   const calculateDiscount = (): number => {
@@ -593,6 +593,17 @@ const CheckoutScreen = () => {
         </Typography>
       </View>
 
+      {shipping > 0 && (
+        <View style={styles.summaryRow}>
+          <Typography variant='text' size='md' style={styles.summaryLabel}>
+            {t('checkout.shippingFee')}
+          </Typography>
+          <Typography variant='text' size='md'>
+            +{formatJpy(shipping)}
+          </Typography>
+        </View>
+      )}
+
       {discount > 0 && (
         <View style={styles.summaryRow}>
           <Typography variant='text' size='md' style={styles.summaryLabel}>
@@ -641,7 +652,7 @@ const CheckoutScreen = () => {
             </View>
             <View style={styles.paymentInfo}>
               <Typography variant='text' size='md' weight={isSelected ? 'semiBold' : 'regular'}>
-                {t(method.labelKey)}
+                {t(method.labelKey)}{method.id === 'daibiki' ? ` (+${formatJpy(1500)})` : ''}
               </Typography>
               <Typography variant='text' size='sm' style={styles.paymentDesc}>
                 {t(method.descKey)}
@@ -716,8 +727,8 @@ const CheckoutScreen = () => {
           {renderVoucherSection()}
           {renderPointsSection()}
           {renderNoteSection()}
-          {renderSummarySection()}
           {renderPaymentSection()}
+          {renderSummarySection()}
           <View style={{ height: 120 }} />
         </ScrollView>
       </KeyboardAvoidingView>

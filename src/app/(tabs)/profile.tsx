@@ -489,7 +489,11 @@ const Profile = () => {
                     {t('profile.rank')}
                   </Typography>
                   <Typography variant='text' size='lg' weight='bold' style={styles.statsValue}>
-                    {profile?.loyalty_points && profile.loyalty_points > 5000 ? 'Hạng Vàng' : profile?.loyalty_points && profile.loyalty_points > 1000 ? 'Hạng Bạc' : 'Hạng Đồng'}
+                    {profile?.loyalty_points && profile.loyalty_points > 5000
+                      ? t('membership.ranks.gold')
+                      : profile?.loyalty_points && profile.loyalty_points > 1000
+                        ? t('membership.ranks.silver')
+                        : t('membership.ranks.member')}
                   </Typography>
                 </View>
               </View>

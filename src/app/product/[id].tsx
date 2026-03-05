@@ -126,6 +126,7 @@ const ProductDetailScreen = () => {
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [descriptionNeedsExpand, setDescriptionNeedsExpand] = useState(false);
   const imageListRef = useRef<FlatList>(null);
   const thumbnailListRef = useRef<FlatList>(null);
 
@@ -526,65 +527,81 @@ const ProductDetailScreen = () => {
 
 
           {/* Description */}
-          {product.description ? (
-            <View style={styles.descriptionSection}>
-              <Typography variant='text' size='md' weight='semiBold' style={styles.sectionTitle}>
-                {t('product.description')}
-              </Typography>
-              <View>
-                <View style={[
-                  styles.descriptionContent,
-                  !descriptionExpanded && styles.descriptionCollapsed,
-                ]}>
-                  <RenderHtml
-                    contentWidth={SCREEN_WIDTH - 64}
-                    source={{
-                      html: getLocalizedContent(
-                        product.language,
-                        'description',
-                        language,
-                        product.description || ''
-                      ),
+          {(() => {
+            const descriptionHtml = getLocalizedContent(
+              product.language,
+              'description',
+              language,
+              product.description || ''
+            );
+            if (!descriptionHtml) return null;
+            return (
+              <View style={styles.descriptionSection}>
+                <Typography variant='text' size='md' weight='semiBold' style={styles.sectionTitle}>
+                  {t('product.description')}
+                </Typography>
+                <View>
+                  <View
+                    style={[
+                      styles.descriptionContent,
+                      !descriptionExpanded && descriptionNeedsExpand && styles.descriptionCollapsed,
+                    ]}
+                    onLayout={(e) => {
+                      if (!descriptionNeedsExpand && !descriptionExpanded) {
+                        const { height } = e.nativeEvent.layout;
+                        if (height >= 150) {
+                          setDescriptionNeedsExpand(true);
+                        }
+                      }
                     }}
-                    tagsStyles={{
-                      p: {
-                        fontSize: 14,
-                        color: theme.colors.text.secondary,
-                        lineHeight: 22,
-                        marginBottom: 8,
-                      },
-                      b: { fontWeight: 'bold' },
-                      strong: { fontWeight: 'bold' },
-                      h1: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
-                      h2: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
-                      h3: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
-                      ul: { marginBottom: 8 },
-                      li: { fontSize: 14, color: theme.colors.text.secondary, marginBottom: 4 },
-                    }}
-                  />
+                  >
+                    <RenderHtml
+                      contentWidth={SCREEN_WIDTH - 64}
+                      source={{
+                        html: descriptionHtml,
+                      }}
+                      tagsStyles={{
+                        p: {
+                          fontSize: 14,
+                          color: theme.colors.text.secondary,
+                          lineHeight: 22,
+                          marginBottom: 8,
+                        },
+                        b: { fontWeight: 'bold' },
+                        strong: { fontWeight: 'bold' },
+                        h1: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
+                        h2: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+                        h3: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
+                        ul: { marginBottom: 8 },
+                        li: { fontSize: 14, color: theme.colors.text.secondary, marginBottom: 4 },
+                      }}
+                    />
+                  </View>
+                  {descriptionNeedsExpand && !descriptionExpanded && (
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.9)', '#FFFFFF']}
+                      style={styles.descriptionOverlay}
+                    />
+                  )}
+                  {descriptionNeedsExpand && (
+                    <Pressable
+                      style={styles.viewMoreButton}
+                      onPress={() => setDescriptionExpanded(!descriptionExpanded)}
+                    >
+                      <Typography variant='text' size='sm' weight='semiBold' style={styles.viewMoreText}>
+                        {descriptionExpanded ? t('product.collapse') : t('product.viewMore')}
+                      </Typography>
+                      <Feather
+                        name={descriptionExpanded ? 'chevron-up' : 'chevron-down'}
+                        size={16}
+                        color={theme.colors.text.brand_primary}
+                      />
+                    </Pressable>
+                  )}
                 </View>
-                {!descriptionExpanded && (
-                  <LinearGradient
-                    colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.9)', '#FFFFFF']}
-                    style={styles.descriptionOverlay}
-                  />
-                )}
-                <Pressable
-                  style={styles.viewMoreButton}
-                  onPress={() => setDescriptionExpanded(!descriptionExpanded)}
-                >
-                  <Typography variant='text' size='sm' weight='semiBold' style={styles.viewMoreText}>
-                    {descriptionExpanded ? t('product.collapse') : t('product.viewMore')}
-                  </Typography>
-                  <Feather
-                    name={descriptionExpanded ? 'chevron-up' : 'chevron-down'}
-                    size={16}
-                    color={theme.colors.text.brand_primary}
-                  />
-                </Pressable>
               </View>
-            </View>
-          ) : null}
+            );
+          })()}
 
           {/* Specifications */}
           {product.specifications && Object.keys(product.specifications).length > 0 && (
