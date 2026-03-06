@@ -14,6 +14,7 @@ import { oneSignalService } from '@/services/onesignal/OneSignalService';
 import LineLogo from '@/assets/logos/line.svg';
 import FacebookLogo from '@/assets/logos/facebook.svg';
 import MessengerLogo from '@/assets/logos/messenger.svg';
+import ZaloLogo from '@/assets/logos/zalo.svg';
 import VoucherIcon from '@/assets/icons/voucher.svg';
 import LanguageIcon from '@/assets/icons/language.svg';
 
@@ -250,7 +251,7 @@ const Profile = () => {
           break;
         case 'zalo':
           items.push({
-            icon: <Feather name='message-circle' size={20} color={theme.colors.text.secondary} />,
+            icon: <ZaloLogo width={20} height={20} />,
             label: 'Zalo OA',
             onPress: () => handleOpenLink(url),
           });

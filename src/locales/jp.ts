@@ -509,8 +509,8 @@ export const jp = {
       addressInfo: '住所',
       detailedAddress: '詳細住所',
       // New fields
-      nickname: 'ニックネーム',
-      nicknamePlaceholder: '思い出させる名前',
+      nickname: '氏名',
+      nicknamePlaceholder: '氏名',
       phone: '電話番号',
       phonePlaceholder: '電話番号を入力',
       lastName: '姓（ローマ字）',
@@ -525,8 +525,8 @@ export const jp = {
       cityPlaceholder: '市区町村を入力',
       banchi: '番地',
       banchiPlaceholder: '番地を入力',
-      buildingName: '建物名',
-      buildingNamePlaceholder: '建物名を入力',
+      buildingName: '建物名と部屋番号',
+      buildingNamePlaceholder: '建物名と部屋番号を入力',
       // Image
       addressPhoto: '住所写真',
       addressPhotoKanji: '漢字の住所写真をアップロード',
@@ -565,13 +565,13 @@ export const jp = {
       cameraPermissionDenied: 'カメラへのアクセス許可が必要です',
       uploadFailed: '画像のアップロードに失敗しました。もう一度お試しください。',
       // New errors
-      nicknameRequired: 'ニックネームを入力してください',
+      nicknameRequired: '氏名を入力してください',
       lastNameRequired: '姓を入力してください',
       firstNameRequired: '名を入力してください',
       postalCodeRequired: '郵便番号を入力してください',
       provinceRequired: '都道府県を入力してください',
       banchiRequired: '番地を入力してください',
-      buildingNameRequired: '建物名を入力してください',
+      buildingNameRequired: '建物名と部屋番号を入力してください',
     },
   },
   terms: {

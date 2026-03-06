@@ -512,8 +512,8 @@ export const vi = {
       addressInfo: 'Địa chỉ',
       detailedAddress: 'Địa chỉ chi tiết',
       // New fields
-      nickname: 'Tên gợi nhớ',
-      nicknamePlaceholder: 'Tên gợi nhớ',
+      nickname: 'Họ và tên',
+      nicknamePlaceholder: 'Họ và tên',
       phone: 'Số điện thoại',
       phonePlaceholder: 'Nhập số điện thoại',
       lastName: 'Họ (không dấu)',
@@ -528,8 +528,8 @@ export const vi = {
       cityPlaceholder: 'Nhập thành phố',
       banchi: 'Số banchi',
       banchiPlaceholder: 'Nhập số banchi',
-      buildingName: 'Tên toà nhà',
-      buildingNamePlaceholder: 'Nhập tên toà',
+      buildingName: 'Tên toà nhà & số phòng',
+      buildingNamePlaceholder: 'Nhập tên toà nhà & số phòng',
       // Image
       addressPhoto: 'Ảnh địa chỉ',
       addressPhotoKanji: 'Tải lên ảnh địa chỉ bằng CHỮ HÁN',
@@ -568,13 +568,13 @@ export const vi = {
       cameraPermissionDenied: 'Cần quyền truy cập camera để chụp ảnh',
       uploadFailed: 'Không thể tải ảnh lên. Vui lòng thử lại.',
       // New errors
-      nicknameRequired: 'Vui lòng nhập tên gọi nhớ',
+      nicknameRequired: 'Vui lòng nhập họ và tên',
       lastNameRequired: 'Vui lòng nhập họ',
       firstNameRequired: 'Vui lòng nhập tên',
       postalCodeRequired: 'Vui lòng nhập mã bưu điện',
       provinceRequired: 'Vui lòng nhập tỉnh',
       banchiRequired: 'Vui lòng nhập số banchi',
-      buildingNameRequired: 'Vui lòng nhập tên toà nhà',
+      buildingNameRequired: 'Vui lòng nhập tên toà nhà & số phòng',
     },
   },
   terms: {

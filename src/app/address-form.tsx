@@ -29,8 +29,7 @@ const db = supabase as any;
 interface AddressFormData {
     nickname: string;
     phone: string;
-    last_name: string;
-    first_name: string;
+
     postal_code: string;
     province: string;
     city: string;
@@ -44,8 +43,7 @@ interface AddressFormData {
 const initialFormData: AddressFormData = {
     nickname: '',
     phone: '',
-    last_name: '',
-    first_name: '',
+
     postal_code: '',
     province: '',
     city: '',
@@ -96,8 +94,7 @@ const AddressFormScreen = () => {
                 setFormData({
                     nickname: data.nickname || data.full_name || '',
                     phone: data.phone || '',
-                    last_name: data.last_name || '',
-                    first_name: data.first_name || '',
+
                     postal_code: data.postal_code || '',
                     province: data.province || '',
                     city: data.city || '',
@@ -312,18 +309,8 @@ const AddressFormScreen = () => {
             newErrors.nickname = t('addresses.errors.nicknameRequired');
         }
 
-        if (!formData.phone.trim()) {
-            newErrors.phone = t('addresses.errors.phoneRequired');
-        }
 
         if (formData.is_detailed) {
-            if (!formData.last_name.trim()) {
-                newErrors.last_name = t('addresses.errors.lastNameRequired');
-            }
-
-            if (!formData.first_name.trim()) {
-                newErrors.first_name = t('addresses.errors.firstNameRequired');
-            }
 
             if (!formData.postal_code.trim()) {
                 newErrors.postal_code = t('addresses.errors.postalCodeRequired');
@@ -341,9 +328,7 @@ const AddressFormScreen = () => {
                 newErrors.banchi = t('addresses.errors.banchiRequired');
             }
 
-            if (!formData.building_name.trim()) {
-                newErrors.building_name = t('addresses.errors.buildingNameRequired');
-            }
+
         }
 
         setErrors(newErrors);
@@ -378,18 +363,18 @@ const AddressFormScreen = () => {
 
             const addressData = {
                 customer_id: user.id,
-                full_name: `${formData.last_name} ${formData.first_name}`.trim() || formData.nickname,
+                full_name: formData.nickname.trim(),
                 nickname: formData.nickname.trim(),
                 phone: formData.phone.trim(),
-                last_name: formData.last_name.trim() || null,
-                first_name: formData.first_name.trim() || null,
+                last_name: null,
+                first_name: null,
                 postal_code: formData.postal_code.trim() || null,
                 province: formData.province.trim() || null,
                 city: formData.city.trim() || null,
                 district: formData.city.trim() || null, // For backward compatibility
                 ward: formData.banchi.trim() || null, // For backward compatibility
                 banchi: formData.banchi.trim() || null,
-                building_name: formData.building_name.trim() || null,
+                building_name: formData.building_name.trim() || 'N/A',
                 address_line1: fullAddress || null, // For backward compatibility
                 is_default: formData.is_default,
                 image_url: formData.image_url || null,
@@ -477,7 +462,7 @@ const AddressFormScreen = () => {
                         {/* Phone Field */}
                         <View style={styles.inputGroup}>
                             <Typography variant='text' size='sm' weight='medium' style={styles.label}>
-                                {t('addresses.form.phone')}<Typography style={styles.required}> *</Typography>
+                                {t('addresses.form.phone')}
                             </Typography>
                             <TextInput
                                 style={[styles.input, errors.phone && styles.inputError]}
@@ -511,46 +496,6 @@ const AddressFormScreen = () => {
                         {/* Detailed Address Fields */}
                         {formData.is_detailed && (
                             <>
-                                {/* Name Row (2 columns) */}
-                                <View style={styles.row}>
-                                    <View style={[styles.inputGroup, styles.halfWidth]}>
-                                        <Typography variant='text' size='sm' weight='medium' style={styles.label}>
-                                            {t('addresses.form.lastName')}<Typography style={styles.required}> *</Typography>
-                                        </Typography>
-                                        <TextInput
-                                            style={[styles.input, errors.last_name && styles.inputError]}
-                                            value={formData.last_name}
-                                            onChangeText={(text) => updateField('last_name', text)}
-                                            placeholder={t('addresses.form.lastNamePlaceholder')}
-                                            placeholderTextColor={theme.colors.text.tertiary}
-                                            editable={!isLoading}
-                                        />
-                                        {errors.last_name && (
-                                            <Typography variant='text' size='xs' style={styles.errorText}>
-                                                {errors.last_name}
-                                            </Typography>
-                                        )}
-                                    </View>
-                                    <View style={[styles.inputGroup, styles.halfWidth]}>
-                                        <Typography variant='text' size='sm' weight='medium' style={styles.label}>
-                                            {t('addresses.form.firstName')}<Typography style={styles.required}> *</Typography>
-                                        </Typography>
-                                        <TextInput
-                                            style={[styles.input, errors.first_name && styles.inputError]}
-                                            value={formData.first_name}
-                                            onChangeText={(text) => updateField('first_name', text)}
-                                            placeholder={t('addresses.form.firstNamePlaceholder')}
-                                            placeholderTextColor={theme.colors.text.tertiary}
-                                            editable={!isLoading}
-                                        />
-                                        {errors.first_name && (
-                                            <Typography variant='text' size='xs' style={styles.errorText}>
-                                                {errors.first_name}
-                                            </Typography>
-                                        )}
-                                    </View>
-                                </View>
-
                                 {/* Postal Code & Province Row (2 columns) */}
                                 <View style={styles.row}>
                                     <View style={[styles.inputGroup, styles.halfWidth]}>
@@ -642,7 +587,7 @@ const AddressFormScreen = () => {
                                 {/* Building Name Field */}
                                 <View style={styles.inputGroup}>
                                     <Typography variant='text' size='sm' weight='medium' style={styles.label}>
-                                        {t('addresses.form.buildingName')}<Typography style={styles.required}> *</Typography>
+                                        {t('addresses.form.buildingName')}
                                     </Typography>
                                     <TextInput
                                         style={[styles.input, errors.building_name && styles.inputError]}
@@ -748,8 +693,8 @@ const AddressFormScreen = () => {
                         {isEditing ? t('addresses.form.save') : t('addresses.form.add')}
                     </Button>
                 </View>
-            </SafeAreaView>
-        </AuthProtect>
+            </SafeAreaView >
+        </AuthProtect >
     );
 };
 

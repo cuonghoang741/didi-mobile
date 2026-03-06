@@ -512,8 +512,8 @@ export const en = {
       addressInfo: 'Address',
       detailedAddress: 'Detailed Address',
       // New fields
-      nickname: 'Nickname',
-      nicknamePlaceholder: 'Reminiscent name',
+      nickname: 'Full Name',
+      nicknamePlaceholder: 'Full Name',
       phone: 'Phone Number',
       phonePlaceholder: 'Enter phone number',
       lastName: 'Last Name (No accent)',
@@ -528,8 +528,8 @@ export const en = {
       cityPlaceholder: 'Enter city',
       banchi: 'Banchi Number',
       banchiPlaceholder: 'Enter banchi number',
-      buildingName: 'Building Name',
-      buildingNamePlaceholder: 'Enter building name',
+      buildingName: 'Building Name & Room Number',
+      buildingNamePlaceholder: 'Enter building name & room number',
       // Image
       addressPhoto: 'Address Photo',
       addressPhotoKanji: 'Upload address photo in KANJI',
@@ -568,13 +568,13 @@ export const en = {
       cameraPermissionDenied: 'Camera access is required to take photos',
       uploadFailed: 'Failed to upload image. Please try again.',
       // New errors
-      nicknameRequired: 'Please enter nickname',
+      nicknameRequired: 'Please enter full name',
       lastNameRequired: 'Please enter last name',
       firstNameRequired: 'Please enter first name',
       postalCodeRequired: 'Please enter postal code',
       provinceRequired: 'Please enter province',
       banchiRequired: 'Please enter banchi number',
-      buildingNameRequired: 'Please enter building name',
+      buildingNameRequired: 'Please enter building name & room number',
     },
   },
   terms: {
