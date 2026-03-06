@@ -368,14 +368,14 @@ const AddressFormScreen = () => {
                 phone: formData.phone.trim(),
                 last_name: null,
                 first_name: null,
-                postal_code: formData.postal_code.trim() || null,
-                province: formData.province.trim() || null,
-                city: formData.city.trim() || null,
-                district: formData.city.trim() || null, // For backward compatibility
-                ward: formData.banchi.trim() || null, // For backward compatibility
-                banchi: formData.banchi.trim() || null,
+                postal_code: formData.postal_code.trim() || ' ',
+                province: formData.province.trim() || ' ',
+                city: formData.city.trim() || ' ',
+                district: formData.city.trim() || ' ', // For backward compatibility
+                ward: formData.banchi.trim() || ' ', // For backward compatibility
+                banchi: formData.banchi.trim() || ' ',
                 building_name: formData.building_name.trim() || 'N/A',
-                address_line1: fullAddress || null, // For backward compatibility
+                address_line1: fullAddress || ' ', // For backward compatibility
                 is_default: formData.is_default,
                 image_url: formData.image_url || null,
                 type: 'shipping',

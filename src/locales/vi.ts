@@ -460,6 +460,11 @@ export const vi = {
     orderNumber: 'Mã đơn hàng',
     viewOrder: 'Xem đơn hàng',
     backToHome: 'Về trang chủ',
+    cancel: {
+      reasonPrompt: 'Vui lòng cho chúng tôi biết lý do bạn huỷ đơn hàng này:',
+      reasonPlaceholder: 'Nhập lý do huỷ...',
+      reasonRequired: 'Vui lòng nhập lý do huỷ đơn',
+    },
     status: {
       pending: 'Chờ xác nhận',
       confirmed: 'Đã xác nhận',

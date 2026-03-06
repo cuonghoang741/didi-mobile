@@ -346,3 +346,36 @@ export const fetchOrderDetail = async (
     items: (items as unknown as OrderItem[]) || [],
   };
 };
+
+export const cancelOrder = async (orderId: string, reason: string): Promise<{ success: boolean; error: string | null }> => {
+  // First fetch the current order to get existing customer_note
+  const { data: order } = await supabase
+    .from('orders')
+    .select('customer_note')
+    .eq('id', orderId)
+    .single();
+
+  let updatedNote = reason;
+  if ((order as any) && (order as any).customer_note) {
+    updatedNote = `${(order as any).customer_note}\n\nLý do huỷ: ${reason}`;
+  } else {
+    updatedNote = `Lý do huỷ: ${reason}`;
+  }
+
+  const updateData: any = {
+    status: 'cancelled',
+    customer_note: updatedNote
+  };
+
+  const { error } = await supabase
+    .from('orders')
+    .update(updateData as never)
+    .eq('id', orderId);
+
+  if (error) {
+    console.error('Error cancelling order:', error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, error: null };
+};

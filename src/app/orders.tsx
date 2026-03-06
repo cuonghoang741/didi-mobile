@@ -10,13 +10,15 @@ import {
   Image,
   RefreshControl,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Typography, Button, AuthProtect, Skeleton } from '@/components';
 import OrderReviewModal from '@/components/order/OrderReviewModal';
+import CancelOrderModal from '@/components/order/CancelOrderModal';
 import { useTheme, useLanguage, useAuth } from '@/contexts';
-import { fetchUserOrders, Order, OrderItem } from '@/services/supabase/orderService';
+import { fetchUserOrders, cancelOrder, Order, OrderItem } from '@/services/supabase/orderService';
 
 const EmptyStateImage = require('@/assets/images/empty-state.png');
 
@@ -55,7 +57,7 @@ const OrderStatusTab = ({
 
 import { useCurrency } from '@/hooks';
 
-const OrderItemCard = ({ order, onPress, onReview }: { order: OrderWithItems; onPress: () => void; onReview?: () => void }) => {
+const OrderItemCard = ({ order, onPress, onReview, onCancel }: { order: OrderWithItems; onPress: () => void; onReview?: () => void; onCancel?: () => void }) => {
   const theme = useTheme();
   const { t } = useLanguage();
   const { formatPrice } = useCurrency(); // Hook usage
@@ -186,8 +188,8 @@ const OrderItemCard = ({ order, onPress, onReview }: { order: OrderWithItems; on
         </View>
 
         <View style={styles.actionButtons}>
-          {order.status === 'pending' && (
-            <Button size='sm' variant='outline' colorScheme='error' onPress={() => { }}>
+          {order.status === 'pending' && onCancel && (
+            <Button size='sm' variant='outline' colorScheme='error' onPress={onCancel}>
               {t('order.action.cancel')}
             </Button>
           )}
@@ -223,6 +225,8 @@ const OrdersScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
 
   const handleOpenReview = (order: OrderWithItems) => {
     setSelectedOrder(order);
@@ -232,6 +236,16 @@ const OrdersScreen = () => {
   const handleCloseReview = () => {
     setReviewModalVisible(false);
     setSelectedOrder(null);
+  };
+
+  const handleCancelOrder = (orderId: string) => {
+    setCancellingOrderId(orderId);
+    setCancelModalVisible(true);
+  };
+
+  const handleCloseCancel = () => {
+    setCancelModalVisible(false);
+    setCancellingOrderId(null);
   };
 
   const fetchData = useCallback(async () => {
@@ -318,6 +332,7 @@ const OrdersScreen = () => {
                     ? () => handleOpenReview(item)
                     : undefined
                 }
+                onCancel={item.status === 'pending' ? () => handleCancelOrder(item.id) : undefined}
               />
             )}
             contentContainerStyle={styles.listContent}
@@ -350,6 +365,16 @@ const OrdersScreen = () => {
             orderId={selectedOrder.id}
             items={selectedOrder.items}
             onReviewSubmitted={fetchData}
+          />
+        )}
+
+        {/* Cancel Modal */}
+        {cancellingOrderId && (
+          <CancelOrderModal
+            visible={cancelModalVisible}
+            onClose={handleCloseCancel}
+            orderId={cancellingOrderId}
+            onCancelSubmitted={fetchData}
           />
         )}
       </SafeAreaView>

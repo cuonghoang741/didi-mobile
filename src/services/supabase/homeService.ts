@@ -250,75 +250,69 @@ export const fetchCategoriesWithProducts = async (
     return [];
   }
 
-  console.log('[DEBUG fetchCategoriesWithProducts] Top-level categories found:', categories.length, categories.map(c => ({ id: c.id, name: c.name })));
+  const typedCategories = categories as Category[];
 
-  // Fetch products for each category
-  const result: CategoryWithProducts[] = [];
+  // Fetch products for each category concurrently using Promise.all
+  const categoryPromises = typedCategories.map(async (category) => {
+    try {
+      // Fetch subcategories
+      const { data: subCategories } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('parent_id', category.id)
+        .is('deleted_at', null)
+        .eq('is_active', true);
 
-  for (const category of categories) {
-    // Fetch subcategories
-    const { data: subCategories } = await supabase
-      .from('categories')
-      .select('id')
-      .eq('parent_id', category.id)
-      .is('deleted_at', null)
-      .eq('is_active', true);
+      const categoryIds = [category.id, ...(subCategories?.map((c) => c.id) || [])];
 
-    const categoryIds = [category.id, ...(subCategories?.map((c) => c.id) || [])];
-    console.log(`[DEBUG] Category "${category.name}" (${category.id}) - subcategories:`, subCategories?.length || 0, '- all categoryIds:', categoryIds);
+      // Get product IDs from junction table for these categories
+      const { data: junctionData, error: junctionError } = await supabase
+        .from('product_categories_junction')
+        .select('product_id')
+        .in('category_id', categoryIds);
 
-    // Get product IDs from junction table for these categories
-    const { data: junctionData, error: junctionError } = await supabase
-      .from('product_categories_junction')
-      .select('product_id')
-      .in('category_id', categoryIds);
+      if (junctionError || !junctionData || junctionData.length === 0) {
+        return null;
+      }
 
-    console.log(`[DEBUG] Junction query for category "${category.name}":`, {
-      junctionData: junctionData?.length || 0,
-      junctionError: junctionError,
-      rawData: junctionData,
-    });
+      const productIds = junctionData.map((j) => j.product_id);
 
-    if (junctionError) {
-      console.error('Error fetching product Junction:', junctionError);
-      continue;
-    }
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .in('id', productIds)
+        // @ts-ignore: status column exists in DB but not in types
+        .eq('status', 'active')
+        .eq('is_active', true)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(productLimit);
 
-    const productIds = junctionData?.map((j) => j.product_id) || [];
+      if (productsError || !products || products.length === 0) {
+        return null;
+      }
 
-    if (productIds.length === 0) {
-      console.log(`[DEBUG] No products found in junction for category "${category.name}" - skipping`);
-      continue;
-    }
-
-    console.log(`[DEBUG] Product IDs for category "${category.name}":`, productIds);
-
-    const { data: products, error: productsError } = await supabase
-      .from('products')
-      .select('*')
-      .in('id', productIds)
-      // @ts-ignore: status column exists in DB but not in types
-      .eq('status', 'active')
-      .eq('is_active', true)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(productLimit);
-
-    console.log(`[DEBUG] Products query result for category "${category.name}":`, {
-      productsCount: products?.length || 0,
-      productsError: productsError,
-    });
-
-    if (!productsError && products && products.length > 0) {
       const enrichedProducts = await enrichProductsWithVariantPrices(products);
-      result.push({
+      return {
         category,
         products: enrichedProducts,
-      });
+      };
+    } catch (e) {
+      console.error(`Error fetching products for category ${category.name}:`, e);
+      return null;
     }
-  }
+  });
 
-  return result;
+  const results = await Promise.all(categoryPromises);
+
+  // Filter out nulls 
+  const validResults = results.filter((r): r is CategoryWithProducts => r !== null);
+
+  // Re-sort results to match the original category order
+  const categoryOrderMap = Object.fromEntries(categories.map((c, i) => [c.id, i]));
+  validResults.sort((a, b) => categoryOrderMap[a.category.id] - categoryOrderMap[b.category.id]);
+
+  return validResults;
 };
 
 /**
