@@ -26,17 +26,18 @@ const CartScreen = () => {
   // Initialize selected items when items change
   useEffect(() => {
     const inStockItemIds = items
-      .filter(item => {
-        const stockQty = item.variant?.stock_quantity ?? (item.product as any).stock_quantity ?? null;
+      .filter((item) => {
+        const stockQty =
+          item.variant?.stock_quantity ?? (item.product as any).stock_quantity ?? null;
         const isOutOfStock = stockQty === 0;
         return !isOutOfStock;
       })
-      .map(item => `${item.product.id}-${item.variant?.id || 'default'}`);
+      .map((item) => `${item.product.id}-${item.variant?.id || 'default'}`);
     setSelectedItems(new Set(inStockItemIds));
   }, [items]);
 
   const toggleItemSelection = (itemKey: string) => {
-    setSelectedItems(prev => {
+    setSelectedItems((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(itemKey)) {
         newSet.delete(itemKey);
@@ -49,12 +50,13 @@ const CartScreen = () => {
 
   const toggleSelectAll = () => {
     const inStockItemIds = items
-      .filter(item => {
-        const stockQty = item.variant?.stock_quantity ?? (item.product as any).stock_quantity ?? null;
+      .filter((item) => {
+        const stockQty =
+          item.variant?.stock_quantity ?? (item.product as any).stock_quantity ?? null;
         const isOutOfStock = stockQty === 0;
         return !isOutOfStock;
       })
-      .map(item => `${item.product.id}-${item.variant?.id || 'default'}`);
+      .map((item) => `${item.product.id}-${item.variant?.id || 'default'}`);
 
     if (selectedItems.size === inStockItemIds.length) {
       setSelectedItems(new Set());
@@ -71,8 +73,8 @@ const CartScreen = () => {
 
       const price = item.variant
         ? item.variant.price
-        : (item.product.sale_price || item.product.base_price || 0);
-      return total + (price * item.quantity);
+        : item.product.sale_price || item.product.base_price || 0;
+      return total + price * item.quantity;
     }, 0);
   }, [items, selectedItems]);
 
@@ -80,7 +82,7 @@ const CartScreen = () => {
   const totalJpy = selectedSubtotal + shippingJpy;
   const totalFormatted = formatPrice(totalJpy);
 
-  const inStockItemsCount = items.filter(item => {
+  const inStockItemsCount = items.filter((item) => {
     const stockQty = item.variant?.stock_quantity ?? (item.product as any).stock_quantity ?? null;
     const isOutOfStock = stockQty === 0;
     return !isOutOfStock;
@@ -135,18 +137,21 @@ const CartScreen = () => {
                 const isSelected = selectedItems.has(itemKey);
 
                 // Check if out of stock
-                const stockQty = item.variant?.stock_quantity ?? (item.product as any).stock_quantity ?? null;
+                const stockQty =
+                  item.variant?.stock_quantity ?? (item.product as any).stock_quantity ?? null;
                 const isOutOfStock = stockQty === 0;
 
                 // Get price - variant has price, product has sale_price or base_price
                 const salePrice = item.variant
                   ? item.variant.price
-                  : (item.product.sale_price || item.product.base_price || 0);
+                  : item.product.sale_price || item.product.base_price || 0;
 
                 // Get original price (base_price) if there's a sale
                 const originalPrice = item.variant
                   ? null // variants don't have original price concept
-                  : (item.product.sale_price && item.product.base_price ? item.product.base_price : null);
+                  : item.product.sale_price && item.product.base_price
+                    ? item.product.base_price
+                    : null;
 
                 // Get image - product has image_urls array or thumbnail_url
                 const imageUrl = item.product.image_urls?.[0] || item.product.thumbnail_url;
@@ -154,10 +159,19 @@ const CartScreen = () => {
                 // Get variant display name from options JSON
                 let variantName = '';
                 if (item.variant) {
-                  const options = typeof item.variant.options === 'object' && item.variant.options !== null
-                    ? (item.variant.options as { name?: string; color?: string; storage?: string })
-                    : {};
-                  variantName = options.name || `${options.color || ''} ${options.storage || ''}`.trim() || item.variant.sku || '';
+                  const options =
+                    typeof item.variant.options === 'object' && item.variant.options !== null
+                      ? (item.variant.options as {
+                          name?: string;
+                          color?: string;
+                          storage?: string;
+                        })
+                      : {};
+                  variantName =
+                    options.name ||
+                    `${options.color || ''} ${options.storage || ''}`.trim() ||
+                    item.variant.sku ||
+                    '';
                 }
 
                 const priceFormatted = formatPrice(salePrice);
@@ -175,9 +189,7 @@ const CartScreen = () => {
                         onPress={() => toggleItemSelection(itemKey)}
                       >
                         <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                          {isSelected && (
-                            <MaterialIcons name='check' size={16} color='#FFFFFF' />
-                          )}
+                          {isSelected && <MaterialIcons name='check' size={16} color='#FFFFFF' />}
                         </View>
                       </Pressable>
                     ) : (
@@ -193,7 +205,12 @@ const CartScreen = () => {
                       />
                       {isOutOfStock && (
                         <View style={styles.outOfStockBadge}>
-                          <Typography variant='text' size='xs' weight='semiBold' style={styles.outOfStockText}>
+                          <Typography
+                            variant='text'
+                            size='xs'
+                            weight='semiBold'
+                            style={styles.outOfStockText}
+                          >
                             Hết hàng
                           </Typography>
                         </View>
@@ -239,11 +256,7 @@ const CartScreen = () => {
                           {priceFormatted.jpy}
                         </Typography>
                         {originalPriceFormatted && (
-                          <Typography
-                            variant='text'
-                            size='sm'
-                            style={styles.originalPrice}
-                          >
+                          <Typography variant='text' size='sm' style={styles.originalPrice}>
                             {originalPriceFormatted.jpy}
                           </Typography>
                         )}
@@ -263,7 +276,7 @@ const CartScreen = () => {
                             <Pressable
                               style={[
                                 styles.quantityButton,
-                                item.quantity <= 1 && styles.quantityButtonDisabled
+                                item.quantity <= 1 && styles.quantityButtonDisabled,
                               ]}
                               onPress={() =>
                                 updateQuantity(item.product.id, item.variant?.id, item.quantity - 1)
@@ -313,10 +326,16 @@ const CartScreen = () => {
                 </Typography>
               </View>
               <Pressable
-                style={[styles.checkoutButton, { backgroundColor: selectedItems.size > 0 ? '#2E8FF9' : '#D1D5DB' }]}
+                style={[
+                  styles.checkoutButton,
+                  { backgroundColor: selectedItems.size > 0 ? '#2E8FF9' : '#D1D5DB' },
+                ]}
                 onPress={async () => {
                   // Save selected item keys to AsyncStorage
-                  await AsyncStorage.setItem('selectedCartItems', JSON.stringify(Array.from(selectedItems)));
+                  await AsyncStorage.setItem(
+                    'selectedCartItems',
+                    JSON.stringify(Array.from(selectedItems)),
+                  );
                   router.push('/checkout');
                 }}
                 disabled={selectedItems.size === 0}
@@ -527,8 +546,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       textAlign: 'center',
       fontSize: 13,
     },
-    removeButton: {
-    },
+    removeButton: {},
     summaryCard: {
       backgroundColor: theme.colors.background.secondary,
       borderRadius: 12,

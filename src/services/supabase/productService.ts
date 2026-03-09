@@ -1,10 +1,5 @@
 import { supabase } from './client';
-import type {
-  Product,
-  ProductVariant,
-  ProductDetail,
-  Brand,
-} from '@/types/database.types';
+import type { Product, ProductVariant, ProductDetail, Brand } from '@/types/database.types';
 
 export interface ProductReview {
   id: string;
@@ -178,7 +173,7 @@ export const fetchRelatedProducts = async (
       .eq('category_id', categoryId);
 
     if (junctionData) {
-      productIds = junctionData.map(j => j.product_id);
+      productIds = junctionData.map((j) => j.product_id);
     }
   }
 
@@ -272,7 +267,7 @@ export const searchProducts = async (
       return [];
     }
 
-    const categoryProductIds = junctionData?.map(j => j.product_id) || [];
+    const categoryProductIds = junctionData?.map((j) => j.product_id) || [];
 
     if (categoryProductIds.length > 0) {
       query = query.in('id', categoryProductIds);
@@ -461,10 +456,12 @@ export const fetchReviewsForOrder = async (
 export const fetchFavorites = async (userId: string): Promise<Product[]> => {
   const { data, error } = await (supabase as any)
     .from('favorites')
-    .select(`
+    .select(
+      `
       product_id,
       products (*)
-    `)
+    `,
+    )
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 

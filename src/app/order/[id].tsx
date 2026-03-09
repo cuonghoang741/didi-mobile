@@ -178,7 +178,7 @@ const OrderDetailScreen = () => {
           {items.map((item) => {
             const itemTotal = formatPrice(item.total_price);
             // Find review for this item (by product_id)
-            const review = reviews.find(r => r.product_id === item.product_id);
+            const review = reviews.find((r) => r.product_id === item.product_id);
 
             return (
               <View key={item.id} style={styles.orderItemWrapper}>
@@ -226,18 +226,27 @@ const OrderDetailScreen = () => {
                 {review && (
                   <View style={styles.reviewDetail}>
                     <View style={styles.reviewHeader}>
-                      <Typography variant="text" size="sm" weight="semiBold" style={{ marginRight: 8, color: theme.colors.text.brand_primary }}>
+                      <Typography
+                        variant='text'
+                        size='sm'
+                        weight='semiBold'
+                        style={{ marginRight: 8, color: theme.colors.text.brand_primary }}
+                      >
                         {t('order.review.reviewedTitle')}
                       </Typography>
                       {renderStars(review.rating)}
                     </View>
                     {review.content && (
-                      <Typography variant="text" size="sm" style={styles.reviewComment}>
+                      <Typography variant='text' size='sm' style={styles.reviewComment}>
                         {review.content}
                       </Typography>
                     )}
                     {review.images && review.images.length > 0 && (
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.reviewImages}>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.reviewImages}
+                      >
                         {review.images.map((img, idx) => (
                           <Image key={idx} source={{ uri: img }} style={styles.reviewImage} />
                         ))}
@@ -306,7 +315,6 @@ const OrderDetailScreen = () => {
                 {getPaymentMethodLabel(order.payment_method)}
               </Typography>
             </View>
-
           </View>
         </View>
 

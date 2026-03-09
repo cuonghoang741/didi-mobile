@@ -343,6 +343,7 @@ export const vi = {
     total: 'Tổng cộng',
     remove: 'Xóa',
     itemCount: 'sản phẩm',
+    shippingFee: 'Phí vận chuyển',
   },
   voucher: {
     title: 'Chọn mã giảm giá',
@@ -359,7 +360,8 @@ export const vi = {
     shippingAddress: 'Địa chỉ giao hàng',
     selectAddress: 'Chọn địa chỉ',
     selectAddressRequired: 'Vui lòng chọn địa chỉ giao hàng',
-    selectRecipientForPickup: 'Vui lòng chọn thông tin người nhận để chúng tôi có thể sắp xếp đón tiếp bạn',
+    selectRecipientForPickup:
+      'Vui lòng chọn thông tin người nhận để chúng tôi có thể sắp xếp đón tiếp bạn',
     loginRequired: 'Vui lòng đăng nhập để đặt hàng',
     fullName: 'Họ và tên',
     phone: 'Số điện thoại',
@@ -428,7 +430,8 @@ export const vi = {
     tapToUpload: 'Chạm để tải ảnh lên',
     submit: 'Gửi',
     notTransferredYet: 'Tôi chưa chuyển khoản',
-    pleaseTransferAndUpload: 'Vui lòng chuyển khoản vào 1 trong những ngân hàng trên rồi up ảnh bằng chứng thanh toán và nhấn đã thanh toán',
+    pleaseTransferAndUpload:
+      'Vui lòng chuyển khoản vào 1 trong những ngân hàng trên rồi up ảnh bằng chứng thanh toán và nhấn đã thanh toán',
   },
   timeSlot: {
     title: 'Chọn khung giờ nhận hàng',
@@ -457,6 +460,11 @@ export const vi = {
     empty: 'Chưa có đơn hàng nào',
     success: 'Đặt hàng thành công!',
     successDesc: 'Cảm ơn bạn đã đặt hàng. Chúng tôi sẽ liên hệ với bạn sớm.',
+    notFound: 'Không tìm thấy đơn hàng',
+    customer: 'Khách hàng',
+    pickupAtStore: 'Nhận tại cửa hàng',
+    deliveryToHome: 'Giao hàng tận nơi',
+    atDiDiStore: 'Tại cửa hàng DiDi Mobile',
     orderNumber: 'Mã đơn hàng',
     viewOrder: 'Xem đơn hàng',
     backToHome: 'Về trang chủ',
@@ -538,7 +546,8 @@ export const vi = {
       // Image
       addressPhoto: 'Ảnh địa chỉ',
       addressPhotoKanji: 'Tải lên ảnh địa chỉ bằng CHỮ HÁN',
-      addressPhotoDesc: 'Để tránh đơn hàng sai địa chỉ bị quay đầu khiến quý khách phải chịu thêm phí ship, vui lòng tải lên ảnh chụp giấy tờ bất kì có địa giao hàng chi tiết',
+      addressPhotoDesc:
+        'Để tránh đơn hàng sai địa chỉ bị quay đầu khiến quý khách phải chịu thêm phí ship, vui lòng tải lên ảnh chụp giấy tờ bất kì có địa giao hàng chi tiết',
       addPhoto: 'Thêm ảnh',
       changePhoto: 'Thay đổi',
       selectPhotoSource: 'Chọn nguồn ảnh',
@@ -588,39 +597,48 @@ export const vi = {
     sections: {
       introduction: {
         title: '1. Giới thiệu',
-        content: 'Chào mừng bạn đến với DiDi! Bằng việc sử dụng ứng dụng của chúng tôi, bạn đồng ý tuân thủ và bị ràng buộc bởi các điều khoản và điều kiện sau đây. Vui lòng đọc kỹ trước khi sử dụng dịch vụ.',
+        content:
+          'Chào mừng bạn đến với DiDi! Bằng việc sử dụng ứng dụng của chúng tôi, bạn đồng ý tuân thủ và bị ràng buộc bởi các điều khoản và điều kiện sau đây. Vui lòng đọc kỹ trước khi sử dụng dịch vụ.',
       },
       account: {
         title: '2. Tài khoản người dùng',
-        content: '• Bạn phải từ 18 tuổi trở lên để sử dụng dịch vụ của chúng tôi.\n• Bạn chịu trách nhiệm bảo mật thông tin tài khoản của mình.\n• Bạn không được sử dụng tài khoản của người khác mà không có sự cho phép.\n• Chúng tôi có quyền đình chỉ hoặc chấm dứt tài khoản nếu phát hiện vi phạm.',
+        content:
+          '• Bạn phải từ 18 tuổi trở lên để sử dụng dịch vụ của chúng tôi.\n• Bạn chịu trách nhiệm bảo mật thông tin tài khoản của mình.\n• Bạn không được sử dụng tài khoản của người khác mà không có sự cho phép.\n• Chúng tôi có quyền đình chỉ hoặc chấm dứt tài khoản nếu phát hiện vi phạm.',
       },
       orders: {
         title: '3. Đặt hàng và thanh toán',
-        content: '• Tất cả đơn hàng phải được thanh toán đầy đủ trước khi giao hàng.\n• Giá sản phẩm có thể thay đổi mà không cần thông báo trước.\n• Chúng tôi không chịu trách nhiệm về sự chậm trễ do các yếu tố bên ngoài.\n• Đơn hàng đã xác nhận không thể hủy sau khi đã xử lý.',
+        content:
+          '• Tất cả đơn hàng phải được thanh toán đầy đủ trước khi giao hàng.\n• Giá sản phẩm có thể thay đổi mà không cần thông báo trước.\n• Chúng tôi không chịu trách nhiệm về sự chậm trễ do các yếu tố bên ngoài.\n• Đơn hàng đã xác nhận không thể hủy sau khi đã xử lý.',
       },
       products: {
         title: '4. Sản phẩm và dịch vụ',
-        content: '• Hình ảnh sản phẩm chỉ mang tính chất tham khảo.\n• Chúng tôi cam kết cung cấp sản phẩm chất lượng theo mô tả.\n• Một số sản phẩm có thể áp dụng giới hạn về số lượng mua.\n• Chúng tôi có quyền từ chối đơn hàng nếu phát hiện gian lận.',
+        content:
+          '• Hình ảnh sản phẩm chỉ mang tính chất tham khảo.\n• Chúng tôi cam kết cung cấp sản phẩm chất lượng theo mô tả.\n• Một số sản phẩm có thể áp dụng giới hạn về số lượng mua.\n• Chúng tôi có quyền từ chối đơn hàng nếu phát hiện gian lận.',
       },
       refund: {
         title: '5. Chính sách hoàn trả',
-        content: '• Yêu cầu hoàn trả phải được gửi trong vòng 24 giờ sau khi nhận hàng.\n• Sản phẩm hoàn trả phải còn nguyên vẹn, chưa sử dụng.\n• Chi phí vận chuyển hoàn trả do khách hàng chịu trừ trường hợp lỗi của chúng tôi.\n• Hoàn tiền sẽ được xử lý trong vòng 7-14 ngày làm việc.',
+        content:
+          '• Yêu cầu hoàn trả phải được gửi trong vòng 24 giờ sau khi nhận hàng.\n• Sản phẩm hoàn trả phải còn nguyên vẹn, chưa sử dụng.\n• Chi phí vận chuyển hoàn trả do khách hàng chịu trừ trường hợp lỗi của chúng tôi.\n• Hoàn tiền sẽ được xử lý trong vòng 7-14 ngày làm việc.',
       },
       intellectualProperty: {
         title: '6. Quyền sở hữu trí tuệ',
-        content: 'Tất cả nội dung trên ứng dụng bao gồm logo, hình ảnh, văn bản và thiết kế đều thuộc quyền sở hữu của DiDi. Nghiêm cấm sao chép, phân phối hoặc sử dụng cho mục đích thương mại mà không có sự cho phép bằng văn bản.',
+        content:
+          'Tất cả nội dung trên ứng dụng bao gồm logo, hình ảnh, văn bản và thiết kế đều thuộc quyền sở hữu của DiDi. Nghiêm cấm sao chép, phân phối hoặc sử dụng cho mục đích thương mại mà không có sự cho phép bằng văn bản.',
       },
       limitation: {
         title: '7. Giới hạn trách nhiệm',
-        content: 'DiDi không chịu trách nhiệm về bất kỳ thiệt hại trực tiếp, gián tiếp, ngẫu nhiên hoặc hậu quả nào phát sinh từ việc sử dụng hoặc không thể sử dụng dịch vụ của chúng tôi.',
+        content:
+          'DiDi không chịu trách nhiệm về bất kỳ thiệt hại trực tiếp, gián tiếp, ngẫu nhiên hoặc hậu quả nào phát sinh từ việc sử dụng hoặc không thể sử dụng dịch vụ của chúng tôi.',
       },
       changes: {
         title: '8. Thay đổi điều khoản',
-        content: 'Chúng tôi có quyền thay đổi các điều khoản này bất cứ lúc nào. Việc tiếp tục sử dụng ứng dụng sau khi thay đổi đồng nghĩa với việc bạn chấp nhận các điều khoản mới.',
+        content:
+          'Chúng tôi có quyền thay đổi các điều khoản này bất cứ lúc nào. Việc tiếp tục sử dụng ứng dụng sau khi thay đổi đồng nghĩa với việc bạn chấp nhận các điều khoản mới.',
       },
       contact: {
         title: '9. Liên hệ',
-        intro: 'Nếu bạn có bất kỳ câu hỏi nào về Điều khoản sử dụng, vui lòng liên hệ với chúng tôi qua:',
+        intro:
+          'Nếu bạn có bất kỳ câu hỏi nào về Điều khoản sử dụng, vui lòng liên hệ với chúng tôi qua:',
         addressLabel: 'Địa chỉ',
         defaultAddress: '[Địa chỉ công ty]',
       },
@@ -632,43 +650,53 @@ export const vi = {
     sections: {
       introduction: {
         title: '1. Giới thiệu',
-        content: 'DiDi cam kết bảo vệ quyền riêng tư của bạn. Chính sách bảo mật này giải thích cách chúng tôi thu thập, sử dụng và bảo vệ thông tin cá nhân của bạn khi sử dụng ứng dụng.',
+        content:
+          'DiDi cam kết bảo vệ quyền riêng tư của bạn. Chính sách bảo mật này giải thích cách chúng tôi thu thập, sử dụng và bảo vệ thông tin cá nhân của bạn khi sử dụng ứng dụng.',
       },
       informationCollection: {
         title: '2. Thông tin chúng tôi thu thập',
-        content: '2.1 Thông tin bạn cung cấp:\n• Họ tên, số điện thoại, email\n• Địa chỉ giao hàng\n• Thông tin thanh toán\n• Ảnh đại diện (nếu bạn tải lên)\n\n2.2 Thông tin tự động thu thập:\n• Thông tin thiết bị (loại thiết bị, hệ điều hành)\n• Địa chỉ IP và vị trí địa lý\n• Lịch sử đặt hàng và duyệt sản phẩm\n• Thông tin tương tác với ứng dụng',
+        content:
+          '2.1 Thông tin bạn cung cấp:\n• Họ tên, số điện thoại, email\n• Địa chỉ giao hàng\n• Thông tin thanh toán\n• Ảnh đại diện (nếu bạn tải lên)\n\n2.2 Thông tin tự động thu thập:\n• Thông tin thiết bị (loại thiết bị, hệ điều hành)\n• Địa chỉ IP và vị trí địa lý\n• Lịch sử đặt hàng và duyệt sản phẩm\n• Thông tin tương tác với ứng dụng',
       },
       useOfInformation: {
         title: '3. Mục đích sử dụng thông tin',
-        content: 'Chúng tôi sử dụng thông tin của bạn để:\n\n• Xử lý và giao đơn hàng\n• Cung cấp hỗ trợ khách hàng\n• Gửi thông báo về đơn hàng và khuyến mãi\n• Cải thiện sản phẩm và dịch vụ\n• Phát hiện và ngăn chặn gian lận\n• Tuân thủ các yêu cầu pháp lý',
+        content:
+          'Chúng tôi sử dụng thông tin của bạn để:\n\n• Xử lý và giao đơn hàng\n• Cung cấp hỗ trợ khách hàng\n• Gửi thông báo về đơn hàng và khuyến mãi\n• Cải thiện sản phẩm và dịch vụ\n• Phát hiện và ngăn chặn gian lận\n• Tuân thủ các yêu cầu pháp lý',
       },
       informationSharing: {
         title: '4. Chia sẻ thông tin',
-        content: 'Chúng tôi có thể chia sẻ thông tin của bạn với:\n\n• Đối tác vận chuyển để giao hàng\n• Đối tác thanh toán để xử lý giao dịch\n• Cơ quan pháp luật khi được yêu cầu\n\nChúng tôi KHÔNG bán thông tin cá nhân của bạn cho bên thứ ba vì mục đích tiếp thị.',
+        content:
+          'Chúng tôi có thể chia sẻ thông tin của bạn với:\n\n• Đối tác vận chuyển để giao hàng\n• Đối tác thanh toán để xử lý giao dịch\n• Cơ quan pháp luật khi được yêu cầu\n\nChúng tôi KHÔNG bán thông tin cá nhân của bạn cho bên thứ ba vì mục đích tiếp thị.',
       },
       dataSecurity: {
         title: '5. Bảo mật dữ liệu',
-        content: 'Chúng tôi áp dụng các biện pháp bảo mật tiêu chuẩn ngành để bảo vệ thông tin của bạn:\n\n• Mã hóa SSL/TLS cho tất cả dữ liệu truyền tải\n• Lưu trữ an toàn trên máy chủ được bảo vệ\n• Kiểm soát truy cập nghiêm ngặt\n• Giám sát bảo mật 24/7',
+        content:
+          'Chúng tôi áp dụng các biện pháp bảo mật tiêu chuẩn ngành để bảo vệ thông tin của bạn:\n\n• Mã hóa SSL/TLS cho tất cả dữ liệu truyền tải\n• Lưu trữ an toàn trên máy chủ được bảo vệ\n• Kiểm soát truy cập nghiêm ngặt\n• Giám sát bảo mật 24/7',
       },
       userRights: {
         title: '6. Quyền của bạn',
-        content: 'Bạn có quyền:\n\n• Truy cập và xem thông tin cá nhân\n• Yêu cầu chỉnh sửa thông tin không chính xác\n• Yêu cầu xóa tài khoản và dữ liệu\n• Từ chối nhận thông báo tiếp thị\n• Rút lại sự đồng ý sử dụng dữ liệu',
+        content:
+          'Bạn có quyền:\n\n• Truy cập và xem thông tin cá nhân\n• Yêu cầu chỉnh sửa thông tin không chính xác\n• Yêu cầu xóa tài khoản và dữ liệu\n• Từ chối nhận thông báo tiếp thị\n• Rút lại sự đồng ý sử dụng dữ liệu',
       },
       cookies: {
         title: '7. Cookies và công nghệ theo dõi',
-        content: 'Chúng tôi sử dụng cookies và công nghệ tương tự để:\n\n• Ghi nhớ thông tin đăng nhập\n• Phân tích hành vi sử dụng ứng dụng\n• Cá nhân hóa trải nghiệm người dùng\n\nBạn có thể quản lý cài đặt cookies trong thiết bị của mình.',
+        content:
+          'Chúng tôi sử dụng cookies và công nghệ tương tự để:\n\n• Ghi nhớ thông tin đăng nhập\n• Phân tích hành vi sử dụng ứng dụng\n• Cá nhân hóa trải nghiệm người dùng\n\nBạn có thể quản lý cài đặt cookies trong thiết bị của mình.',
       },
       children: {
         title: '8. Bảo vệ trẻ em',
-        content: 'Dịch vụ của chúng tôi không dành cho người dưới 18 tuổi. Chúng tôi không cố ý thu thập thông tin từ trẻ em. Nếu phát hiện, chúng tôi sẽ xóa ngay lập tức.',
+        content:
+          'Dịch vụ của chúng tôi không dành cho người dưới 18 tuổi. Chúng tôi không cố ý thu thập thông tin từ trẻ em. Nếu phát hiện, chúng tôi sẽ xóa ngay lập tức.',
       },
       changes: {
         title: '9. Thay đổi chính sách',
-        content: 'Chúng tôi có thể cập nhật Chính sách bảo mật này theo thời gian. Mọi thay đổi sẽ được thông báo qua ứng dụng hoặc email. Việc tiếp tục sử dụng dịch vụ đồng nghĩa với việc bạn chấp nhận chính sách mới.',
+        content:
+          'Chúng tôi có thể cập nhật Chính sách bảo mật này theo thời gian. Mọi thay đổi sẽ được thông báo qua ứng dụng hoặc email. Việc tiếp tục sử dụng dịch vụ đồng nghĩa với việc bạn chấp nhận chính sách mới.',
       },
       contact: {
         title: '10. Liên hệ',
-        intro: 'Nếu bạn có câu hỏi về Chính sách bảo mật hoặc muốn thực hiện quyền của mình, vui lòng liên hệ:',
+        intro:
+          'Nếu bạn có câu hỏi về Chính sách bảo mật hoặc muốn thực hiện quyền của mình, vui lòng liên hệ:',
         addressLabel: 'Địa chỉ',
         defaultAddress: '[Địa chỉ công ty]',
       },
@@ -700,7 +728,8 @@ export const vi = {
     earn: 'Cộng',
     invoiceValueToPoints: 'giá trị hóa đơn vào điểm tích luỹ',
     monthlyOffers: 'Ưu đãi đặc biệt hàng tháng',
-    monthlyOffersDesc: 'Ưu đãi hấp dẫn dành riêng cho thành viên trong mục "Mã giảm giá" trên app mỗi tháng.',
+    monthlyOffersDesc:
+      'Ưu đãi hấp dẫn dành riêng cho thành viên trong mục "Mã giảm giá" trên app mỗi tháng.',
     currency: '円',
     millionUnit: '万円',
     ranks: {

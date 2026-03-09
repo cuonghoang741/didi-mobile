@@ -48,7 +48,8 @@ export const en = {
   categories: {
     empty: 'No categories available',
     emptyProducts: 'No products yet',
-    emptyProductsDescription: 'This category has no products at the moment. Please check back later.',
+    emptyProductsDescription:
+      'This category has no products at the moment. Please check back later.',
     brand: 'Brand',
     productType: 'Product Type',
     emptySubcategories: 'No product types available',
@@ -343,6 +344,7 @@ export const en = {
     total: 'Total',
     remove: 'Remove',
     itemCount: 'items',
+    shippingFee: 'Shipping Fee',
   },
   voucher: {
     title: 'Select Voucher',
@@ -428,7 +430,8 @@ export const en = {
     tapToUpload: 'Tap to upload image',
     submit: 'Submit',
     notTransferredYet: 'I have not transferred yet',
-    pleaseTransferAndUpload: 'Please transfer to one of the banks above, then upload the payment proof image and click Confirm Payment.',
+    pleaseTransferAndUpload:
+      'Please transfer to one of the banks above, then upload the payment proof image and click Confirm Payment.',
   },
   timeSlot: {
     title: 'Select Delivery Time',
@@ -440,6 +443,11 @@ export const en = {
   order: {
     success: 'Order Placed Successfully!',
     successDesc: 'Thank you for your order. We will contact you soon.',
+    notFound: 'Order not found',
+    customer: 'Customer',
+    pickupAtStore: 'Pick up at store',
+    deliveryToHome: 'Home delivery',
+    atDiDiStore: 'At DiDi Mobile store',
     historyTitle: 'Order History',
     tab: {
       all: 'All',
@@ -533,7 +541,8 @@ export const en = {
       // Image
       addressPhoto: 'Address Photo',
       addressPhotoKanji: 'Upload address photo in KANJI',
-      addressPhotoDesc: 'To avoid incorrect delivery addresses causing return shipments and extra shipping fees, please upload a photo of any document showing your detailed delivery address',
+      addressPhotoDesc:
+        'To avoid incorrect delivery addresses causing return shipments and extra shipping fees, please upload a photo of any document showing your detailed delivery address',
       addPhoto: 'Add Photo',
       changePhoto: 'Change',
       selectPhotoSource: 'Select Photo Source',
@@ -583,35 +592,43 @@ export const en = {
     sections: {
       introduction: {
         title: '1. Introduction',
-        content: 'Welcome to DiDi! By using our application, you agree to comply with and be bound by the following terms and conditions. Please read carefully before using our services.',
+        content:
+          'Welcome to DiDi! By using our application, you agree to comply with and be bound by the following terms and conditions. Please read carefully before using our services.',
       },
       account: {
         title: '2. User Account',
-        content: '• You must be 18 years of age or older to use our services.\n• You are responsible for maintaining the security of your account information.\n• You may not use another person\'s account without permission.\n• We reserve the right to suspend or terminate accounts if violations are detected.',
+        content:
+          "• You must be 18 years of age or older to use our services.\n• You are responsible for maintaining the security of your account information.\n• You may not use another person's account without permission.\n• We reserve the right to suspend or terminate accounts if violations are detected.",
       },
       orders: {
         title: '3. Orders and Payment',
-        content: '• All orders must be paid in full before delivery.\n• Product prices are subject to change without prior notice.\n• We are not responsible for delays caused by external factors.\n• Confirmed orders cannot be cancelled after processing.',
+        content:
+          '• All orders must be paid in full before delivery.\n• Product prices are subject to change without prior notice.\n• We are not responsible for delays caused by external factors.\n• Confirmed orders cannot be cancelled after processing.',
       },
       products: {
         title: '4. Products and Services',
-        content: '• Product images are for reference only.\n• We are committed to providing quality products as described.\n• Some products may have purchase quantity limits.\n• We reserve the right to reject orders if fraud is detected.',
+        content:
+          '• Product images are for reference only.\n• We are committed to providing quality products as described.\n• Some products may have purchase quantity limits.\n• We reserve the right to reject orders if fraud is detected.',
       },
       refund: {
         title: '5. Return Policy',
-        content: '• Return requests must be submitted within 24 hours of receiving the goods.\n• Returned products must be intact and unused.\n• Return shipping costs are borne by the customer unless it is our fault.\n• Refunds will be processed within 7-14 business days.',
+        content:
+          '• Return requests must be submitted within 24 hours of receiving the goods.\n• Returned products must be intact and unused.\n• Return shipping costs are borne by the customer unless it is our fault.\n• Refunds will be processed within 7-14 business days.',
       },
       intellectualProperty: {
         title: '6. Intellectual Property',
-        content: 'All content on the application including logos, images, text, and designs are the property of DiDi. Copying, distributing, or using for commercial purposes without written permission is strictly prohibited.',
+        content:
+          'All content on the application including logos, images, text, and designs are the property of DiDi. Copying, distributing, or using for commercial purposes without written permission is strictly prohibited.',
       },
       limitation: {
         title: '7. Limitation of Liability',
-        content: 'DiDi is not liable for any direct, indirect, incidental, or consequential damages arising from the use or inability to use our services.',
+        content:
+          'DiDi is not liable for any direct, indirect, incidental, or consequential damages arising from the use or inability to use our services.',
       },
       changes: {
         title: '8. Changes to Terms',
-        content: 'We reserve the right to change these terms at any time. Continued use of the application after changes constitutes acceptance of the new terms.',
+        content:
+          'We reserve the right to change these terms at any time. Continued use of the application after changes constitutes acceptance of the new terms.',
       },
       contact: {
         title: '9. Contact',
@@ -627,43 +644,53 @@ export const en = {
     sections: {
       introduction: {
         title: '1. Introduction',
-        content: 'DiDi is committed to protecting your privacy. This privacy policy explains how we collect, use, and protect your personal information when using our application.',
+        content:
+          'DiDi is committed to protecting your privacy. This privacy policy explains how we collect, use, and protect your personal information when using our application.',
       },
       informationCollection: {
         title: '2. Information We Collect',
-        content: '2.1 Information you provide:\n• Full name, phone number, email\n• Delivery address\n• Payment information\n• Profile picture (if uploaded)\n\n2.2 Automatically collected information:\n• Device information (device type, operating system)\n• IP address and geographic location\n• Order history and product browsing\n• App interaction data',
+        content:
+          '2.1 Information you provide:\n• Full name, phone number, email\n• Delivery address\n• Payment information\n• Profile picture (if uploaded)\n\n2.2 Automatically collected information:\n• Device information (device type, operating system)\n• IP address and geographic location\n• Order history and product browsing\n• App interaction data',
       },
       useOfInformation: {
         title: '3. Purpose of Use',
-        content: 'We use your information to:\n\n• Process and deliver orders\n• Provide customer support\n• Send order notifications and promotions\n• Improve products and services\n• Detect and prevent fraud\n• Comply with legal requirements',
+        content:
+          'We use your information to:\n\n• Process and deliver orders\n• Provide customer support\n• Send order notifications and promotions\n• Improve products and services\n• Detect and prevent fraud\n• Comply with legal requirements',
       },
       informationSharing: {
         title: '4. Information Sharing',
-        content: 'We may share your information with:\n\n• Shipping partners for delivery\n• Payment partners for transaction processing\n• Law enforcement when required\n\nWe DO NOT sell your personal information to third parties for marketing purposes.',
+        content:
+          'We may share your information with:\n\n• Shipping partners for delivery\n• Payment partners for transaction processing\n• Law enforcement when required\n\nWe DO NOT sell your personal information to third parties for marketing purposes.',
       },
       dataSecurity: {
         title: '5. Data Security',
-        content: 'We apply industry-standard security measures to protect your information:\n\n• SSL/TLS encryption for all data transmission\n• Secure storage on protected servers\n• Strict access controls\n• 24/7 security monitoring',
+        content:
+          'We apply industry-standard security measures to protect your information:\n\n• SSL/TLS encryption for all data transmission\n• Secure storage on protected servers\n• Strict access controls\n• 24/7 security monitoring',
       },
       userRights: {
         title: '6. Your Rights',
-        content: 'You have the right to:\n\n• Access and view your personal information\n• Request correction of inaccurate information\n• Request account and data deletion\n• Opt out of marketing communications\n• Withdraw consent for data usage',
+        content:
+          'You have the right to:\n\n• Access and view your personal information\n• Request correction of inaccurate information\n• Request account and data deletion\n• Opt out of marketing communications\n• Withdraw consent for data usage',
       },
       cookies: {
         title: '7. Cookies and Tracking',
-        content: 'We use cookies and similar technologies to:\n\n• Remember login information\n• Analyze app usage behavior\n• Personalize user experience\n\nYou can manage cookie settings on your device.',
+        content:
+          'We use cookies and similar technologies to:\n\n• Remember login information\n• Analyze app usage behavior\n• Personalize user experience\n\nYou can manage cookie settings on your device.',
       },
       children: {
         title: '8. Child Protection',
-        content: 'Our services are not intended for persons under 18 years of age. We do not knowingly collect information from children. If discovered, we will delete it immediately.',
+        content:
+          'Our services are not intended for persons under 18 years of age. We do not knowingly collect information from children. If discovered, we will delete it immediately.',
       },
       changes: {
         title: '9. Policy Changes',
-        content: 'We may update this Privacy Policy from time to time. Any changes will be notified through the app or email. Continued use of the service means you accept the new policy.',
+        content:
+          'We may update this Privacy Policy from time to time. Any changes will be notified through the app or email. Continued use of the service means you accept the new policy.',
       },
       contact: {
         title: '10. Contact',
-        intro: 'If you have questions about the Privacy Policy or want to exercise your rights, please contact us:',
+        intro:
+          'If you have questions about the Privacy Policy or want to exercise your rights, please contact us:',
         addressLabel: 'Address',
         defaultAddress: '[Company Address]',
       },

@@ -457,7 +457,13 @@ const SignInScreen = () => {
                   autoFocus
                 />
               </View>
-              <View style={[styles.inputContainer, displayError && styles.inputErrorBorder, { marginTop: 16 }]}>
+              <View
+                style={[
+                  styles.inputContainer,
+                  displayError && styles.inputErrorBorder,
+                  { marginTop: 16 },
+                ]}
+              >
                 <View style={styles.iconContainer}>
                   <Feather name='lock' size={20} color={theme.colors.text.tertiary} />
                 </View>
@@ -530,7 +536,11 @@ const SignInScreen = () => {
               {/* Social Login Buttons */}
               <View style={styles.socialButtons}>
                 <Pressable
-                  style={[styles.socialButton, styles.lineButton, isLoading && styles.socialButtonDisabled]}
+                  style={[
+                    styles.socialButton,
+                    styles.lineButton,
+                    isLoading && styles.socialButtonDisabled,
+                  ]}
                   onPress={handleLINELogin}
                   disabled={isLoading}
                 >
@@ -541,7 +551,11 @@ const SignInScreen = () => {
                 </Pressable>
 
                 <Pressable
-                  style={[styles.socialButton, styles.googleButton, isLoading && styles.socialButtonDisabled]}
+                  style={[
+                    styles.socialButton,
+                    styles.googleButton,
+                    isLoading && styles.socialButtonDisabled,
+                  ]}
                   onPress={handleGoogleLogin}
                   disabled={isLoading}
                 >
@@ -553,7 +567,11 @@ const SignInScreen = () => {
 
                 {Platform.OS === 'ios' && (
                   <Pressable
-                    style={[styles.socialButton, styles.appleButton, isLoading && styles.socialButtonDisabled]}
+                    style={[
+                      styles.socialButton,
+                      styles.appleButton,
+                      isLoading && styles.socialButtonDisabled,
+                    ]}
                     onPress={handleAppleLogin}
                     disabled={isLoading}
                   >

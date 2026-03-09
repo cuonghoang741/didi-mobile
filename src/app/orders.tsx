@@ -57,7 +57,17 @@ const OrderStatusTab = ({
 
 import { useCurrency } from '@/hooks';
 
-const OrderItemCard = ({ order, onPress, onReview, onCancel }: { order: OrderWithItems; onPress: () => void; onReview?: () => void; onCancel?: () => void }) => {
+const OrderItemCard = ({
+  order,
+  onPress,
+  onReview,
+  onCancel,
+}: {
+  order: OrderWithItems;
+  onPress: () => void;
+  onReview?: () => void;
+  onCancel?: () => void;
+}) => {
   const theme = useTheme();
   const { t } = useLanguage();
   const { formatPrice } = useCurrency(); // Hook usage
@@ -199,7 +209,13 @@ const OrderItemCard = ({ order, onPress, onReview, onCancel }: { order: OrderWit
             </Button>
           )}
           {order.is_reviewed && (
-            <Button size='sm' variant='outline' colorScheme='gray' disabled style={{ opacity: 0.7 }}>
+            <Button
+              size='sm'
+              variant='outline'
+              colorScheme='gray'
+              disabled
+              style={{ opacity: 0.7 }}
+            >
               {t('order.review.reviewed')}
             </Button>
           )}
@@ -405,8 +421,7 @@ const styles = StyleSheet.create({
   headerRight: {
     width: 40,
   },
-  tabsContainer: {
-  },
+  tabsContainer: {},
   tabsContent: {
     paddingHorizontal: 8,
   },

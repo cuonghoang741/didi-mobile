@@ -24,7 +24,6 @@ const Skeleton = ({ width, height, borderRadius = 4, style }: SkeletonProps) => 
 
   React.useEffect(() => {
     opacity.value = withRepeat(withTiming(0.6, { duration: 1000, easing: Easing.ease }), -1, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => {

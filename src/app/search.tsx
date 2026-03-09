@@ -271,4 +271,3 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
   });
 
 export default SearchScreen;
-

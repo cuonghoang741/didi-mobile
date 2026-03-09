@@ -36,11 +36,11 @@ const RootLayout = () => {
       .then(() => oneSignalService.getPlayerId())
       .then((playerId: string | null) => {
         if (playerId) {
-          registerPushToken(playerId).catch(() => { });
+          registerPushToken(playerId).catch(() => {});
         }
       })
-      .catch(() => { });
-    return () => { };
+      .catch(() => {});
+    return () => {};
   }, []);
 
   return (

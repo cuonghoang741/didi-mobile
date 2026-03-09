@@ -58,7 +58,9 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
         if (userLang !== language) {
           setLanguageState(userLang as Language);
           // Update local storage to match user profile
-          SecureStore.setItemAsync(STORAGE_KEYS.LANGUAGE_KEY, userLang as Language).catch(console.warn);
+          SecureStore.setItemAsync(STORAGE_KEYS.LANGUAGE_KEY, userLang as Language).catch(
+            console.warn,
+          );
         }
       }
     }
@@ -71,7 +73,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
 
       if (user) {
         await supabase.auth.updateUser({
-          data: { language: newLocale }
+          data: { language: newLocale },
         });
       }
     } catch (error) {

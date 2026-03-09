@@ -20,7 +20,7 @@ const text = {
   placeholder: palette.grayLight[500],
   placeholder_subtle: palette.grayLight[300],
 
-  brand_primary: "#2E8FF9",
+  brand_primary: '#2E8FF9',
   brand_secondary: palette.brand[700],
   brand_tertiary: palette.brand[600],
   brand_tertiary_alt: palette.brand[600],

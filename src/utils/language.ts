@@ -8,19 +8,19 @@ import { MultiLanguageData } from '@/types/database.types';
  * @param fallbackValue The default value if translation is missing (e.g. product.name)
  */
 export const getLocalizedContent = (
-    languageData: any,
-    field: keyof MultiLanguageData,
-    currentLang: string,
-    fallbackValue: string
+  languageData: any,
+  field: keyof MultiLanguageData,
+  currentLang: string,
+  fallbackValue: string,
 ): string => {
-    if (!languageData) return fallbackValue;
+  if (!languageData) return fallbackValue;
 
-    const data = languageData as MultiLanguageData;
-    const fieldData = data[field];
+  const data = languageData as MultiLanguageData;
+  const fieldData = data[field];
 
-    if (fieldData && fieldData[currentLang]) {
-        return fieldData[currentLang] || fallbackValue;
-    }
+  if (fieldData && fieldData[currentLang]) {
+    return fieldData[currentLang] || fallbackValue;
+  }
 
-    return fallbackValue;
+  return fallbackValue;
 };

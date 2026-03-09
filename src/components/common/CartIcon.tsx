@@ -7,69 +7,69 @@ import Typography from '@/components/ui/Typography/Typography';
 import { useTheme, useCart } from '@/contexts';
 
 interface CartIconProps {
-    size?: number;
-    color?: string;
-    showBadge?: boolean;
-    onPress?: () => void;
+  size?: number;
+  color?: string;
+  showBadge?: boolean;
+  onPress?: () => void;
 }
 
 export const CartIcon: React.FC<CartIconProps> = ({
-    size = 24,
-    color,
-    showBadge = true,
-    onPress,
+  size = 24,
+  color,
+  showBadge = true,
+  onPress,
 }) => {
-    const theme = useTheme();
-    const router = useRouter();
-    const { getItemCount } = useCart();
+  const theme = useTheme();
+  const router = useRouter();
+  const { getItemCount } = useCart();
 
-    const itemCount = getItemCount();
-    const iconColor = color || theme.colors.text.primary;
+  const itemCount = getItemCount();
+  const iconColor = color || theme.colors.text.primary;
 
-    const handlePress = () => {
-        if (onPress) {
-            onPress();
-        } else {
-            router.push('/cart');
-        }
-    };
+  const handlePress = () => {
+    if (onPress) {
+      onPress();
+    } else {
+      router.push('/cart');
+    }
+  };
 
-    return (
-        <Pressable onPress={handlePress} style={styles.container}>
-            <Feather name='shopping-cart' size={size} color={iconColor} />
-            {showBadge && itemCount > 0 && (
-                <View style={styles.badge}>
-                    <Typography variant='text' size='xs' weight='bold' style={styles.badgeText}>
-                        {itemCount > 9 ? '9+' : itemCount}
-                    </Typography>
-                </View>
-            )}
-        </Pressable>
-    );
+  return (
+    <Pressable onPress={handlePress} style={styles.container}>
+      <Feather name='shopping-cart' size={size} color={iconColor} />
+      {showBadge && itemCount > 0 && (
+        <View style={styles.badge}>
+          <Typography variant='text' size='xs' weight='bold' style={styles.badgeText}>
+            {itemCount > 9 ? '9+' : itemCount}
+          </Typography>
+        </View>
+      )}
+    </Pressable>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        position: 'relative',
-        padding: 8,
-    },
-    badge: {
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        minWidth: 18,
-        height: 18,
-        borderRadius: 9,
-        backgroundColor: '#EF4444',
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 4,
-    },
-    badgeText: {
-        color: '#FFFFFF',
-        fontSize: 10,
-        lineHeight: 12,
-    },
+  container: {
+    position: 'relative',
+    padding: 8,
+  },
+  badge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    lineHeight: 12,
+  },
 });
 
 export default CartIcon;

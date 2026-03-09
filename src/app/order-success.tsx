@@ -57,7 +57,7 @@ const OrderSuccessScreen = () => {
   if (!order) {
     return (
       <View style={styles.loadingContainer}>
-        <Typography>Order not found</Typography>
+        <Typography>{t('order.notFound') || 'Order not found'}</Typography>
         <Button onPress={handleBackHome} style={{ marginTop: 20 }}>
           {t('common.backToHome')}
         </Button>
@@ -68,11 +68,7 @@ const OrderSuccessScreen = () => {
   return (
     <View style={styles.container}>
       {/* Hero Image */}
-      <Image
-        source={HERO_IMAGE}
-        style={styles.heroImage}
-        contentFit="cover"
-      />
+      <Image source={HERO_IMAGE} style={styles.heroImage} contentFit='cover' />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView
@@ -80,7 +76,7 @@ const OrderSuccessScreen = () => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.ticketCard}>
-            <FakeBorderPaperOrder position="top" />
+            <FakeBorderPaperOrder position='top' />
             <View style={styles.cardBody}>
               {/* Header Section */}
               <View style={styles.cardHeader}>
@@ -105,7 +101,7 @@ const OrderSuccessScreen = () => {
                   <Feather name='user' size={20} color='#3B82F6' style={styles.infoIcon} />
                   <View>
                     <Typography variant='text' weight='bold'>
-                      {order.shipping_address?.full_name || 'Khách hàng'}
+                      {order.shipping_address?.full_name || t('order.customer') || 'Khách hàng'}
                     </Typography>
                     <Typography variant='text' size='sm' style={styles.subText}>
                       {order.shipping_address?.phone || ''}
@@ -117,13 +113,32 @@ const OrderSuccessScreen = () => {
                   <Feather name='map-pin' size={20} color='#3B82F6' style={styles.infoIcon} />
                   <View style={{ flex: 1 }}>
                     <Typography variant='text' weight='bold'>
-                      {order.payment_method === 'at_store' ? 'Nhận tại cửa hàng' : 'Giao hàng tận nơi'}
+                      {order.payment_method === 'at_store'
+                        ? t('order.pickupAtStore') || 'Nhận tại cửa hàng'
+                        : t('order.deliveryToHome') || 'Giao hàng tận nơi'}
                     </Typography>
                     <Typography variant='text' size='sm' style={styles.subText} numberOfLines={2}>
                       {order.payment_method === 'at_store'
-                        ? 'Tại cửa hàng DiDi Mobile'
-                        : `${order.shipping_address?.address_line1}, ${order.shipping_address?.ward}, ${order.shipping_address?.district}, ${order.shipping_address?.city}`}
+                        ? t('order.atDiDiStore') || 'Tại cửa hàng DiDi Mobile'
+                        : order.shipping_address?.address_line1?.trim()?.length ||
+                            order.shipping_address?.city?.trim()?.length
+                          ? [
+                              order.shipping_address?.address_line1,
+                              order.shipping_address?.ward,
+                              order.shipping_address?.district,
+                              order.shipping_address?.city,
+                            ]
+                              .filter(Boolean)
+                              .join(', ')
+                          : ''}
                     </Typography>
+                    {order.shipping_address?.image_url && (
+                      <Image
+                        source={order.shipping_address.image_url}
+                        style={styles.addressImage}
+                        contentFit='cover'
+                      />
+                    )}
                   </View>
                 </View>
               </View>
@@ -141,10 +156,22 @@ const OrderSuccessScreen = () => {
 
                 {items.map((item, index) => (
                   <View key={item.id} style={[styles.productRow, index > 0 && { marginTop: 12 }]}>
-                    <View style={{ flex: 1 }}>
-                      <Typography variant='text' weight='medium' numberOfLines={1}>
+                    {item.image_url && (
+                      <Image
+                        source={item.image_url}
+                        style={styles.productImage}
+                        contentFit='cover'
+                      />
+                    )}
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Typography variant='text' weight='medium'>
                         {item.product_name}
                       </Typography>
+                      {item.variant_name && (
+                        <Typography variant='text' size='sm' style={styles.subText}>
+                          {item.variant_name}
+                        </Typography>
+                      )}
                       <Typography variant='text' size='sm' style={styles.subText}>
                         x{item.quantity}
                       </Typography>
@@ -161,12 +188,68 @@ const OrderSuccessScreen = () => {
               {/* Total */}
               <View style={styles.section}>
                 <View style={styles.totalRow}>
+                  <Typography variant='text' style={styles.subText}>
+                    {t('cart.subtotal') || 'Tạm tính'}
+                  </Typography>
+                  <Typography variant='text' weight='medium'>
+                    {formatPrice(order.subtotal).jpy}
+                  </Typography>
+                </View>
+
+                {order.shipping_fee > 0 && (
+                  <View style={[styles.totalRow, { marginTop: 8 }]}>
+                    <Typography variant='text' style={styles.subText}>
+                      {t('cart.shippingFee') || 'Phí vận chuyển'}
+                    </Typography>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Typography variant='text' weight='medium'>
+                        {formatPrice(order.shipping_fee).jpy}
+                      </Typography>
+                      <Typography
+                        variant='text'
+                        size='xs'
+                        style={{ color: '#6B7280', marginTop: 2 }}
+                      >
+                        {formatPrice(order.shipping_fee).vnd}
+                      </Typography>
+                    </View>
+                  </View>
+                )}
+
+                {order.discount_amount > 0 && (
+                  <View style={[styles.totalRow, { marginTop: 8 }]}>
+                    <Typography variant='text' style={styles.subText}>
+                      {t('cart.discount') || 'Khuyến mãi'}
+                    </Typography>
+                    <Typography variant='text' weight='medium' style={{ color: '#10B981' }}>
+                      -{formatPrice(order.discount_amount).jpy}
+                    </Typography>
+                  </View>
+                )}
+
+                <View
+                  style={[
+                    styles.totalRow,
+                    {
+                      marginTop: 12,
+                      paddingTop: 12,
+                      borderTopWidth: 1,
+                      borderTopColor: '#F3F4F6',
+                      borderStyle: 'dashed',
+                    },
+                  ]}
+                >
                   <Typography variant='text' weight='bold'>
                     {t('cart.total') || 'Tổng cộng'}
                   </Typography>
-                  <Typography variant='text' size='lg' weight='bold' style={styles.totalPrice}>
-                    {formatPrice(order.total_amount).jpy}
-                  </Typography>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Typography variant='text' size='lg' weight='bold' style={styles.totalPrice}>
+                      {formatPrice(order.total_amount).jpy}
+                    </Typography>
+                    <Typography variant='text' size='sm' style={{ color: '#6B7280', marginTop: 2 }}>
+                      {formatPrice(order.total_amount).vnd}
+                    </Typography>
+                  </View>
                 </View>
 
                 <View style={[styles.totalRow, { marginTop: 12 }]}>
@@ -175,13 +258,15 @@ const OrderSuccessScreen = () => {
                   </Typography>
                   <View style={styles.statusBadge}>
                     <Typography variant='text' size='xs' style={styles.statusText}>
-                      {order.payment_status === 'paid' ? t('order.paymentStatus.paid') : t('order.paymentStatus.pending')}
+                      {order.payment_status === 'paid'
+                        ? t('order.paymentStatus.paid')
+                        : t('order.paymentStatus.pending')}
                     </Typography>
                   </View>
                 </View>
               </View>
             </View>
-            <FakeBorderPaperOrder position="bottom" />
+            <FakeBorderPaperOrder position='bottom' />
           </View>
 
           {/* Add extra padding at bottom for the fixed button */}
@@ -300,6 +385,20 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
+    },
+    productImage: {
+      width: 48,
+      height: 48,
+      borderRadius: 8,
+      marginRight: 12,
+      backgroundColor: '#E5E7EB',
+    },
+    addressImage: {
+      width: '100%',
+      height: 120,
+      marginTop: 8,
+      borderRadius: 8,
+      backgroundColor: '#E5E7EB',
     },
     priceText: {
       color: '#DC2626', // Red

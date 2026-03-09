@@ -1,7 +1,20 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Switch, Linking, Alert, Modal, Image, RefreshControl } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Switch,
+  Linking,
+  Alert,
+  Modal,
+  Image,
+  RefreshControl,
+  AppState,
+  AppStateStatus,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Typography, Button } from '@/components';
@@ -38,7 +51,16 @@ const Profile = () => {
   const router = useRouter();
   const theme = useTheme();
   const { t, language, setLanguage } = useLanguage();
-  const { user, profile, refreshProfile, logout, isLoggedIn, getDisplayName, getEmail, getAvatarUrl } = useAuth();
+  const {
+    user,
+    profile,
+    refreshProfile,
+    logout,
+    isLoggedIn,
+    getDisplayName,
+    getEmail,
+    getAvatarUrl,
+  } = useAuth();
   const { branches, fanpageUrls, contactPhone, isLoading: isLoadingSettings } = useSettings();
   const styles = createStyles(theme);
 
@@ -47,7 +69,7 @@ const Profile = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
 
-  // Get initial notification subscription status
+  // Get initial notification subscription status and listen for app state changes
   useEffect(() => {
     const checkNotificationStatus = async () => {
       try {
@@ -57,32 +79,64 @@ const Profile = () => {
         console.error('Error checking notification status:', error);
       }
     };
+
     checkNotificationStatus();
+
+    // Re-check status when app comes to foreground (user might have changed settings)
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        checkNotificationStatus();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   // Handle notification toggle
-  const handleNotificationToggle = useCallback(async (value: boolean) => {
-    setIsTogglingNotifications(true);
-    try {
-      const success = await oneSignalService.toggleSubscription(value);
-      if (success) {
-        setNotificationsEnabled(value);
-      } else {
-        // If toggle failed, show alert
-        Alert.alert(
-          t('common.error'),
-          value
-            ? t('profile.notificationEnableFailed') || 'Không thể bật thông báo. Vui lòng kiểm tra quyền thông báo trong cài đặt.'
-            : t('profile.notificationDisableFailed') || 'Không thể tắt thông báo.'
-        );
+  const handleNotificationToggle = useCallback(
+    async (value: boolean) => {
+      setIsTogglingNotifications(true);
+      try {
+        const success = await oneSignalService.toggleSubscription(value);
+        if (success) {
+          setNotificationsEnabled(value);
+        } else {
+          // If toggle failed, typically due to missing OS permission, offer to open settings
+          if (value) {
+            Alert.alert(
+              t('common.error') || 'Lỗi',
+              t('profile.notificationEnableFailed') ||
+                'Không thể bật thông báo. Vui lòng cấp quyền thông báo trong Cài đặt của thiết bị.',
+              [
+                { text: t('common.cancel') || 'Hủy', style: 'cancel' },
+                {
+                  text: t('profile.openSettings') || 'Mở Cài đặt',
+                  onPress: () => Linking.openSettings(),
+                },
+              ],
+            );
+          } else {
+            Alert.alert(
+              t('common.error') || 'Lỗi',
+              t('profile.notificationDisableFailed') || 'Không thể tắt thông báo.',
+            );
+          }
+
+          // Revert switch visually
+          const status = await oneSignalService.getSubscriptionStatus();
+          setNotificationsEnabled(status.isSubscribed);
+        }
+      } catch (error) {
+        console.error('Error toggling notifications:', error);
+        Alert.alert(t('common.error') || 'Lỗi', t('common.somethingWentWrong') || 'Đã xảy ra lỗi');
+      } finally {
+        setIsTogglingNotifications(false);
       }
-    } catch (error) {
-      console.error('Error toggling notifications:', error);
-      Alert.alert(t('common.error'), t('common.somethingWentWrong') || 'Đã xảy ra lỗi');
-    } finally {
-      setIsTogglingNotifications(false);
-    }
-  }, [t]);
+    },
+    [t],
+  );
 
   // Language options
   const languageOptions = [
@@ -93,7 +147,7 @@ const Profile = () => {
 
   // Get current language label
   const getCurrentLanguageLabel = () => {
-    const option = languageOptions.find(opt => opt.code === language);
+    const option = languageOptions.find((opt) => opt.code === language);
     return option ? `${option.flag} ${option.label}` : language;
   };
 
@@ -138,7 +192,7 @@ const Profile = () => {
             router.replace('/signin');
           },
         },
-      ]
+      ],
     );
   };
 
@@ -163,14 +217,14 @@ const Profile = () => {
 
   // Get Facebook fanpage URL
   const getFacebookUrl = () => {
-    const facebookPage = fanpageUrls.find(f => f.platform === 'facebook');
+    const facebookPage = fanpageUrls.find((f) => f.platform === 'facebook');
     return facebookPage?.url || 'https://facebook.com';
   };
 
   // Get Messenger URL from Facebook URL
   const getMessengerUrl = () => {
     // First check if there's a direct messenger URL in settings
-    const messengerPage = fanpageUrls.find(f => f.platform === 'messenger');
+    const messengerPage = fanpageUrls.find((f) => f.platform === 'messenger');
     if (messengerPage?.url) {
       return messengerPage.url;
     }
@@ -218,16 +272,30 @@ const Profile = () => {
             label: t('profile.visitFacebook'),
             onPress: () => handleOpenLink(url),
           });
-          // Also add Messenger if Facebook exists
+
+          // Add auto-detected Messenger only if explicit messenger setting is absent
+          const hasMessengerSetting = fanpageUrls.some((f) => f.platform === 'messenger' && f.url);
+          if (!hasMessengerSetting) {
+            items.push({
+              icon: <MessengerLogo width={20} height={20} />,
+              label: t('profile.chatMessenger'),
+              onPress: () => handleOpenLink(getMessengerUrl()),
+            });
+          }
+          break;
+        case 'messenger': {
+          let finalUrl = url;
+          if (finalUrl.includes('facebook.com/messages/t/')) {
+            const id = finalUrl.split('facebook.com/messages/t/')[1].replace(/[\/#?].*$/, '');
+            finalUrl = `https://m.me/${id}`;
+          }
           items.push({
             icon: <MessengerLogo width={20} height={20} />,
             label: t('profile.chatMessenger'),
-            onPress: () => handleOpenLink(getMessengerUrl()),
+            onPress: () => handleOpenLink(finalUrl),
           });
           break;
-        case 'messenger':
-          // Already added via Facebook, skip if separate
-          break;
+        }
         case 'line':
           items.push({
             icon: <LineLogo width={20} height={20} />,
@@ -328,12 +396,16 @@ const Profile = () => {
           onPress: handleBranchPress,
         },
         // Only show hotline if phone exists
-        ...(contactPhone ? [{
-          icon: <Feather name='phone' size={20} color={theme.colors.text.secondary} />,
-          label: t('profile.hotline'),
-          rightText: contactPhone,
-          onPress: () => handleOpenLink(`tel:${contactPhone.replace(/\s/g, '')}`),
-        }] : []),
+        ...(contactPhone
+          ? [
+              {
+                icon: <Feather name='phone' size={20} color={theme.colors.text.secondary} />,
+                label: t('profile.hotline'),
+                rightText: contactPhone,
+                onPress: () => handleOpenLink(`tel:${contactPhone.replace(/\s/g, '')}`),
+              },
+            ]
+          : []),
         // Dynamic social platform items
         ...getSocialMenuItems(),
       ],
@@ -344,7 +416,8 @@ const Profile = () => {
         {
           icon: <Feather name='edit-3' size={20} color={theme.colors.text.secondary} />,
           label: t('profile.feedback'),
-          onPress: () => Linking.openURL('mailto:pdmmobile2020@gmail.com?subject=Góp ý từ ứng dụng DiDi'),
+          onPress: () =>
+            Linking.openURL('mailto:pdmmobile2020@gmail.com?subject=Góp ý từ ứng dụng DiDi'),
         },
         {
           icon: <Feather name='file' size={20} color={theme.colors.text.secondary} />,
@@ -354,9 +427,10 @@ const Profile = () => {
         {
           icon: <Feather name='help-circle' size={20} color={theme.colors.text.secondary} />,
           label: t('profile.helpCenter'),
-          onPress: () => contactPhone
-            ? Linking.openURL(`tel:${contactPhone.replace(/\s/g, '')}`)
-            : Alert.alert('Thông báo', 'Hotline chưa được cập nhật'),
+          onPress: () =>
+            contactPhone
+              ? Linking.openURL(`tel:${contactPhone.replace(/\s/g, '')}`)
+              : Alert.alert('Thông báo', 'Hotline chưa được cập nhật'),
         },
       ],
     },
@@ -437,9 +511,7 @@ const Profile = () => {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* User Info Section */}
         {isLoggedIn ? renderUserCard() : renderLoginCard()}
@@ -472,7 +544,7 @@ const Profile = () => {
                   <Typography variant='text' size='xs' style={styles.statsLabel}>
                     {t('profile.accumulatedPoints')}
                   </Typography>
-                  <Typography variant='text' size='lg' weight='bold' style={styles.statsValue}>
+                  <Typography variant='text' size='sm' weight='bold' style={styles.statsValue}>
                     {profile?.loyalty_points?.toLocaleString() || '0'}
                   </Typography>
                 </View>
@@ -489,7 +561,7 @@ const Profile = () => {
                   <Typography variant='text' size='xs' style={styles.statsLabel}>
                     {t('profile.rank')}
                   </Typography>
-                  <Typography variant='text' size='lg' weight='bold' style={styles.statsValue}>
+                  <Typography variant='text' size='sm' weight='bold' style={styles.statsValue}>
                     {profile?.loyalty_points && profile.loyalty_points > 5000
                       ? t('membership.ranks.gold')
                       : profile?.loyalty_points && profile.loyalty_points > 1000
@@ -539,10 +611,7 @@ const Profile = () => {
         animationType='fade'
         onRequestClose={() => setLanguageModalVisible(false)}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setLanguageModalVisible(false)}
-        >
+        <Pressable style={styles.modalOverlay} onPress={() => setLanguageModalVisible(false)}>
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHeader}>
               <Typography variant='text' size='lg' weight='bold'>

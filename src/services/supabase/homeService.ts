@@ -12,7 +12,11 @@ import { supabase } from './client';
 (async () => {
   try {
     // Test 1: Direct query to junction table (no filters)
-    const { data: junctionAll, error: junctionErr, count } = await (supabase as any)
+    const {
+      data: junctionAll,
+      error: junctionErr,
+      count,
+    } = await (supabase as any)
       .from('product_categories_junction')
       .select('*', { count: 'exact' })
       .limit(5);
@@ -33,7 +37,10 @@ import { supabase } from './client';
       .is('parent_id', null)
       .limit(5);
 
-    console.log('🔍 [RLS DEBUG] Top-level categories:', catData?.map(c => ({ id: c.id, name: c.name })));
+    console.log(
+      '🔍 [RLS DEBUG] Top-level categories:',
+      catData?.map((c) => ({ id: c.id, name: c.name })),
+    );
 
     if (catData && catData.length > 0) {
       // Test 3: Query junction with first category's ID
@@ -60,7 +67,7 @@ import { supabase } from './client';
       console.log(`🔍 [RLS DEBUG] Subcategories of "${catData[0].name}":`, subCats);
 
       if (subCats && subCats.length > 0) {
-        const allCatIds = [firstCatId, ...subCats.map(s => s.id)];
+        const allCatIds = [firstCatId, ...subCats.map((s) => s.id)];
         const { data: junctionForAll, error: jErr2 } = await (supabase as any)
           .from('product_categories_junction')
           .select('product_id')
@@ -305,7 +312,7 @@ export const fetchCategoriesWithProducts = async (
 
   const results = await Promise.all(categoryPromises);
 
-  // Filter out nulls 
+  // Filter out nulls
   const validResults = results.filter((r): r is CategoryWithProducts => r !== null);
 
   // Re-sort results to match the original category order
@@ -319,13 +326,14 @@ export const fetchCategoriesWithProducts = async (
  * Fetch all home page data in one call
  */
 export const fetchHomeData = async (): Promise<HomeData> => {
-  const [banners, featuredProducts, flashSaleData, categories, categoriesWithProducts] = await Promise.all([
-    fetchBanners(),
-    fetchFeaturedProducts(),
-    fetchActiveFlashSale(),
-    fetchHomeCategories(),
-    fetchCategoriesWithProducts(5, 5),
-  ]);
+  const [banners, featuredProducts, flashSaleData, categories, categoriesWithProducts] =
+    await Promise.all([
+      fetchBanners(),
+      fetchFeaturedProducts(),
+      fetchActiveFlashSale(),
+      fetchHomeCategories(),
+      fetchCategoriesWithProducts(5, 5),
+    ]);
 
   return {
     banners,

@@ -101,12 +101,14 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         // 3. Fetch Items
         const { data: itemsData, error: itemsError } = await supabase
           .from('cart_items')
-          .select(`
+          .select(
+            `
             id,
             quantity,
             product:products(*),
             variant:product_variants(*)
-          `)
+          `,
+          )
           .eq('cart_id', cartData.id)
           .order('created_at', { ascending: true });
 
@@ -114,15 +116,17 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           console.error('Error fetching cart items:', itemsError);
         } else {
           // Map DB response to CartItem type
-          const mappedItems: CartItem[] = (itemsData || []).map((item: any) => ({
-            id: item.id,
-            quantity: item.quantity,
-            product: item.product,
-            variant: item.variant,
-            cart_id: cartData.id,
-            product_id: item.product.id,
-            variant_id: item.variant?.id || null,
-          })).filter(i => i.product); // Ensure product exists
+          const mappedItems: CartItem[] = (itemsData || [])
+            .map((item: any) => ({
+              id: item.id,
+              quantity: item.quantity,
+              product: item.product,
+              variant: item.variant,
+              cart_id: cartData.id,
+              product_id: item.product.id,
+              variant_id: item.variant?.id || null,
+            }))
+            .filter((i) => i.product); // Ensure product exists
 
           setItems(mappedItems);
         }
@@ -141,7 +145,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       // Optimistic update
       setItems((prev) => {
         const existingIdx = prev.findIndex(
-          (i) => i.product.id === product.id && i.variant?.id === variant?.id
+          (i) => i.product.id === product.id && i.variant?.id === variant?.id,
         );
         if (existingIdx >= 0) {
           const newItems = [...prev];
@@ -173,35 +177,65 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
         if (existing) {
           // Update
-          await supabase.from('cart_items').update({ quantity: existing.quantity + quantity }).eq('id', existing.id);
+          await supabase
+            .from('cart_items')
+            .update({ quantity: existing.quantity + quantity })
+            .eq('id', existing.id);
         } else {
           // Insert
           await supabase.from('cart_items').insert({
             cart_id: cartId,
             product_id: product.id,
             variant_id: variantId,
-            quantity: quantity
+            quantity: quantity,
           });
+        }
+
+        // Notify admin about cart addition
+        try {
+          const customerName = user?.user_metadata?.full_name || user?.phone || 'Khách vãng lai';
+          const itemName = variant
+            ? `${product.name} (${(variant as any).sku || 'Phân loại'})`
+            : product.name;
+
+          await supabase.functions.invoke('notify-admin-action', {
+            body: {
+              action: 'add_to_cart',
+              title: 'Có khách thêm vào giỏ! 🛒',
+              message: `Khách hàng ${customerName} vừa thêm "${itemName}" vào giỏ hàng.`,
+              data: {
+                product_id: product.id,
+                variant_id: variantId,
+              },
+            },
+          });
+        } catch (notifyErr) {
+          console.error('Failed to notify admin for cart:', notifyErr);
         }
       } catch (error) {
         console.error('Failed to add item to DB:', error);
       }
     },
-    [cartId]
+    [cartId],
   );
 
   const removeItem = useCallback(
     async (productId: string, variantId?: string | null) => {
       setItems((prev) =>
         prev.filter(
-          (item) => !(item.product.id === productId && (item.variant?.id || null) === (variantId || null))
-        )
+          (item) =>
+            !(item.product.id === productId && (item.variant?.id || null) === (variantId || null)),
+        ),
       );
 
       if (!cartId) return;
 
       try {
-        let query = supabase.from('cart_items').delete().eq('cart_id', cartId).eq('product_id', productId);
+        let query = supabase
+          .from('cart_items')
+          .delete()
+          .eq('cart_id', cartId)
+          .eq('product_id', productId);
         if (variantId) query = query.eq('variant_id', variantId);
         else query = query.is('variant_id', null);
 
@@ -210,7 +244,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         console.error('Error removing item from DB:', e);
       }
     },
-    [cartId]
+    [cartId],
   );
 
   const updateQuantity = useCallback(
@@ -226,13 +260,17 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
             return { ...item, quantity };
           }
           return item;
-        })
+        }),
       );
 
       if (!cartId) return;
 
       try {
-        let query = supabase.from('cart_items').update({ quantity }).eq('cart_id', cartId).eq('product_id', productId);
+        let query = supabase
+          .from('cart_items')
+          .update({ quantity })
+          .eq('cart_id', cartId)
+          .eq('product_id', productId);
         if (variantId) query = query.eq('variant_id', variantId);
         else query = query.is('variant_id', null);
 
@@ -241,7 +279,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         console.error('Error updating quantity in DB:', e);
       }
     },
-    [cartId, removeItem]
+    [cartId, removeItem],
   );
 
   const clearCart = useCallback(async () => {
@@ -260,7 +298,9 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
   const getSubtotal = useCallback(() => {
     return items.reduce((sum, item) => {
-      const price = item.variant ? item.variant.price : (item.product.sale_price || item.product.base_price || 0);
+      const price = item.variant
+        ? item.variant.price
+        : item.product.sale_price || item.product.base_price || 0;
       return sum + price * item.quantity;
     }, 0);
   }, [items]);

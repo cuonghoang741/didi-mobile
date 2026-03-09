@@ -93,7 +93,11 @@ const Categories = () => {
 
     setLoadingProducts(true);
     try {
-      console.log('[DEBUG Categories] Loading products for category:', selectedCategory.id, selectedCategory.name);
+      console.log(
+        '[DEBUG Categories] Loading products for category:',
+        selectedCategory.id,
+        selectedCategory.name,
+      );
 
       // 1. Get product_ids from junction table
       const { data: junctionData, error: junctionError } = await supabase
@@ -196,7 +200,7 @@ const Categories = () => {
     const isSelected = selectedBrand === null;
     return (
       <Pressable
-        key="all"
+        key='all'
         style={[styles.brandChip, isSelected && styles.brandChipSelected]}
         onPress={() => setSelectedBrand(null)}
       >
@@ -222,11 +226,7 @@ const Categories = () => {
         onPress={() => setSelectedBrand(brand)}
       >
         {brand.logo_url && (
-          <Image
-            source={{ uri: brand.logo_url }}
-            style={styles.brandLogo}
-            contentFit='contain'
-          />
+          <Image source={{ uri: brand.logo_url }} style={styles.brandLogo} contentFit='contain' />
         )}
         <Typography
           variant='text'
@@ -250,24 +250,21 @@ const Categories = () => {
     // Treat base_price as original price if sale_price is set, but be careful with variants
     // As variant enrichment just sets the lowest variant price to sale_price, without keeping the base_price
     // So we'll show discount only if there's a clear sale vs base difference
-    const originalPrice = item.base_price && item.sale_price && item.sale_price < item.base_price ? item.base_price : null;
+    const originalPrice =
+      item.base_price && item.sale_price && item.sale_price < item.base_price
+        ? item.base_price
+        : null;
 
-    const imageUri = item.thumbnail_url || item.image_urls?.[0] || 'https://via.placeholder.com/100';
-    const discountPercent = originalPrice && originalPrice > price
-      ? Math.round(((originalPrice - price) / originalPrice) * 100)
-      : 0;
+    const imageUri =
+      item.thumbnail_url || item.image_urls?.[0] || 'https://via.placeholder.com/100';
+    const discountPercent =
+      originalPrice && originalPrice > price
+        ? Math.round(((originalPrice - price) / originalPrice) * 100)
+        : 0;
 
     return (
-      <Pressable
-        key={item.id}
-        style={styles.productItem}
-        onPress={() => handleProductPress(item)}
-      >
-        <Image
-          source={{ uri: imageUri }}
-          style={styles.productImage}
-          contentFit='cover'
-        />
+      <Pressable key={item.id} style={styles.productItem} onPress={() => handleProductPress(item)}>
+        <Image source={{ uri: imageUri }} style={styles.productImage} contentFit='cover' />
         <View style={styles.productInfo}>
           <Typography variant='text' size='sm' numberOfLines={2} style={styles.productName}>
             {productName}
@@ -343,7 +340,12 @@ const Categories = () => {
               {/* Brands Section */}
               {brands.length > 0 && (
                 <View style={styles.brandsSection}>
-                  <Typography variant='text' size='md' weight='semiBold' style={styles.sectionTitle}>
+                  <Typography
+                    variant='text'
+                    size='md'
+                    weight='semiBold'
+                    style={styles.sectionTitle}
+                  >
                     {t('categories.brand') || 'Thương hiệu'}
                   </Typography>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -562,4 +564,3 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
   });
 
 export default Categories;
-

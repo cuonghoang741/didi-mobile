@@ -14,10 +14,7 @@ export interface AppSettings {
 
 export const fetchAppSettings = async (): Promise<AppSettings | null> => {
   try {
-    const { data, error } = await supabase
-      .from('settings')
-      .select('*')
-      .maybeSingle();
+    const { data, error } = await supabase.from('settings').select('*').maybeSingle();
 
     if (error) {
       console.error('Error fetching settings:', error);

@@ -3,7 +3,18 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, TextInput, Alert, Image, ActionSheetIOS, Platform, ActivityIndicator } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  TextInput,
+  Alert,
+  Image,
+  ActionSheetIOS,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Typography, Button } from '@/components';
@@ -103,11 +114,10 @@ const EditProfileScreen = () => {
         }
       }
 
-      const manipulatedImage = await manipulateAsync(
-        asset.uri,
-        actions,
-        { compress: 0.7, format: SaveFormat.JPEG }
-      );
+      const manipulatedImage = await manipulateAsync(asset.uri, actions, {
+        compress: 0.7,
+        format: SaveFormat.JPEG,
+      });
       await uploadAvatar(manipulatedImage.uri);
     }
   };
@@ -137,16 +147,13 @@ const EditProfileScreen = () => {
         }
       }
 
-      const manipulatedImage = await manipulateAsync(
-        asset.uri,
-        actions,
-        { compress: 0.7, format: SaveFormat.JPEG }
-      );
+      const manipulatedImage = await manipulateAsync(asset.uri, actions, {
+        compress: 0.7,
+        format: SaveFormat.JPEG,
+      });
       await uploadAvatar(manipulatedImage.uri);
     }
   };
-
-
 
   // Upload avatar using ColorMe API
   const uploadAvatar = async (imageUri: string) => {
@@ -189,18 +196,14 @@ const EditProfileScreen = () => {
           } else if (buttonIndex === 2) {
             pickImageFromGallery();
           }
-        }
+        },
       );
     } else {
-      Alert.alert(
-        'Đổi ảnh đại diện',
-        'Chọn nguồn ảnh',
-        [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Chụp ảnh', onPress: takePhotoWithCamera },
-          { text: 'Chọn từ thư viện', onPress: pickImageFromGallery },
-        ]
-      );
+      Alert.alert('Đổi ảnh đại diện', 'Chọn nguồn ảnh', [
+        { text: 'Hủy', style: 'cancel' },
+        { text: 'Chụp ảnh', onPress: takePhotoWithCamera },
+        { text: 'Chọn từ thư viện', onPress: pickImageFromGallery },
+      ]);
     }
   };
 
@@ -234,7 +237,7 @@ const EditProfileScreen = () => {
             <Image source={{ uri: avatarUrl }} style={styles.avatar} />
             {isUploadingAvatar ? (
               <View style={styles.avatarLoadingOverlay}>
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size='small' color='#FFFFFF' />
               </View>
             ) : (
               <View style={styles.cameraIcon}>

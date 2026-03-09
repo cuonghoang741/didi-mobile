@@ -2,13 +2,13 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-    View,
-    StyleSheet,
-    ScrollView,
-    Pressable,
-    RefreshControl,
-    ActivityIndicator,
-    Alert,
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  RefreshControl,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -20,390 +20,370 @@ import { supabase } from '@/services/supabase';
 const db = supabase as any;
 
 interface Address {
-    id: string;
-    full_name: string;
-    nickname?: string;
-    phone: string;
-    address_line1: string;
-    address_line2?: string;
-    ward?: string;
-    district?: string;
-    city: string;
-    province?: string;
-    postal_code?: string;
-    is_default: boolean;
-    type: string;
+  id: string;
+  full_name: string;
+  nickname?: string;
+  phone: string;
+  address_line1: string;
+  address_line2?: string;
+  ward?: string;
+  district?: string;
+  city: string;
+  province?: string;
+  postal_code?: string;
+  is_default: boolean;
+  type: string;
 }
 
 const AddressesScreen = () => {
-    const router = useRouter();
-    const { select } = useLocalSearchParams<{ select?: string }>();
-    const isSelectMode = select === 'true';
-    const theme = useTheme();
-    const { user } = useAuth();
-    const { t } = useLanguage();
-    const styles = createStyles(theme);
+  const router = useRouter();
+  const { select } = useLocalSearchParams<{ select?: string }>();
+  const isSelectMode = select === 'true';
+  const theme = useTheme();
+  const { user } = useAuth();
+  const { t } = useLanguage();
+  const styles = createStyles(theme);
 
-    const [addresses, setAddresses] = useState<Address[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const fetchAddresses = useCallback(async () => {
-        if (!user?.id) return;
+  const fetchAddresses = useCallback(async () => {
+    if (!user?.id) return;
 
-        try {
-            const { data, error } = await db
-                .from('customer_addresses')
-                .select('*')
-                .eq('customer_id', user.id)
-                .order('is_default', { ascending: false })
-                .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await db
+        .from('customer_addresses')
+        .select('*')
+        .eq('customer_id', user.id)
+        .order('is_default', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAddresses(data || []);
+    } catch (error) {
+      console.error('[AddressesScreen] Error fetching addresses:', error);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAddresses();
+    }, [fetchAddresses]),
+  );
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    fetchAddresses();
+  };
+
+  const handleAddAddress = () => {
+    router.push('/address-form' as any);
+  };
+
+  const handleEditAddress = (addressId: string) => {
+    router.push(`/address-form?id=${addressId}` as any);
+  };
+
+  // Handle selecting address for checkout
+  const handleSelectAddress = async (address: Address) => {
+    if (!user?.id) return;
+
+    try {
+      // Set this address as default
+      // First, unset all other defaults
+      await db.from('customer_addresses').update({ is_default: false }).eq('customer_id', user.id);
+
+      // Then set this one as default
+      await db.from('customer_addresses').update({ is_default: true }).eq('id', address.id);
+
+      // Go back to checkout
+      router.back();
+    } catch (error) {
+      console.error('Error selecting address:', error);
+      Alert.alert(t('common.error'), 'Không thể chọn địa chỉ');
+    }
+  };
+
+  const handleDeleteAddress = (addressId: string, addressName: string) => {
+    Alert.alert(t('addresses.deleteTitle'), `${t('addresses.deleteConfirm')} "${addressName}"?`, [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.delete'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const { error } = await db.from('customer_addresses').delete().eq('id', addressId);
 
             if (error) throw error;
-            setAddresses(data || []);
-        } catch (error) {
-            console.error('[AddressesScreen] Error fetching addresses:', error);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [user?.id]);
-
-    useFocusEffect(
-        useCallback(() => {
             fetchAddresses();
-        }, [fetchAddresses])
-    );
+          } catch (error) {
+            console.error('[AddressesScreen] Error deleting address:', error);
+            Alert.alert(t('common.error'), t('addresses.errors.deleteFailed'));
+          }
+        },
+      },
+    ]);
+  };
 
-    const handleRefresh = () => {
-        setIsRefreshing(true);
-        fetchAddresses();
-    };
+  // Get location label from province or city
+  const getLocationLabel = (address: Address) => {
+    if (address.province) return address.province;
+    if (address.city) return address.city;
+    return t('addresses.locationDefault');
+  };
 
-    const handleAddAddress = () => {
-        router.push('/address-form' as any);
-    };
-
-    const handleEditAddress = (addressId: string) => {
-        router.push(`/address-form?id=${addressId}` as any);
-    };
-
-    // Handle selecting address for checkout
-    const handleSelectAddress = async (address: Address) => {
-        if (!user?.id) return;
-
-        try {
-            // Set this address as default
-            // First, unset all other defaults
-            await db
-                .from('customer_addresses')
-                .update({ is_default: false })
-                .eq('customer_id', user.id);
-
-            // Then set this one as default
-            await db
-                .from('customer_addresses')
-                .update({ is_default: true })
-                .eq('id', address.id);
-
-            // Go back to checkout
-            router.back();
-        } catch (error) {
-            console.error('Error selecting address:', error);
-            Alert.alert(t('common.error'), 'Không thể chọn địa chỉ');
+  const renderAddressCard = (address: Address) => (
+    <Pressable
+      key={address.id}
+      style={[styles.addressCard]}
+      onPress={() => {
+        if (isSelectMode) {
+          handleSelectAddress(address);
+        } else {
+          handleEditAddress(address.id);
         }
-    };
-
-    const handleDeleteAddress = (addressId: string, addressName: string) => {
-        Alert.alert(
-            t('addresses.deleteTitle'),
-            `${t('addresses.deleteConfirm')} "${addressName}"?`,
-            [
-                { text: t('common.cancel'), style: 'cancel' },
-                {
-                    text: t('common.delete'),
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            const { error } = await db
-                                .from('customer_addresses')
-                                .delete()
-                                .eq('id', addressId);
-
-                            if (error) throw error;
-                            fetchAddresses();
-                        } catch (error) {
-                            console.error('[AddressesScreen] Error deleting address:', error);
-                            Alert.alert(t('common.error'), t('addresses.errors.deleteFailed'));
-                        }
-                    },
-                },
-            ],
-        );
-    };
-
-    // Get location label from province or city
-    const getLocationLabel = (address: Address) => {
-        if (address.province) return address.province;
-        if (address.city) return address.city;
-        return t('addresses.locationDefault');
-    };
-
-    const renderAddressCard = (address: Address) => (
-        <Pressable
-            key={address.id}
-            style={[
-                styles.addressCard,
-            ]}
-            onPress={() => {
-                if (isSelectMode) {
-                    handleSelectAddress(address);
-                } else {
-                    handleEditAddress(address.id);
-                }
-            }}
-        >
-            <View style={styles.cardContent}>
-                {/* Radio/Check for select mode */}
-                {isSelectMode && (
-                    <View style={styles.radioContainer}>
-                        <View style={[
-                            styles.radioOuter,
-                            address.is_default && styles.radioOuterActive,
-                        ]}>
-                            {address.is_default && <View style={styles.radioInner} />}
-                        </View>
-                    </View>
-                )}
-
-                {/* Location Icon */}
-                {!isSelectMode && (
-                    <View style={styles.locationIconContainer}>
-                        <Feather name='map-pin' size={20} color={theme.colors.text.secondary} />
-                    </View>
-                )}
-
-                {/* Address Info */}
-                <View style={styles.addressInfo}>
-                    {/* Nickname + Phone */}
-                    <View style={styles.mainInfo}>
-                        <Typography variant='text' size='md' weight='bold'>
-                            {address.nickname || address.full_name}
-                        </Typography>
-                        <Typography variant='text' size='md' style={styles.phoneText}>
-                            {address.phone}
-                        </Typography>
-                    </View>
-
-                    {/* Badges Row */}
-                    <View style={styles.badgesRow}>
-                        {address.is_default && (
-                            <View style={styles.defaultBadge}>
-                                <Feather name='check-circle' size={12} color='#03543F' />
-                                <Typography variant='text' size='xs' style={styles.defaultBadgeText}>
-                                    {t('addresses.default')}
-                                </Typography>
-                            </View>
-                        )}
-                        <View style={styles.locationBadge}>
-                            <Typography variant='text' size='xs' style={styles.locationBadgeText}>
-                                {getLocationLabel(address)}
-                            </Typography>
-                        </View>
-                    </View>
-                </View>
-
-                {/* Delete Button */}
-                <Pressable
-                    style={styles.deleteButton}
-                    onPress={(e) => {
-                        e.stopPropagation();
-                        handleDeleteAddress(address.id, address.nickname || address.full_name);
-                    }}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                    <Feather name='trash-2' size={20} color={theme.colors.text.tertiary} />
-                </Pressable>
+      }}
+    >
+      <View style={styles.cardContent}>
+        {/* Radio/Check for select mode */}
+        {isSelectMode && (
+          <View style={styles.radioContainer}>
+            <View style={[styles.radioOuter, address.is_default && styles.radioOuterActive]}>
+              {address.is_default && <View style={styles.radioInner} />}
             </View>
+          </View>
+        )}
+
+        {/* Location Icon */}
+        {!isSelectMode && (
+          <View style={styles.locationIconContainer}>
+            <Feather name='map-pin' size={20} color={theme.colors.text.secondary} />
+          </View>
+        )}
+
+        {/* Address Info */}
+        <View style={styles.addressInfo}>
+          {/* Nickname + Phone */}
+          <View style={styles.mainInfo}>
+            <Typography variant='text' size='md' weight='bold'>
+              {address.nickname || address.full_name}
+            </Typography>
+            <Typography variant='text' size='md' style={styles.phoneText}>
+              {address.phone}
+            </Typography>
+          </View>
+
+          {/* Badges Row */}
+          <View style={styles.badgesRow}>
+            {address.is_default && (
+              <View style={styles.defaultBadge}>
+                <Feather name='check-circle' size={12} color='#03543F' />
+                <Typography variant='text' size='xs' style={styles.defaultBadgeText}>
+                  {t('addresses.default')}
+                </Typography>
+              </View>
+            )}
+            <View style={styles.locationBadge}>
+              <Typography variant='text' size='xs' style={styles.locationBadgeText}>
+                {getLocationLabel(address)}
+              </Typography>
+            </View>
+          </View>
+        </View>
+
+        {/* Delete Button */}
+        <Pressable
+          style={styles.deleteButton}
+          onPress={(e) => {
+            e.stopPropagation();
+            handleDeleteAddress(address.id, address.nickname || address.full_name);
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Feather name='trash-2' size={20} color={theme.colors.text.tertiary} />
         </Pressable>
-    );
+      </View>
+    </Pressable>
+  );
 
-    return (
-        <AuthProtect>
-            <SafeAreaView style={styles.container} edges={['top']}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <Pressable style={styles.backButton} onPress={() => router.back()}>
-                        <Feather name='arrow-left' size={24} color={theme.colors.text.primary} />
-                    </Pressable>
-                    <Typography variant='text' size='lg' weight='bold'>
-                        {t('addresses.titleShort')}
-                    </Typography>
-                    <View style={{ width: 32 }} />
-                </View>
+  return (
+    <AuthProtect>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Feather name='arrow-left' size={24} color={theme.colors.text.primary} />
+          </Pressable>
+          <Typography variant='text' size='lg' weight='bold'>
+            {t('addresses.titleShort')}
+          </Typography>
+          <View style={{ width: 32 }} />
+        </View>
 
-                {isLoading ? (
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size='large' color={theme.colors.foreground.brand_primary} />
-                    </View>
-                ) : (
-                    <ScrollView
-                        contentContainerStyle={styles.scrollContent}
-                        showsVerticalScrollIndicator={false}
-                        refreshControl={
-                            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
-                        }
-                    >
-                        {/* Address List */}
-                        {addresses.map(renderAddressCard)}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size='large' color={theme.colors.foreground.brand_primary} />
+          </View>
+        ) : (
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+          >
+            {/* Address List */}
+            {addresses.map(renderAddressCard)}
 
-                        {/* Add New Address Button */}
-                        <Pressable style={styles.addNewButton} onPress={handleAddAddress}>
-                            <Feather name='plus' size={20} color={theme.colors.text.primary} />
-                            <Typography variant='text' size='md' style={styles.addNewButtonText}>
-                                {t('addresses.addNewSaved')}
-                            </Typography>
-                        </Pressable>
-                    </ScrollView>
-                )}
-            </SafeAreaView>
-        </AuthProtect>
-    );
+            {/* Add New Address Button */}
+            <Pressable style={styles.addNewButton} onPress={handleAddAddress}>
+              <Feather name='plus' size={20} color={theme.colors.text.primary} />
+              <Typography variant='text' size='md' style={styles.addNewButtonText}>
+                {t('addresses.addNewSaved')}
+              </Typography>
+            </Pressable>
+          </ScrollView>
+        )}
+      </SafeAreaView>
+    </AuthProtect>
+  );
 };
 
 const createStyles = (theme: ReturnType<typeof useTheme>) =>
-    StyleSheet.create({
-        container: {
-            flex: 1,
-            backgroundColor: theme.colors.background.primary,
-        },
-        header: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            backgroundColor: theme.colors.background.primary,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.border.tertiary,
-        },
-        backButton: {
-            padding: 4,
-        },
-        scrollContent: {
-            padding: 16,
-            paddingBottom: 32,
-        },
-        loadingContainer: {
-            flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-        },
-        // Address Card Styles
-        addressCard: {
-            backgroundColor: 'white',
-            borderRadius: 12,
-            marginBottom: 12,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.05,
-            shadowRadius: 2,
-            elevation: 1,
-        },
-        radioContainer: {
-            marginRight: 12,
-            marginTop: 2,
-        },
-        radioOuter: {
-            width: 20,
-            height: 20,
-            borderRadius: 10,
-            borderWidth: 2,
-            borderColor: '#D1D5DB',
-            justifyContent: 'center',
-            alignItems: 'center',
-        },
-        radioOuterActive: {
-            borderColor: theme.colors.foreground.brand_primary,
-        },
-        radioInner: {
-            width: 10,
-            height: 10,
-            borderRadius: 5,
-            backgroundColor: theme.colors.foreground.brand_primary,
-        },
-        cardContent: {
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            padding: 16,
-        },
-        locationIconContainer: {
-            marginRight: 12,
-            marginTop: 2,
-        },
-        addressInfo: {
-            flex: 1,
-        },
-        mainInfo: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 12,
-            marginBottom: 8,
-        },
-        phoneText: {
-            color: theme.colors.text.primary,
-        },
-        badgesRow: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-        },
-        locationBadge: {
-            alignSelf: 'flex-start',
-            backgroundColor: '#F3F4F6',
-            paddingHorizontal: 10,
-            paddingVertical: 4,
-            borderRadius: 4,
-        },
-        locationBadgeText: {
-            color: theme.colors.text.secondary,
-            fontWeight: '500',
-        },
-        defaultBadge: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            alignSelf: 'flex-start',
-            backgroundColor: '#DEF7EC',
-            paddingHorizontal: 10,
-            paddingVertical: 4,
-            borderRadius: 4,
-        },
-        defaultBadgeText: {
-            color: '#03543F',
-            fontWeight: '500',
-        },
-        deleteButton: {
-            padding: 4,
-            marginLeft: 8,
-        },
-        // Add New Button Styles
-        addNewButton: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            gap: 12,
-            backgroundColor: 'white',
-            paddingVertical: 16,
-            paddingHorizontal: 16,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: theme.colors.border.secondary,
-            borderStyle: 'dashed',
-        },
-        addNewButtonText: {
-            color: theme.colors.text.primary,
-        },
-    });
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background.primary,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: theme.colors.background.primary,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border.tertiary,
+    },
+    backButton: {
+      padding: 4,
+    },
+    scrollContent: {
+      padding: 16,
+      paddingBottom: 32,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    // Address Card Styles
+    addressCard: {
+      backgroundColor: 'white',
+      borderRadius: 12,
+      marginBottom: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    radioContainer: {
+      marginRight: 12,
+      marginTop: 2,
+    },
+    radioOuter: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      borderWidth: 2,
+      borderColor: '#D1D5DB',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    radioOuterActive: {
+      borderColor: theme.colors.foreground.brand_primary,
+    },
+    radioInner: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: theme.colors.foreground.brand_primary,
+    },
+    cardContent: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      padding: 16,
+    },
+    locationIconContainer: {
+      marginRight: 12,
+      marginTop: 2,
+    },
+    addressInfo: {
+      flex: 1,
+    },
+    mainInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 8,
+    },
+    phoneText: {
+      color: theme.colors.text.primary,
+    },
+    badgesRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    locationBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: '#F3F4F6',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 4,
+    },
+    locationBadgeText: {
+      color: theme.colors.text.secondary,
+      fontWeight: '500',
+    },
+    defaultBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      alignSelf: 'flex-start',
+      backgroundColor: '#DEF7EC',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 4,
+    },
+    defaultBadgeText: {
+      color: '#03543F',
+      fontWeight: '500',
+    },
+    deleteButton: {
+      padding: 4,
+      marginLeft: 8,
+    },
+    // Add New Button Styles
+    addNewButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      gap: 12,
+      backgroundColor: 'white',
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border.secondary,
+      borderStyle: 'dashed',
+    },
+    addNewButtonText: {
+      color: theme.colors.text.primary,
+    },
+  });
 
 export default AddressesScreen;

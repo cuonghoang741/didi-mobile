@@ -25,7 +25,13 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-        const payload: OrderNotificationPayload = await req.json();
+        let payload: OrderNotificationPayload = await req.json();
+
+        // Some client SDK versions wrap the body payload inside a `body` key
+        if ((payload as any).body && !payload.order_id && !payload.order_number) {
+            payload = (payload as any).body;
+            console.log("Extracted payload from .body ->", payload);
+        }
 
         if (!payload.order_id || !payload.order_number) {
             throw new Error("order_id and order_number are required");
@@ -55,13 +61,11 @@ Deno.serve(async (req: Request) => {
                 { field: "tag", key: "role", relation: "=", value: "admin" }
             ],
             headings: {
-                en: "New Order Received! 🛒",
-                ja: "新しい注文が入りました！ 🛒",
+                en: "Đơn hàng mới! 🛒", // Set default to Vietnamese
                 vi: "Đơn hàng mới! 🛒",
             },
             contents: {
-                en: `Order #${payload.order_number} from ${payload.customer_name}. Total: ${formattedAmount}`,
-                ja: `注文番号 #${payload.order_number} - ${payload.customer_name}様より。合計: ${formattedAmount}`,
+                en: `Đơn hàng #${payload.order_number} từ ${payload.customer_name}. Tổng: ${formattedAmount}`,
                 vi: `Đơn hàng #${payload.order_number} từ ${payload.customer_name}. Tổng: ${formattedAmount}`,
             },
             data: {
@@ -72,9 +76,6 @@ Deno.serve(async (req: Request) => {
             // iOS specific settings
             ios_badgeType: "Increase",
             ios_badgeCount: 1,
-            // Android specific settings
-            android_channel_id: "orders",
-            android_accent_color: "FF5B7CFF",
             // Priority settings
             priority: 10,
             // TTL (Time To Live) - 24 hours

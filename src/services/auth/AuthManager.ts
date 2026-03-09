@@ -65,11 +65,7 @@ export class AuthManager {
 
   private async _fetchProfile(userId: string): Promise<UserProfile | null> {
     try {
-      const { data } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const { data } = await supabase.from('users').select('*').eq('id', userId).single();
       return data as UserProfile;
     } catch (error) {
       console.warn('Error fetching profile:', error);
@@ -391,6 +387,8 @@ export class AuthManager {
         // Fetch profile
         const profileData = await this._fetchProfile(data.user.id);
 
+        await this.notifyNewUserIfApplicable(data.user);
+
         this.setState({
           session: data.session,
           user: data.user,
@@ -544,6 +542,29 @@ export class AuthManager {
     return `Xác thực thất bại. ${errorMessage || 'Vui lòng thử lại.'}`;
   }
 
+  private async notifyNewUserIfApplicable(user: User): Promise<void> {
+    try {
+      const createdAt = new Date(user.created_at).getTime();
+      const lastSignInAt = user.last_sign_in_at
+        ? new Date(user.last_sign_in_at).getTime()
+        : Date.now();
+      if (Math.abs(lastSignInAt - createdAt) < 30000) {
+        const customerName =
+          user.user_metadata?.full_name || user.phone || user.email || 'Khách hàng';
+        await supabase.functions.invoke('notify-admin-action', {
+          body: {
+            action: 'new_user',
+            title: 'Khách hàng mới! 🎉',
+            message: `Tài khoản ${customerName} vừa đăng ký vào hệ thống.`,
+            data: { user_id: user.id },
+          },
+        });
+      }
+    } catch (e) {
+      console.error('Failed to notify new user:', e);
+    }
+  }
+
   /**
    * Verify Phone OTP
    */
@@ -583,6 +604,9 @@ export class AuthManager {
 
         // Fetch profile
         const profileData = await this._fetchProfile(data.user.id);
+
+        // Notify if new user
+        await this.notifyNewUserIfApplicable(data.user);
 
         this.setState({
           session: data.session,
@@ -663,6 +687,7 @@ export class AuthManager {
       let profile: UserProfile | null = null;
       if (data.user) {
         profile = await this._fetchProfile(data.user.id);
+        await this.notifyNewUserIfApplicable(data.user);
       }
 
       this.setState({
@@ -732,6 +757,7 @@ export class AuthManager {
         let profile: UserProfile | null = null;
         if (sessionData.user) {
           profile = await this._fetchProfile(sessionData.user.id);
+          await this.notifyNewUserIfApplicable(sessionData.user);
         }
 
         this.setState({
@@ -760,6 +786,7 @@ export class AuthManager {
         let profile: UserProfile | null = null;
         if (sessionData.user) {
           profile = await this._fetchProfile(sessionData.user.id);
+          await this.notifyNewUserIfApplicable(sessionData.user);
         }
 
         this.setState({
@@ -786,7 +813,7 @@ export class AuthManager {
    * 2. Sau khi user đăng nhập, LINE redirect về Edge Function với code
    * 3. Edge Function redirect về App với code
    * 4. App gọi line-login Edge Function để đổi code lấy session
-   * 
+   *
    * SETUP REQUIRED:
    * 1. LINE Developer Console > LINE Login > Callback URL: https://[project].supabase.co/functions/v1/line-callback
    * 2. Supabase Dashboard > Edge Functions > line-callback: TẮT "Enforce JWT Verification"
@@ -803,7 +830,7 @@ export class AuthManager {
       // Tạo state chứa redirect URI để Edge Function biết redirect về đâu
       const stateData = {
         nonce: Math.random().toString(36).substring(7),
-        redirectTo: appRedirectUri
+        redirectTo: appRedirectUri,
       };
       const state = encodeURIComponent(JSON.stringify(stateData));
       const scope = 'profile openid';
@@ -881,6 +908,7 @@ export class AuthManager {
       // Đăng ký OneSignal
       if (user) {
         await oneSignalService.registerUser(user.id, 'customer');
+        await this.notifyNewUserIfApplicable(user);
       }
 
       console.log('[AuthManager] LINE Login - Thành công! ✅');
@@ -893,11 +921,7 @@ export class AuthManager {
     } catch (err: any) {
       console.error('[AuthManager] signInWithLINE thất bại:', err);
 
-      Alert.alert(
-        'Lỗi đăng nhập LINE',
-        err.message || 'Đã có lỗi xảy ra',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Lỗi đăng nhập LINE', err.message || 'Đã có lỗi xảy ra', [{ text: 'OK' }]);
 
       this.setState({
         errorMessage: err.message || 'Đăng nhập LINE thất bại',

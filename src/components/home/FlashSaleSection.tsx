@@ -39,7 +39,8 @@ const FlashSaleCard = ({
 }) => {
   const originalPrice = item.base_price ?? 0;
   const flashSalePrice = item.flash_sale_price ?? item.sale_price ?? originalPrice;
-  const discountPercent = originalPrice > 0 ? Math.round(((originalPrice - flashSalePrice) / originalPrice) * 100) : 0;
+  const discountPercent =
+    originalPrice > 0 ? Math.round(((originalPrice - flashSalePrice) / originalPrice) * 100) : 0;
 
   // Mock sold count if not present (design shows "Đã bán 0/10")
   const sold = item.flash_sale_quantity_sold || 0;
@@ -311,7 +312,7 @@ const styles = StyleSheet.create({
   cardContent: {
     gap: 8,
     padding: 8,
-    paddingTop: 0
+    paddingTop: 0,
   },
   priceRow: {
     flexDirection: 'row',

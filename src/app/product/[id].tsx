@@ -34,60 +34,60 @@ const colorNameToHex = (colorName: string | null | undefined): string | null => 
   // Common color mappings
   const colorMap: Record<string, string> = {
     // Blacks
-    'black': '#1A1A1A',
+    black: '#1A1A1A',
     'titanium black': '#2D2D2D',
-    'midnight': '#1C1C1E',
-    'graphite': '#41464B',
+    midnight: '#1C1C1E',
+    graphite: '#41464B',
 
     // Grays
-    'gray': '#808080',
-    'grey': '#808080',
+    gray: '#808080',
+    grey: '#808080',
     'titanium gray': '#8E8E93',
     'titanium grey': '#8E8E93',
-    'silver': '#C0C0C0',
+    silver: '#C0C0C0',
     'space gray': '#535150',
 
     // Whites
-    'white': '#FFFFFF',
-    'cream': '#FFFDD0',
-    'pearl': '#F5F5F5',
+    white: '#FFFFFF',
+    cream: '#FFFDD0',
+    pearl: '#F5F5F5',
 
     // Violets/Purples
-    'violet': '#8B5CF6',
+    violet: '#8B5CF6',
     'titanium violet': '#9B7EDE',
-    'purple': '#9333EA',
-    'lavender': '#E6E6FA',
+    purple: '#9333EA',
+    lavender: '#E6E6FA',
 
     // Blues
-    'blue': '#3B82F6',
+    blue: '#3B82F6',
     'titanium blue': '#5B7FDE',
-    'navy': '#1E3A5F',
+    navy: '#1E3A5F',
     'sky blue': '#87CEEB',
     'pacific blue': '#1E88E5',
 
     // Greens
-    'green': '#22C55E',
+    green: '#22C55E',
     'alpine green': '#4A5D23',
-    'mint': '#98FB98',
+    mint: '#98FB98',
 
     // Reds/Pinks
-    'red': '#EF4444',
-    'pink': '#EC4899',
-    'rose': '#F43F5E',
-    'coral': '#FF7F50',
+    red: '#EF4444',
+    pink: '#EC4899',
+    rose: '#F43F5E',
+    coral: '#FF7F50',
 
     // Yellows/Golds
-    'yellow': '#EAB308',
-    'gold': '#FFD700',
+    yellow: '#EAB308',
+    gold: '#FFD700',
     'titanium gold': '#C7A958',
 
     // Browns
-    'brown': '#92400E',
-    'bronze': '#CD7F32',
+    brown: '#92400E',
+    bronze: '#CD7F32',
 
     // Others
-    'natural': '#F5F5DC',
-    'titanium': '#878681',
+    natural: '#F5F5DC',
+    titanium: '#878681',
   };
 
   // Try exact match first
@@ -129,7 +129,6 @@ const ProductDetailScreen = () => {
   const [descriptionNeedsExpand, setDescriptionNeedsExpand] = useState(false);
   const imageListRef = useRef<FlatList>(null);
   const thumbnailListRef = useRef<FlatList>(null);
-
 
   // Button animation states
   const [isAdded, setIsAdded] = useState(false);
@@ -254,7 +253,7 @@ const ProductDetailScreen = () => {
 
     // Try image_urls first (array)
     if (product?.image_urls && Array.isArray(product.image_urls)) {
-      result.push(...product.image_urls.filter(Boolean) as string[]);
+      result.push(...(product.image_urls.filter(Boolean) as string[]));
     }
 
     // Fall back to thumbnail_url if no images
@@ -325,8 +324,6 @@ const ProductDetailScreen = () => {
       </View>
     );
   };
-
-
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -428,85 +425,117 @@ const ProductDetailScreen = () => {
           </View>
 
           {/* Variants - Color Selection */}
-          {product.product_variants && product.product_variants.length > 0 && (() => {
-            // Check if all variants are color-only (no images)
-            const allColorOnly = product.product_variants.every((v: any) => !v.image_url);
+          {product.product_variants &&
+            product.product_variants.length > 0 &&
+            (() => {
+              // Check if all variants are color-only (no images)
+              const allColorOnly = product.product_variants.every((v: any) => !v.image_url);
 
-            return (
-              <View style={styles.variantsSection}>
-                <Typography variant='text' size='md' style={styles.variantHeaderText}>
-                  <Typography variant='text' size='md' weight='medium'>
-                    {t('product.selectColor')}:{' '}
+              return (
+                <View style={styles.variantsSection}>
+                  <Typography variant='text' size='md' style={styles.variantHeaderText}>
+                    <Typography variant='text' size='md' weight='medium'>
+                      {t('product.selectColor')}:{' '}
+                    </Typography>
+                    <Typography variant='text' size='md' style={styles.selectedColorName}>
+                      {(() => {
+                        const v = selectedVariant as any;
+                        return v?.name || v?.color || t('product.notSelected');
+                      })()}
+                    </Typography>
                   </Typography>
-                  <Typography variant='text' size='md' style={styles.selectedColorName}>
-                    {(() => {
-                      const v = selectedVariant as any;
-                      return v?.name || v?.color || t('product.notSelected');
-                    })()}
-                  </Typography>
-                </Typography>
-                <View style={[styles.variantsGrid, allColorOnly && styles.variantsGridSmall]}>
-                  {product.product_variants.map((variant: ProductVariant) => {
-                    const variantAny = variant as any;
-                    const imageUrl = variantAny.image_url;
-                    // Try color_code first, then convert color name to hex
-                    const colorHex = variantAny.color_code || variantAny.hex_color || colorNameToHex(variantAny.color);
-                    const isSelected = selectedVariant?.id === variant.id;
+                  <View style={[styles.variantsGrid, allColorOnly && styles.variantsGridSmall]}>
+                    {product.product_variants.map((variant: ProductVariant) => {
+                      const variantAny = variant as any;
+                      const imageUrl = variantAny.image_url;
+                      // Try color_code first, then convert color name to hex
+                      const colorHex =
+                        variantAny.color_code ||
+                        variantAny.hex_color ||
+                        colorNameToHex(variantAny.color);
+                      const isSelected = selectedVariant?.id === variant.id;
 
-                    return (
-                      <Pressable
-                        key={variant.id}
-                        style={[
-                          allColorOnly ? styles.colorSwatchCard : styles.variantCard,
-                          isSelected && (allColorOnly ? styles.colorSwatchCardActive : styles.variantCardActive),
-                        ]}
-                        onPress={() => setSelectedVariant(variant)}
-                      >
-                        {imageUrl ? (
-                          <Image
-                            source={{ uri: imageUrl }}
-                            style={styles.variantCardImage}
-                            contentFit='cover'
-                          />
-                        ) : colorHex ? (
-                          <View style={[allColorOnly ? styles.colorSwatchInner : styles.variantCardImage, { backgroundColor: colorHex }]} />
-                        ) : (
-                          <Image
-                            source={{ uri: product.thumbnail_url || (product.image_urls && product.image_urls[0]) }}
-                            style={styles.variantCardImage}
-                            contentFit='cover'
-                          />
-                        )}
-                      </Pressable>
-                    );
-                  })}
+                      return (
+                        <Pressable
+                          key={variant.id}
+                          style={[
+                            allColorOnly ? styles.colorSwatchCard : styles.variantCard,
+                            isSelected &&
+                              (allColorOnly
+                                ? styles.colorSwatchCardActive
+                                : styles.variantCardActive),
+                          ]}
+                          onPress={() => setSelectedVariant(variant)}
+                        >
+                          {imageUrl ? (
+                            <Image
+                              source={{ uri: imageUrl }}
+                              style={styles.variantCardImage}
+                              contentFit='cover'
+                            />
+                          ) : colorHex ? (
+                            <View
+                              style={[
+                                allColorOnly ? styles.colorSwatchInner : styles.variantCardImage,
+                                { backgroundColor: colorHex },
+                              ]}
+                            />
+                          ) : (
+                            <Image
+                              source={{
+                                uri:
+                                  product.thumbnail_url ||
+                                  (product.image_urls && product.image_urls[0]),
+                              }}
+                              style={styles.variantCardImage}
+                              contentFit='cover'
+                            />
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
                 </View>
-              </View>
-            );
-          })()}
+              );
+            })()}
 
           {/* Warranty Section */}
           {(() => {
-            const warrantyText = getLocalizedContent(
-              product.language,
-              'warranty',
-              language,
-              ''
-            );
+            const warrantyText = getLocalizedContent(product.language, 'warranty', language, '');
             if (!warrantyText) return null;
 
             return (
-              <Animated.View style={[styles.warrantySection, { opacity: warrantyAnim, transform: [{ translateY: warrantyAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
+              <Animated.View
+                style={[
+                  styles.warrantySection,
+                  {
+                    opacity: warrantyAnim,
+                    transform: [
+                      {
+                        translateY: warrantyAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [20, 0],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
                 <View style={styles.warrantyHeader}>
-                  <Feather name="shield" size={20} color={theme.colors.text.brand_primary} />
-                  <Typography variant="text" size="md" weight="semiBold" style={styles.warrantyTitle}>
+                  <Feather name='shield' size={20} color={theme.colors.text.brand_primary} />
+                  <Typography
+                    variant='text'
+                    size='md'
+                    weight='semiBold'
+                    style={styles.warrantyTitle}
+                  >
                     {t('product.warranty')}
                   </Typography>
                 </View>
                 <RenderHtml
                   contentWidth={SCREEN_WIDTH - 64}
                   source={{
-                    html: warrantyText
+                    html: warrantyText,
                   }}
                   tagsStyles={{
                     p: {
@@ -525,14 +554,13 @@ const ProductDetailScreen = () => {
             );
           })()}
 
-
           {/* Description */}
           {(() => {
             const descriptionHtml = getLocalizedContent(
               product.language,
               'description',
               language,
-              product.description || ''
+              product.description || '',
             );
             if (!descriptionHtml) return null;
             return (
@@ -588,7 +616,12 @@ const ProductDetailScreen = () => {
                       style={styles.viewMoreButton}
                       onPress={() => setDescriptionExpanded(!descriptionExpanded)}
                     >
-                      <Typography variant='text' size='sm' weight='semiBold' style={styles.viewMoreText}>
+                      <Typography
+                        variant='text'
+                        size='sm'
+                        weight='semiBold'
+                        style={styles.viewMoreText}
+                      >
                         {descriptionExpanded ? t('product.collapse') : t('product.viewMore')}
                       </Typography>
                       <Feather
@@ -612,18 +645,15 @@ const ProductDetailScreen = () => {
               <View style={styles.specsContainer}>
                 {Object.entries(product.specifications as Record<string, string | number>).map(
                   ([key, value]) => (
-                    <View
-                      key={key}
-                      style={styles.specRow}
-                    >
+                    <View key={key} style={styles.specRow}>
                       <Typography variant='text' size='sm' style={styles.specKey}>
                         {t(`product.specs.${key}`) !== `product.specs.${key}`
                           ? t(`product.specs.${key}`)
                           : key
-                            .replace(/_/g, ' ')
-                            .replace(/([A-Z])/g, ' $1') // CamelCase to spaced
-                            .toUpperCase()
-                            .trim()}
+                              .replace(/_/g, ' ')
+                              .replace(/([A-Z])/g, ' $1') // CamelCase to spaced
+                              .toUpperCase()
+                              .trim()}
                       </Typography>
                       <Typography
                         variant='text'
@@ -634,15 +664,11 @@ const ProductDetailScreen = () => {
                         {String(value)}
                       </Typography>
                     </View>
-                  )
+                  ),
                 )}
               </View>
             </View>
           )}
-
-
-
-
 
           {/* Reviews */}
           <ProductReviews
@@ -695,10 +721,7 @@ const ProductDetailScreen = () => {
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
         <Pressable
-          style={[
-            styles.addToCartButton,
-            isAdded && styles.addToCartButtonSuccess,
-          ]}
+          style={[styles.addToCartButton, isAdded && styles.addToCartButtonSuccess]}
           onPress={handleAddToCart}
           disabled={isAdded}
         >
@@ -718,7 +741,10 @@ const ProductDetailScreen = () => {
             </Typography>
           </View>
         </Pressable>
-        <Pressable style={[styles.buyNowButton, { backgroundColor: '#2E8FF9' }]} onPress={handleBuyNow}>
+        <Pressable
+          style={[styles.buyNowButton, { backgroundColor: '#2E8FF9' }]}
+          onPress={handleBuyNow}
+        >
           <View style={styles.buyNowGradient}>
             <Typography variant='text' size='md' weight='bold' style={styles.buyNowText}>
               {t('product.buyNow')}

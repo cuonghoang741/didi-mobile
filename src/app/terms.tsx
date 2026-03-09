@@ -9,138 +9,135 @@ import { useTheme, useLanguage } from '@/contexts';
 import { useSettings } from '@/hooks';
 
 const TermsScreen = () => {
-    const router = useRouter();
-    const theme = useTheme();
-    const { t } = useLanguage();
-    const { branches, contactPhone } = useSettings();
-    const styles = createStyles(theme);
+  const router = useRouter();
+  const theme = useTheme();
+  const { t } = useLanguage();
+  const { branches, contactPhone } = useSettings();
+  const styles = createStyles(theme);
 
-    const handleBack = () => {
-        router.back();
-    };
+  const handleBack = () => {
+    router.back();
+  };
 
-    // Get contact info from settings
-    const contactInfo = useMemo(() => {
-        const email = 'pdmmobile2020@gmail.com'; // Contact email
-        const hotline = contactPhone || '1900-xxxx';
-        const address = branches[0]?.address || t('terms.sections.contact.defaultAddress');
-        return { email, hotline, address };
-    }, [contactPhone, branches, t]);
+  // Get contact info from settings
+  const contactInfo = useMemo(() => {
+    const email = 'pdmmobile2020@gmail.com'; // Contact email
+    const hotline = contactPhone || '1900-xxxx';
+    const address = branches[0]?.address || t('terms.sections.contact.defaultAddress');
+    return { email, hotline, address };
+  }, [contactPhone, branches, t]);
 
-    // Sections without contact (contact is rendered separately with dynamic data)
-    const sections = [
-        { key: 'introduction' },
-        { key: 'account' },
-        { key: 'orders' },
-        { key: 'products' },
-        { key: 'refund' },
-        { key: 'intellectualProperty' },
-        { key: 'limitation' },
-        { key: 'changes' },
-    ] as const;
+  // Sections without contact (contact is rendered separately with dynamic data)
+  const sections = [
+    { key: 'introduction' },
+    { key: 'account' },
+    { key: 'orders' },
+    { key: 'products' },
+    { key: 'refund' },
+    { key: 'intellectualProperty' },
+    { key: 'limitation' },
+    { key: 'changes' },
+  ] as const;
 
-    return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            {/* Header */}
-            <View style={styles.header}>
-                <Pressable style={styles.backButton} onPress={handleBack}>
-                    <Feather name='arrow-left' size={24} color={theme.colors.text.primary} />
-                </Pressable>
-                <Typography variant='text' size='lg' weight='bold'>
-                    {t('terms.title')}
-                </Typography>
-                <View style={styles.headerRight} />
-            </View>
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Pressable style={styles.backButton} onPress={handleBack}>
+          <Feather name='arrow-left' size={24} color={theme.colors.text.primary} />
+        </Pressable>
+        <Typography variant='text' size='lg' weight='bold'>
+          {t('terms.title')}
+        </Typography>
+        <View style={styles.headerRight} />
+      </View>
 
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-            >
-                {/* Last Updated */}
-                <Typography variant='text' size='sm' style={styles.lastUpdated}>
-                    {t('terms.lastUpdated')}
-                </Typography>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Last Updated */}
+        <Typography variant='text' size='sm' style={styles.lastUpdated}>
+          {t('terms.lastUpdated')}
+        </Typography>
 
-                {/* Dynamic Sections (excluding contact) */}
-                {sections.map((section) => (
-                    <View key={section.key} style={styles.section}>
-                        <Typography variant='text' size='lg' weight='bold' style={styles.sectionTitle}>
-                            {t(`terms.sections.${section.key}.title`)}
-                        </Typography>
-                        <Typography variant='text' size='md' style={styles.paragraph}>
-                            {t(`terms.sections.${section.key}.content`)}
-                        </Typography>
-                    </View>
-                ))}
+        {/* Dynamic Sections (excluding contact) */}
+        {sections.map((section) => (
+          <View key={section.key} style={styles.section}>
+            <Typography variant='text' size='lg' weight='bold' style={styles.sectionTitle}>
+              {t(`terms.sections.${section.key}.title`)}
+            </Typography>
+            <Typography variant='text' size='md' style={styles.paragraph}>
+              {t(`terms.sections.${section.key}.content`)}
+            </Typography>
+          </View>
+        ))}
 
-                {/* Contact Section with dynamic data from settings */}
-                <View style={styles.section}>
-                    <Typography variant='text' size='lg' weight='bold' style={styles.sectionTitle}>
-                        {t('terms.sections.contact.title')}
-                    </Typography>
-                    <Typography variant='text' size='md' style={styles.paragraph}>
-                        {t('terms.sections.contact.intro')}
-                        {'\n\n'}
-                        📧 Email: {contactInfo.email}
-                        {'\n'}
-                        📞 Hotline: {contactInfo.hotline}
-                        {'\n'}
-                        🏢 {t('terms.sections.contact.addressLabel')}: {contactInfo.address}
-                    </Typography>
-                </View>
+        {/* Contact Section with dynamic data from settings */}
+        <View style={styles.section}>
+          <Typography variant='text' size='lg' weight='bold' style={styles.sectionTitle}>
+            {t('terms.sections.contact.title')}
+          </Typography>
+          <Typography variant='text' size='md' style={styles.paragraph}>
+            {t('terms.sections.contact.intro')}
+            {'\n\n'}
+            📧 Email: {contactInfo.email}
+            {'\n'}
+            📞 Hotline: {contactInfo.hotline}
+            {'\n'}
+            🏢 {t('terms.sections.contact.addressLabel')}: {contactInfo.address}
+          </Typography>
+        </View>
 
-                <View style={styles.bottomSpacing} />
-            </ScrollView>
-        </SafeAreaView>
-    );
+        <View style={styles.bottomSpacing} />
+      </ScrollView>
+    </SafeAreaView>
+  );
 };
 
 const createStyles = (theme: ReturnType<typeof useTheme>) =>
-    StyleSheet.create({
-        container: {
-            flex: 1,
-            backgroundColor: theme.colors.background.primary,
-        },
-        header: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.border.tertiary,
-        },
-        backButton: {
-            width: 40,
-            height: 40,
-            justifyContent: 'center',
-            alignItems: 'flex-start',
-        },
-        headerRight: {
-            width: 40,
-        },
-        scrollContent: {
-            padding: 16,
-        },
-        lastUpdated: {
-            color: theme.colors.text.tertiary,
-            marginBottom: 24,
-            fontStyle: 'italic',
-        },
-        section: {
-            marginBottom: 24,
-        },
-        sectionTitle: {
-            color: theme.colors.text.primary,
-            marginBottom: 12,
-        },
-        paragraph: {
-            color: theme.colors.text.secondary,
-            lineHeight: 24,
-        },
-        bottomSpacing: {
-            height: 40,
-        },
-    });
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background.primary,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border.tertiary,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+    },
+    headerRight: {
+      width: 40,
+    },
+    scrollContent: {
+      padding: 16,
+    },
+    lastUpdated: {
+      color: theme.colors.text.tertiary,
+      marginBottom: 24,
+      fontStyle: 'italic',
+    },
+    section: {
+      marginBottom: 24,
+    },
+    sectionTitle: {
+      color: theme.colors.text.primary,
+      marginBottom: 12,
+    },
+    paragraph: {
+      color: theme.colors.text.secondary,
+      lineHeight: 24,
+    },
+    bottomSpacing: {
+      height: 40,
+    },
+  });
 
 export default TermsScreen;

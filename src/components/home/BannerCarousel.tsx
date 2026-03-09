@@ -38,7 +38,7 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onBannerPress 
   // Calculate the current banner height (use max height for consistent carousel)
   const maxBannerHeight = Math.max(
     BANNER_WIDTH / DEFAULT_ASPECT_RATIO,
-    ...Object.values(bannerHeights)
+    ...Object.values(bannerHeights),
   );
 
   const startAutoPlay = useCallback(() => {
@@ -104,22 +104,23 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onBannerPress 
         transition={300}
         onLoad={handleImageLoad(index)}
       />
-      <LinearGradient colors={['transparent', item.button_text ? 'rgba(0,0,0,0.6)' : 'transparent']} style={styles.gradient}>
+      <LinearGradient
+        colors={['transparent', item.button_text ? 'rgba(0,0,0,0.6)' : 'transparent']}
+        style={styles.gradient}
+      >
         <View style={styles.textContainer}>
           {item.subtitle ? (
             <Typography variant='text' size='sm' style={styles.subtitle}>
               {item.subtitle}
             </Typography>
           ) : null}
-          {item.button_text && <Typography variant='text' size='xl' weight='bold' style={styles.title}>
-            {item.title}
-          </Typography>}
+          {item.button_text && (
+            <Typography variant='text' size='xl' weight='bold' style={styles.title}>
+              {item.title}
+            </Typography>
+          )}
           {item.button_text ? (
-            <Button
-              variant='liquid'
-              size='sm'
-              style={styles.buttonContainer}
-            >
+            <Button variant='liquid' size='sm' style={styles.buttonContainer}>
               <Typography variant='text' size='sm' weight='semiBold' style={styles.buttonText}>
                 {item.button_text}
               </Typography>
@@ -166,9 +167,7 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onBannerPress 
                 styles.paginationDot,
                 {
                   backgroundColor:
-                    index === currentIndex
-                      ? theme.colors.text.brand_primary
-                      : grayLight[300],
+                    index === currentIndex ? theme.colors.text.brand_primary : grayLight[300],
                   width: index === currentIndex ? 24 : 8,
                 },
               ]}

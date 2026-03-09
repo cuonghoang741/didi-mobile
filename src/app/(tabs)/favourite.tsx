@@ -42,7 +42,7 @@ const Favourite = () => {
     useCallback(() => {
       setLoading(true);
       loadFavorites();
-    }, [loadFavorites])
+    }, [loadFavorites]),
   );
 
   const onRefresh = () => {
@@ -65,15 +65,13 @@ const Favourite = () => {
 
         {loading && !refreshing ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.colors.text.brand_primary} />
+            <ActivityIndicator size='large' color={theme.colors.text.brand_primary} />
           </View>
         ) : (
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           >
             {favourites.length === 0 ? (
               <View style={styles.emptyContainer}>

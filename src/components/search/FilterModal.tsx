@@ -59,10 +59,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose, onApply, in
   );
 
   // Create translated branches
-  const BRANCHES = useMemo(
-    () => BRANCH_KEYS.map((key) => t(`filter.branches.${key}`)),
-    [t],
-  );
+  const BRANCHES = useMemo(() => BRANCH_KEYS.map((key) => t(`filter.branches.${key}`)), [t]);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
@@ -258,7 +255,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose, onApply, in
                   <TouchableOpacity
                     key={index}
                     style={styles.chip}
-                  // No functionality for now
+                    // No functionality for now
                   >
                     <Typography variant='text' size='sm' style={styles.text}>
                       {branch}

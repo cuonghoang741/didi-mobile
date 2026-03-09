@@ -95,7 +95,12 @@ const SecondaryBannerItem: React.FC<SecondaryBannerItemProps> = ({ banner, onPre
           ) : null}
           {banner.button_text ? (
             <View style={styles.bannerButton}>
-              <Typography variant='text' size='xs' weight='semiBold' style={styles.bannerButtonText}>
+              <Typography
+                variant='text'
+                size='xs'
+                weight='semiBold'
+                style={styles.bannerButtonText}
+              >
                 {banner.button_text}
               </Typography>
             </View>
@@ -166,30 +171,40 @@ const Home = () => {
     // If refreshing, maybe we want to keep showing old data or show skeletons? Standard is spinner on top.
 
     // Independent fetches
-    const fetchBannersTask = fetchBanners().then(banners => {
-      setData(prev => ({ ...prev, banners }));
-    }).catch(err => console.error('Banners fetch error', err));
+    const fetchBannersTask = fetchBanners()
+      .then((banners) => {
+        setData((prev) => ({ ...prev, banners }));
+      })
+      .catch((err) => console.error('Banners fetch error', err));
 
-    const fetchCategoriesTask = fetchHomeCategories().then(categories => {
-      setData(prev => ({ ...prev, categories }));
-    }).catch(err => console.error('Categories fetch error', err));
+    const fetchCategoriesTask = fetchHomeCategories()
+      .then((categories) => {
+        setData((prev) => ({ ...prev, categories }));
+      })
+      .catch((err) => console.error('Categories fetch error', err));
 
-    const fetchFlashSaleTask = fetchActiveFlashSale().then(result => {
-      setData(prev => ({
-        ...prev,
-        flashSale: result.flashSale,
-        flashSaleProducts: result.products
-      }));
-    }).catch(err => console.error('Flash sale fetch error', err));
+    const fetchFlashSaleTask = fetchActiveFlashSale()
+      .then((result) => {
+        setData((prev) => ({
+          ...prev,
+          flashSale: result.flashSale,
+          flashSaleProducts: result.products,
+        }));
+      })
+      .catch((err) => console.error('Flash sale fetch error', err));
 
-    const fetchFeaturedTask = fetchFeaturedProducts().then(featuredProducts => {
-      setData(prev => ({ ...prev, featuredProducts }));
-    }).catch(err => console.error('Featured products fetch error', err));
+    const fetchFeaturedTask = fetchFeaturedProducts()
+      .then((featuredProducts) => {
+        setData((prev) => ({ ...prev, featuredProducts }));
+      })
+      .catch((err) => console.error('Featured products fetch error', err));
 
     // Load categories with products (split into initial batch and rest if needed, but 5 is okay)
-    const fetchCatProductsTask = fetchCategoriesWithProducts(5, 5).then(categoriesWithProducts => {
-      setData(prev => ({ ...prev, categoriesWithProducts }));
-    }).catch(err => console.error('Category products fetch error', err));
+    const fetchCatProductsTask = fetchCategoriesWithProducts(5, 5)
+      .then((categoriesWithProducts) => {
+        setData((prev) => ({ ...prev, categoriesWithProducts }));
+      })
+      .catch((err) => console.error('Category products fetch error', err));
 
     // We don't await all here for the UI update, but we want to know when to stop "refreshing" spinner
     await Promise.allSettled([
@@ -197,7 +212,7 @@ const Home = () => {
       fetchCategoriesTask,
       fetchFlashSaleTask,
       fetchFeaturedTask,
-      fetchCatProductsTask
+      fetchCatProductsTask,
     ]);
 
     setLoading(false);
@@ -210,7 +225,7 @@ const Home = () => {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // Optional: Only clear data if you want to show skeletons again. 
+    // Optional: Only clear data if you want to show skeletons again.
     // Usually keep data and just show spinner.
     loadData();
   }, []);
@@ -234,9 +249,6 @@ const Home = () => {
   const handleCategoryPress = (category: any) => {
     router.push({ pathname: '/(tabs)/categories', params: { id: category.id } });
   };
-
-
-
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -276,7 +288,8 @@ const Home = () => {
             Standard: Show skeleton until loaded. If loaded and no flash sale, show nothing.
         */}
         {data.flashSaleProducts ? (
-          data.flashSale && data.flashSaleProducts.length > 0 && (
+          data.flashSale &&
+          data.flashSaleProducts.length > 0 && (
             <FlashSaleSection
               flashSale={data.flashSale}
               products={data.flashSaleProducts.map((p) => ({
@@ -312,7 +325,12 @@ const Home = () => {
           data.categoriesWithProducts.slice(0, 2).map((item) => (
             <ProductSection
               key={item.category.id}
-              title={getLocalizedContent(item.category.languages, 'name', language, item.category.name)}
+              title={getLocalizedContent(
+                item.category.languages,
+                'name',
+                language,
+                item.category.name,
+              )}
               products={item.products.map((p) => ({
                 ...p,
                 name: getLocalizedContent(p.language, 'name', language, p.name),
@@ -348,7 +366,12 @@ const Home = () => {
           data.categoriesWithProducts.slice(2, 5).map((item) => (
             <ProductSection
               key={item.category.id}
-              title={getLocalizedContent(item.category.languages, 'name', language, item.category.name)}
+              title={getLocalizedContent(
+                item.category.languages,
+                'name',
+                language,
+                item.category.name,
+              )}
               products={item.products.map((p) => ({
                 ...p,
                 name: getLocalizedContent(p.language, 'name', language, p.name),
@@ -389,4 +412,3 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
   });
 
 export default Home;
-

@@ -48,13 +48,24 @@ interface Address {
   postal_code?: string;
   is_default: boolean;
   type: string;
+  image_url?: string;
 }
 
-const PAYMENT_METHODS: { id: PaymentMethod; labelKey: string; descKey: string; icon: keyof typeof Feather.glyphMap }[] = [
-  { id: 'daibiki', labelKey: 'checkout.daibiki', descKey: 'checkout.daibikiDesc', icon: 'truck' },
-  { id: 'bank_transfer', labelKey: 'checkout.bankTransfer', descKey: 'checkout.bankTransferDesc', icon: 'credit-card' },
-  { id: 'at_store', labelKey: 'checkout.atStore', descKey: 'checkout.atStoreDesc', icon: 'home' },
-];
+const PAYMENT_METHODS: {
+  id: PaymentMethod;
+  labelKey: string;
+  descKey: string;
+  icon: keyof typeof Feather.glyphMap;
+}[] = [
+    { id: 'daibiki', labelKey: 'checkout.daibiki', descKey: 'checkout.daibikiDesc', icon: 'truck' },
+    {
+      id: 'bank_transfer',
+      labelKey: 'checkout.bankTransfer',
+      descKey: 'checkout.bankTransferDesc',
+      icon: 'credit-card',
+    },
+    { id: 'at_store', labelKey: 'checkout.atStore', descKey: 'checkout.atStoreDesc', icon: 'home' },
+  ];
 
 const CheckoutScreen = () => {
   const router = useRouter();
@@ -81,7 +92,9 @@ const CheckoutScreen = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentProofImage, setPaymentProofImage] = useState<string | null>(null);
   const [uploadingProof, setUploadingProof] = useState(false);
-  const [pendingOrder, setPendingOrder] = useState<{ id: string; order_number: string } | null>(null);
+  const [pendingOrder, setPendingOrder] = useState<{ id: string; order_number: string } | null>(
+    null,
+  );
 
   // Voucher state
   const [selectedVoucher, setSelectedVoucher] = useState<{
@@ -127,11 +140,11 @@ const CheckoutScreen = () => {
         }
       };
       loadTimeSlot();
-    }, [])
+    }, []),
   );
 
   // Filter items based on selected keys
-  const items = allItems.filter(item => {
+  const items = allItems.filter((item) => {
     const itemKey = `${item.product.id}-${item.variant?.id || 'default'}`;
     // If no selected keys (direct access to checkout), show all
     if (selectedCartItemKeys.length === 0) return true;
@@ -141,7 +154,7 @@ const CheckoutScreen = () => {
   // Calculate subtotal for selected items only
   const subtotal = items.reduce((total, item) => {
     const price = item.variant?.price || item.product?.sale_price || item.product?.base_price || 0;
-    return total + (price * item.quantity);
+    return total + price * item.quantity;
   }, 0);
   const shipping = paymentMethod === 'at_store' ? 0 : paymentMethod === 'daibiki' ? 1500 : 0;
 
@@ -197,7 +210,7 @@ const CheckoutScreen = () => {
     useCallback(() => {
       fetchDefaultAddress();
       loadSelectedVoucher();
-    }, [fetchDefaultAddress])
+    }, [fetchDefaultAddress]),
   );
 
   // Load selected voucher from AsyncStorage
@@ -246,6 +259,9 @@ const CheckoutScreen = () => {
         shipping_ward: selectedAddress.ward || '',
         shipping_note: customerNote,
         payment_method: paymentMethod,
+        shipping_fee: shipping,
+        discount_amount: discount,
+        shipping_image_url: selectedAddress.image_url,
       };
 
       const { order, error } = await createOrder(user.id.toString(), items, form);
@@ -257,7 +273,7 @@ const CheckoutScreen = () => {
 
       // Remove only ordered items from cart (not all cart items)
       const removeOrderedItems = () => {
-        items.forEach(item => {
+        items.forEach((item) => {
           removeItem(item.product.id, item.variant?.id);
         });
       };
@@ -313,11 +329,10 @@ const CheckoutScreen = () => {
         }
       }
 
-      const manipulatedImage = await manipulateAsync(
-        asset.uri,
-        actions,
-        { compress: 0.7, format: SaveFormat.JPEG }
-      );
+      const manipulatedImage = await manipulateAsync(asset.uri, actions, {
+        compress: 0.7,
+        format: SaveFormat.JPEG,
+      });
       setPaymentProofImage(manipulatedImage.uri);
     }
   };
@@ -344,16 +359,13 @@ const CheckoutScreen = () => {
         }
       }
 
-      const manipulatedImage = await manipulateAsync(
-        asset.uri,
-        actions,
-        { compress: 0.7, format: SaveFormat.JPEG }
-      );
+      const manipulatedImage = await manipulateAsync(asset.uri, actions, {
+        compress: 0.7,
+        format: SaveFormat.JPEG,
+      });
       setPaymentProofImage(manipulatedImage.uri);
     }
   };
-
-
 
   const handleConfirmPayment = async () => {
     if (!paymentProofImage) {
@@ -381,7 +393,7 @@ const CheckoutScreen = () => {
           orderId: pendingOrder.id,
           orderNumber: pendingOrder.order_number,
           pendingPayment: 'true',
-          paymentProofUrl: uploadedUrl
+          paymentProofUrl: uploadedUrl,
         },
       });
     } catch (error) {
@@ -409,7 +421,7 @@ const CheckoutScreen = () => {
     if (loadingAddress) {
       return (
         <View style={styles.sectionCard}>
-          <ActivityIndicator size="small" color={theme.colors.text.brand_primary} />
+          <ActivityIndicator size='small' color={theme.colors.text.brand_primary} />
         </View>
       );
     }
@@ -430,7 +442,10 @@ const CheckoutScreen = () => {
           <Feather name='chevron-right' size={20} color={theme.colors.text.tertiary} />
         </Pressable>
 
-        <Pressable style={[styles.addressRow, { borderBottomWidth: 0 }]} onPress={() => router.push('/select-time-slot')}>
+        <Pressable
+          style={[styles.addressRow, { borderBottomWidth: 0 }]}
+          onPress={() => router.push('/select-time-slot')}
+        >
           <Feather name='clock' size={18} color={theme.colors.text.secondary} />
           <Typography variant='text' size='md' style={styles.addressRowText}>
             {selectedTimeSlot}
@@ -451,7 +466,10 @@ const CheckoutScreen = () => {
       </View>
 
       {items.map((item) => (
-        <View key={item.id || `${item.product.id}-${item.variant?.id || 'default'}`} style={styles.productRow}>
+        <View
+          key={item.id || `${item.product.id}-${item.variant?.id || 'default'}`}
+          style={styles.productRow}
+        >
           <Image
             source={{ uri: item.product?.thumbnail_url || item.product?.image_urls?.[0] }}
             style={styles.productImage}
@@ -465,9 +483,22 @@ const CheckoutScreen = () => {
               x{item.quantity}
             </Typography>
           </View>
-          <Typography variant='text' size='md' weight='bold' style={styles.priceText}>
-            {formatJpy(item.variant?.price || item.product?.sale_price || item.product?.base_price || 0)}
-          </Typography>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Typography variant='text' size='md' weight='bold' style={styles.priceText}>
+              {
+                formatPrice(
+                  item.variant?.price || item.product?.sale_price || item.product?.base_price || 0,
+                ).jpy
+              }
+            </Typography>
+            <Typography variant='text' size='xs' style={{ color: '#6B7280', marginTop: 2 }}>
+              {
+                formatPrice(
+                  item.variant?.price || item.product?.sale_price || item.product?.base_price || 0,
+                ).vnd
+              }
+            </Typography>
+          </View>
         </View>
       ))}
     </View>
@@ -512,8 +543,7 @@ const CheckoutScreen = () => {
             <Typography variant='text' size='sm' style={styles.voucherValue}>
               {selectedVoucher.discount_type === 'percentage'
                 ? `Giảm ${selectedVoucher.discount_value}%`
-                : `Giảm ¥${selectedVoucher.discount_value}`
-              }
+                : `Giảm ¥${selectedVoucher.discount_value}`}
             </Typography>
             <Pressable onPress={handleRemoveVoucher} hitSlop={8}>
               <Feather name='x-circle' size={18} color={theme.colors.text.tertiary} />
@@ -544,7 +574,9 @@ const CheckoutScreen = () => {
               {t('checkout.points')}: {didiPoints}
             </Typography>
             <View style={styles.pointIcon}>
-              <Typography variant='text' size='xs' style={{ color: '#F59E0B' }}>●</Typography>
+              <Typography variant='text' size='xs' style={{ color: '#F59E0B' }}>
+                ●
+              </Typography>
             </View>
           </View>
         </View>
@@ -588,9 +620,14 @@ const CheckoutScreen = () => {
         <Typography variant='text' size='md' style={styles.summaryLabel}>
           {t('checkout.subtotal')}
         </Typography>
-        <Typography variant='text' size='md'>
-          {formatJpy(subtotal)}
-        </Typography>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Typography variant='text' size='md'>
+            {formatPrice(subtotal).jpy}
+          </Typography>
+          <Typography variant='text' size='xs' style={{ color: '#6B7280', marginTop: 2 }}>
+            {formatPrice(subtotal).vnd}
+          </Typography>
+        </View>
       </View>
 
       {shipping > 0 && (
@@ -598,9 +635,14 @@ const CheckoutScreen = () => {
           <Typography variant='text' size='md' style={styles.summaryLabel}>
             {t('checkout.shippingFee')}
           </Typography>
-          <Typography variant='text' size='md'>
-            +{formatJpy(shipping)}
-          </Typography>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Typography variant='text' size='md'>
+              +{formatPrice(shipping).jpy}
+            </Typography>
+            <Typography variant='text' size='xs' style={{ color: '#6B7280', marginTop: 2 }}>
+              +{formatPrice(shipping).vnd}
+            </Typography>
+          </View>
         </View>
       )}
 
@@ -609,9 +651,14 @@ const CheckoutScreen = () => {
           <Typography variant='text' size='md' style={styles.summaryLabel}>
             {t('checkout.discount')}
           </Typography>
-          <Typography variant='text' size='md' style={styles.discountText}>
-            -{formatJpy(discount)}
-          </Typography>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Typography variant='text' size='md' style={styles.discountText}>
+              -{formatPrice(discount).jpy}
+            </Typography>
+            <Typography variant='text' size='xs' style={{ color: '#6B7280', marginTop: 2 }}>
+              -{formatPrice(discount).vnd}
+            </Typography>
+          </View>
         </View>
       )}
 
@@ -621,9 +668,14 @@ const CheckoutScreen = () => {
         <Typography variant='text' size='lg' weight='bold'>
           {t('checkout.total')}
         </Typography>
-        <Typography variant='text' size='lg' weight='bold' style={styles.totalText}>
-          {formatJpy(total)}
-        </Typography>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Typography variant='text' size='lg' weight='bold' style={styles.totalText}>
+            {formatPrice(total).jpy}
+          </Typography>
+          <Typography variant='text' size='sm' style={{ color: '#6B7280', marginTop: 2 }}>
+            {formatPrice(total).vnd}
+          </Typography>
+        </View>
       </View>
     </View>
   );
@@ -643,25 +695,29 @@ const CheckoutScreen = () => {
             style={[
               styles.paymentRow,
               isSelected && styles.paymentRowActive,
-              isLast && { borderBottomWidth: 0 }
+              isLast && { borderBottomWidth: 0 },
             ]}
             onPress={() => setPaymentMethod(method.id)}
           >
             <View style={[styles.paymentIcon, isSelected && styles.paymentIconActive]}>
-              <Feather name={method.icon} size={20} color={isSelected ? '#FFFFFF' : theme.colors.text.secondary} />
+              <Feather
+                name={method.icon}
+                size={20}
+                color={isSelected ? '#FFFFFF' : theme.colors.text.secondary}
+              />
             </View>
             <View style={styles.paymentInfo}>
               <Typography variant='text' size='md' weight={isSelected ? 'semiBold' : 'regular'}>
-                {t(method.labelKey)}{method.id === 'daibiki' ? ` (+${formatJpy(1500)})` : ''}
+                {t(method.labelKey)}
+                {method.id === 'daibiki'
+                  ? ` (+${formatPrice(1500).jpy} / ${formatPrice(1500).vnd})`
+                  : ''}
               </Typography>
               <Typography variant='text' size='sm' style={styles.paymentDesc}>
                 {t(method.descKey)}
               </Typography>
             </View>
-            <View style={[
-              styles.radioOuter,
-              isSelected && styles.radioOuterActive,
-            ]}>
+            <View style={[styles.radioOuter, isSelected && styles.radioOuterActive]}>
               {isSelected && <View style={styles.radioInner} />}
             </View>
           </Pressable>
@@ -750,7 +806,7 @@ const CheckoutScreen = () => {
               <ActivityIndicator color='#FFF' />
             ) : (
               <Typography variant='text' size='md' weight='bold' style={styles.orderText}>
-                {t('checkout.placeOrder')} • {formatJpy(total)}
+                {t('checkout.placeOrder')} • {formatPrice(total).jpy}
               </Typography>
             )}
           </LinearGradient>
@@ -803,8 +859,15 @@ const CheckoutScreen = () => {
               </Typography>
               {paymentProofImage ? (
                 <View style={styles.proofImageContainer}>
-                  <Image source={{ uri: paymentProofImage }} style={styles.proofImage} contentFit='cover' />
-                  <Pressable style={styles.removeImageButton} onPress={() => setPaymentProofImage(null)}>
+                  <Image
+                    source={{ uri: paymentProofImage }}
+                    style={styles.proofImage}
+                    contentFit='cover'
+                  />
+                  <Pressable
+                    style={styles.removeImageButton}
+                    onPress={() => setPaymentProofImage(null)}
+                  >
                     <Feather name='x' size={20} color='#FFF' />
                   </Pressable>
                 </View>
@@ -812,11 +875,15 @@ const CheckoutScreen = () => {
                 <View style={styles.uploadButtons}>
                   <Pressable style={styles.uploadButton} onPress={handlePickImage}>
                     <Feather name='image' size={24} color={theme.colors.text.brand_primary} />
-                    <Typography variant='text' size='sm' style={{ marginTop: 8 }}>Thư viện</Typography>
+                    <Typography variant='text' size='sm' style={{ marginTop: 8 }}>
+                      Thư viện
+                    </Typography>
                   </Pressable>
                   <Pressable style={styles.uploadButton} onPress={handleTakePhoto}>
                     <Feather name='camera' size={24} color={theme.colors.text.brand_primary} />
-                    <Typography variant='text' size='sm' style={{ marginTop: 8 }}>Chụp ảnh</Typography>
+                    <Typography variant='text' size='sm' style={{ marginTop: 8 }}>
+                      Chụp ảnh
+                    </Typography>
                   </Pressable>
                 </View>
               )}
@@ -825,7 +892,9 @@ const CheckoutScreen = () => {
 
           <View style={styles.modalBottomBar}>
             <Pressable style={styles.skipButton} onPress={handleSkipPaymentProof}>
-              <Typography variant='text' size='md'>Để sau</Typography>
+              <Typography variant='text' size='md'>
+                Để sau
+              </Typography>
             </Pressable>
             <Pressable
               style={[styles.confirmButton, uploadingProof && { opacity: 0.6 }]}
@@ -1105,6 +1174,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     // Bottom Bar
     bottomBar: {
       padding: 16,
+      paddingBottom: 0,
       backgroundColor: theme.colors.background.primary,
       borderTopWidth: 1,
       borderTopColor: '#E5E7EB',

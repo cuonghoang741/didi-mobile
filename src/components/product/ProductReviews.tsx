@@ -126,13 +126,18 @@ const ProductReviews = ({ product, onViewAll }: ProductReviewsProps) => {
                       <Image source={{ uri: review.user.avatar_url }} style={styles.avatarImg} />
                     ) : (
                       <Typography variant='text' size='md' weight='bold' style={styles.avatarText}>
-                        {((review as any).reviewer_name || review.user?.full_name || 'U').charAt(0).toUpperCase()}
+                        {((review as any).reviewer_name || review.user?.full_name || 'U')
+                          .charAt(0)
+                          .toUpperCase()}
                       </Typography>
                     )}
                   </View>
                   <View style={styles.reviewInfo}>
                     <Typography variant='text' size='md' weight='bold'>
-                      {(review as any).reviewer_name || review.user?.full_name || t('common.user') || 'User'}
+                      {(review as any).reviewer_name ||
+                        review.user?.full_name ||
+                        t('common.user') ||
+                        'User'}
                     </Typography>
                     <View style={styles.reviewMeta}>
                       {renderStars(review.rating, 12)}
@@ -144,7 +149,6 @@ const ProductReviews = ({ product, onViewAll }: ProductReviewsProps) => {
                       </Typography>
                     </View>
                   </View>
-
                 </View>
 
                 <Typography variant='text' size='md' style={styles.comment}>
@@ -169,7 +173,7 @@ const ProductReviews = ({ product, onViewAll }: ProductReviewsProps) => {
                 </Typography>
 
                 {/* Admin/Seller Reply */}
-                {((review as any).admin_reply) && (
+                {(review as any).admin_reply && (
                   <View style={styles.sellerReplyContainer}>
                     <Typography variant='text' size='sm' weight='bold' style={styles.sellerName}>
                       {t('product.sellerResponse')}

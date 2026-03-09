@@ -15,6 +15,9 @@ export interface CheckoutForm {
   shipping_ward?: string;
   shipping_note?: string;
   payment_method: PaymentMethod;
+  shipping_fee?: number;
+  discount_amount?: number;
+  shipping_image_url?: string;
 }
 
 /**
@@ -110,10 +113,11 @@ const notifyAdminsNewOrder = async (
  * Get price from cart item (handles both product base price and variant price)
  */
 const getItemPrice = (item: CartItem): number => {
-  // Check variant price first
+  // Check variant price first (match UI logic in checkout.tsx)
   if (item.variant) {
     const variant = item.variant as any;
-    return variant.sale_price || variant.price || 0;
+    // UI just uses item.variant?.price
+    return variant.price || 0;
   }
   // Fall back to product price
   const product = item.product as any;
@@ -134,8 +138,10 @@ export const createOrder = async (
     return sum + getItemPrice(item) * item.quantity;
   }, 0);
 
-  const shippingFee = checkoutForm.payment_method === 'at_store' ? 0 : 500; // 500 JPY shipping
-  const totalAmount = subtotal + shippingFee;
+  const shippingFee =
+    checkoutForm.shipping_fee ?? (checkoutForm.payment_method === 'at_store' ? 0 : 500);
+  const discountAmount = checkoutForm.discount_amount ?? 0;
+  const totalAmount = Math.max(0, subtotal + shippingFee - discountAmount);
 
   // Build shipping address as JSONB object matching ShippingAddress interface
   const shippingAddress: ShippingAddress = {
@@ -145,6 +151,7 @@ export const createOrder = async (
     ward: checkoutForm.shipping_ward,
     district: checkoutForm.shipping_district,
     city: checkoutForm.shipping_city,
+    image_url: checkoutForm.shipping_image_url,
   };
 
   // Create order data matching actual database structure
@@ -156,7 +163,7 @@ export const createOrder = async (
     payment_method: checkoutForm.payment_method,
     subtotal,
     shipping_fee: shippingFee,
-    discount_amount: 0,
+    discount_amount: discountAmount,
     tax_amount: 0,
     total_amount: totalAmount,
     shipping_address: shippingAddress,
@@ -197,9 +204,7 @@ export const createOrder = async (
     };
   });
 
-  const { error: itemsError } = await supabase
-    .from('order_items')
-    .insert(orderItems as any);
+  const { error: itemsError } = await supabase.from('order_items').insert(orderItems as any);
 
   if (itemsError) {
     console.error('Error creating order items:', itemsError);
@@ -214,7 +219,7 @@ export const createOrder = async (
     order.order_number,
     checkoutForm.shipping_name,
     totalAmount,
-    cartItems.length
+    cartItems.length,
   );
 
   // Map response to Order type
@@ -265,27 +270,28 @@ export const fetchUserOrders = async (
   }
 
   // Map to proper types
-  const orders = (data as any[])?.map((order) => ({
-    id: order.id,
-    order_number: order.order_number,
-    customer_id: order.customer_id,
-    status: order.status as OrderStatus,
-    payment_status: order.payment_status as PaymentStatus,
-    payment_method: order.payment_method as PaymentMethod,
-    payment_proof_url: order.payment_proof_url,
-    subtotal: Number(order.subtotal),
-    discount_amount: Number(order.discount_amount) || 0,
-    shipping_fee: Number(order.shipping_fee) || 0,
-    tax_amount: Number(order.tax_amount) || 0,
-    total_amount: Number(order.total_amount),
-    shipping_address: order.shipping_address,
-    customer_note: order.customer_note,
-    created_at: order.created_at,
-    updated_at: order.updated_at,
-    deleted_at: order.deleted_at,
-    items: order.items || [],
-    is_reviewed: order.product_reviews && order.product_reviews.length > 0,
-  })) || [];
+  const orders =
+    (data as any[])?.map((order) => ({
+      id: order.id,
+      order_number: order.order_number,
+      customer_id: order.customer_id,
+      status: order.status as OrderStatus,
+      payment_status: order.payment_status as PaymentStatus,
+      payment_method: order.payment_method as PaymentMethod,
+      payment_proof_url: order.payment_proof_url,
+      subtotal: Number(order.subtotal),
+      discount_amount: Number(order.discount_amount) || 0,
+      shipping_fee: Number(order.shipping_fee) || 0,
+      tax_amount: Number(order.tax_amount) || 0,
+      total_amount: Number(order.total_amount),
+      shipping_address: order.shipping_address,
+      customer_note: order.customer_note,
+      created_at: order.created_at,
+      updated_at: order.updated_at,
+      deleted_at: order.deleted_at,
+      items: order.items || [],
+      is_reviewed: order.product_reviews && order.product_reviews.length > 0,
+    })) || [];
 
   return {
     orders,
@@ -347,7 +353,10 @@ export const fetchOrderDetail = async (
   };
 };
 
-export const cancelOrder = async (orderId: string, reason: string): Promise<{ success: boolean; error: string | null }> => {
+export const cancelOrder = async (
+  orderId: string,
+  reason: string,
+): Promise<{ success: boolean; error: string | null }> => {
   // First fetch the current order to get existing customer_note
   const { data: order } = await supabase
     .from('orders')
@@ -364,7 +373,7 @@ export const cancelOrder = async (orderId: string, reason: string): Promise<{ su
 
   const updateData: any = {
     status: 'cancelled',
-    customer_note: updatedNote
+    customer_note: updatedNote,
   };
 
   const { error } = await supabase

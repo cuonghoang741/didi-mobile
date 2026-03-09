@@ -18,7 +18,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH * 0.42;
 const CARD_HEIGHT = CARD_WIDTH * 1.5; // Maintain ~2:3 aspect ratio (150/225 or similar)
 
-
 interface ProductCardProps {
   product: Product | ProductWithFlashSale;
   onPress?: (product: Product) => void;
@@ -27,7 +26,13 @@ interface ProductCardProps {
   width?: number; // Optional custom width for the card
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSalePrice, showHotBadge, width }) => {
+const ProductCard: React.FC<ProductCardProps> = ({
+  product,
+  onPress,
+  showFlashSalePrice,
+  showHotBadge,
+  width,
+}) => {
   const theme = useTheme();
   const router = useRouter();
   const { user } = useAuth();
@@ -45,7 +50,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSa
   // Use sale_price as the main price, fallback to base_price if sale_price is missing
   const currentPrice = hasFlashSale
     ? flashSaleProduct.flash_sale_price!
-    : (product.sale_price || product.base_price || 0);
+    : product.sale_price || product.base_price || 0;
 
   // Use base_price as the original price
   const originalPrice = product.base_price || (hasFlashSale ? product.sale_price : null);
@@ -53,9 +58,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSa
   const { jpy: displayJpy } = formatPrice(currentPrice);
   const originalPriceFormatted = originalPrice ? formatPrice(originalPrice) : null;
 
-  const discountPercent = originalPrice && originalPrice > currentPrice
-    ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
-    : 0;
+  const discountPercent =
+    originalPrice && originalPrice > currentPrice
+      ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
+      : 0;
 
   // Check if product is in favorites
   useEffect(() => {
@@ -100,12 +106,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSa
         setIsFavorite(false);
       } else {
         // Add to favorites
-        await (supabase as any)
-          .from('favorites')
-          .insert({
-            user_id: user.id,
-            product_id: product.id,
-          });
+        await (supabase as any).from('favorites').insert({
+          user_id: user.id,
+          product_id: product.id,
+        });
 
         setIsFavorite(true);
       }
@@ -123,7 +127,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSa
     >
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: product.thumbnail_url || product.image_urls?.[0] || 'https://via.placeholder.com/150' }}
+          source={{
+            uri:
+              product.thumbnail_url || product.image_urls?.[0] || 'https://via.placeholder.com/150',
+          }}
           style={styles.image}
           contentFit='cover'
           transition={200}
@@ -193,12 +200,17 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, showFlashSa
             {displayJpy}
           </Typography>
 
-          {(originalPriceFormatted && discountPercent > 0) ? (
+          {originalPriceFormatted && discountPercent > 0 ? (
             <View style={styles.originalPriceContainer}>
               <Typography variant='text' size='xs' style={styles.originalPrice}>
                 {originalPriceFormatted.jpy}
               </Typography>
-              <Typography variant='text' size='xs' weight='medium' style={styles.discountPercentText}>
+              <Typography
+                variant='text'
+                size='xs'
+                weight='medium'
+                style={styles.discountPercentText}
+              >
                 -{discountPercent}%
               </Typography>
             </View>
@@ -331,4 +343,3 @@ const createStyles = (theme: ReturnType<typeof useTheme>, cardWidth: number, car
   });
 
 export default ProductCard;
-
