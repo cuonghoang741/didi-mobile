@@ -87,12 +87,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         isAccessMediaLocationEnabled: false,
       },
     ],
+    './withFixOneSignalAppGroup',
+    './withFixOneSignalAppExtensionTarget',
     [
       'onesignal-expo-plugin',
       {
         mode: 'production',
       },
     ],
+    './withFixOneSignalEASConfig',
   ],
   updates: {
     url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
