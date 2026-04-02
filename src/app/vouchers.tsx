@@ -86,29 +86,30 @@ const VouchersScreen = () => {
     if (!user?.id) return;
 
     try {
-      // Fetch all active vouchers with usage logs for current customer
-      const { data, error } = await db
+      // 1. Fetch user's usage logs
+      const { data: usageLogs, error: usageError } = await db
+        .from('voucher_usage_logs')
+        .select('voucher_id, used_at')
+        .eq('customer_id', user.id);
+
+      if (usageError) throw usageError;
+
+      const usageLogMap = new Map();
+      usageLogs?.forEach((log: any) => usageLogMap.set(log.voucher_id, log));
+
+      // 2. Fetch active vouchers (not deleted)
+      const { data: vouchersData, error } = await db
         .from('vouchers')
-        .select(
-          `
-                    *,
-                    usage_logs:voucher_usage_logs!left(
-                        id,
-                        customer_id,
-                        used_at,
-                        order_id
-                    )
-                `,
-        )
+        .select('*')
         .eq('is_active', true)
-        .eq('voucher_usage_logs.customer_id', user.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
       // Transform data to match CustomerVoucher interface
-      const transformedVouchers: CustomerVoucher[] = (data || []).map((v: VoucherWithUsage) => {
-        const usageLog = v.usage_logs?.find((log) => log.customer_id === user.id);
+      const transformedVouchers: CustomerVoucher[] = (vouchersData || []).map((v: Voucher) => {
+        const usageLog = usageLogMap.get(v.id);
         return {
           id: v.id,
           voucher_id: v.id,

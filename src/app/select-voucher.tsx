@@ -69,38 +69,39 @@ const SelectVoucherScreen = () => {
     if (!user?.id) return;
 
     try {
-      const { data, error } = await db
+      // 1. Fetch user's usage logs
+      const { data: usageLogs, error: usageError } = await db
+        .from('voucher_usage_logs')
+        .select('voucher_id, used_at')
+        .eq('customer_id', user.id);
+
+      if (usageError) throw usageError;
+
+      const usedVoucherIds = new Set(usageLogs?.map((log: any) => log.voucher_id) || []);
+
+      // 2. Fetch active vouchers (not deleted)
+      const { data: vouchersData, error } = await db
         .from('vouchers')
-        .select(
-          `
-                    *,
-                    usage_logs:voucher_usage_logs!left(
-                        id,
-                        customer_id,
-                        used_at,
-                        order_id
-                    )
-                `,
-        )
+        .select('*')
         .eq('is_active', true)
-        .eq('voucher_usage_logs.customer_id', user.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Filter available vouchers (not used, not expired)
+      // 3. Filter available vouchers (not used, not expired, currently valid)
       const now = new Date();
-      const availableVouchers = (data || [])
-        .filter((v: VoucherWithUsage) => {
+      const availableVouchers = (vouchersData || [])
+        .filter((v: Voucher) => {
           const validUntil = new Date(v.valid_until);
           const validFrom = new Date(v.valid_from);
           const isExpired = validUntil < now;
           const isNotStarted = validFrom > now;
-          const isUsed = v.usage_logs?.some((log) => log.customer_id === user.id);
+          const isUsed = usedVoucherIds.has(v.id);
           return !isExpired && !isNotStarted && !isUsed && v.is_active;
         })
         .map(
-          (v: VoucherWithUsage): Voucher => ({
+          (v: Voucher): Voucher => ({
             id: v.id,
             code: v.code,
             title: v.title,
