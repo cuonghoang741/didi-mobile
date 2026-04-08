@@ -13,6 +13,8 @@ export interface Order extends BaseEntity {
   tax_amount: number;
   total_amount: number;
   shipping_address: ShippingAddress | null;
+  customer_note: string | null;
+  delivery_time_slot: string | null;
   notes: string | null;
 }
 

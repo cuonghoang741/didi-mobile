@@ -57,15 +57,15 @@ const PAYMENT_METHODS: {
   descKey: string;
   icon: keyof typeof Feather.glyphMap;
 }[] = [
-    { id: 'daibiki', labelKey: 'checkout.daibiki', descKey: 'checkout.daibikiDesc', icon: 'truck' },
-    {
-      id: 'bank_transfer',
-      labelKey: 'checkout.bankTransfer',
-      descKey: 'checkout.bankTransferDesc',
-      icon: 'credit-card',
-    },
-    { id: 'at_store', labelKey: 'checkout.atStore', descKey: 'checkout.atStoreDesc', icon: 'home' },
-  ];
+  { id: 'daibiki', labelKey: 'checkout.daibiki', descKey: 'checkout.daibikiDesc', icon: 'truck' },
+  {
+    id: 'bank_transfer',
+    labelKey: 'checkout.bankTransfer',
+    descKey: 'checkout.bankTransferDesc',
+    icon: 'credit-card',
+  },
+  { id: 'at_store', labelKey: 'checkout.atStore', descKey: 'checkout.atStoreDesc', icon: 'home' },
+];
 
 const CheckoutScreen = () => {
   const router = useRouter();
@@ -258,6 +258,7 @@ const CheckoutScreen = () => {
         shipping_district: selectedAddress.district || '',
         shipping_ward: selectedAddress.ward || '',
         shipping_note: customerNote,
+        delivery_time_slot: selectedTimeSlot,
         payment_method: paymentMethod,
         shipping_fee: shipping,
         discount_amount: discount,
@@ -818,7 +819,7 @@ const CheckoutScreen = () => {
         visible={showPaymentModal}
         animationType='slide'
         presentationStyle='pageSheet'
-        onRequestClose={() => { }}
+        onRequestClose={() => {}}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>

@@ -18,6 +18,9 @@ export const jp = {
     all: 'すべて',
     products: '商品',
     user: 'ユーザー',
+    filter: 'フィルター',
+    default: 'デフォルト',
+    apply: '適用',
   },
   tabs: {
     home: 'ホーム',
@@ -34,6 +37,9 @@ export const jp = {
     brand: 'ブランド',
     productType: '商品タイプ',
     emptySubcategories: '商品タイプがありません',
+    sortPrice: '価格で並び替え',
+    priceLowHigh: '安い順',
+    priceHighLow: '高い順',
   },
   favourite: {
     empty: 'お気に入りの商品はまだありません',

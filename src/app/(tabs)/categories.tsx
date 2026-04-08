@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -10,6 +10,8 @@ import {
   FlatList,
   Dimensions,
   ScrollView,
+  Modal,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -39,7 +41,19 @@ const Categories = () => {
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+
+  const [filterVisible, setFilterVisible] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'none' | 'price_asc' | 'price_desc'>('none');
+
+  const sortedProducts = useMemo(() => {
+    if (sortOrder === 'none') return products;
+    return [...products].sort((a, b) => {
+      const priceA = a.sale_price || a.base_price || 0;
+      const priceB = b.sale_price || b.base_price || 0;
+      if (sortOrder === 'price_asc') return priceA - priceB;
+      return priceB - priceA;
+    });
+  }, [products, sortOrder]);
 
   useEffect(() => {
     loadCategories();
@@ -82,11 +96,18 @@ const Categories = () => {
   const loadBrands = async () => {
     try {
       const data = await fetchBrandsFromTable();
+      console.log("dataa brand", data)
       setBrands(data);
     } catch (error) {
       console.error('Error loading brands:', error);
     }
   };
+
+  // Reset filter state when category changes
+  useEffect(() => {
+    setSelectedBrand(null);
+    setSortOrder('none');
+  }, [selectedCategory]);
 
   const loadProducts = async () => {
     if (!selectedCategory) return;
@@ -130,7 +151,7 @@ const Categories = () => {
       // 2. Fetch products details
       let query = supabase
         .from('products')
-        .select('*')
+        .select('*, brand:brands(id, name, logo_url)')
         .in('id', productIds)
         .is('deleted_at', null)
         // @ts-ignore: status column exists in DB but not in types
@@ -166,10 +187,7 @@ const Categories = () => {
     router.push(`/product/${product.id}`);
   };
 
-  const filteredCategories = categories.filter((c) => {
-    const name = getLocalizedContent(c.languages, 'name', language, c.name);
-    return name.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+
 
   const renderCategoryItem = ({ item }: { item: Category }) => {
     const isSelected = selectedCategory?.id === item.id;
@@ -290,12 +308,7 @@ const Categories = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <Header
-          isSearchInput
-          searchValue={searchQuery}
-          onSearchChange={setSearchQuery}
-          searchPlaceholder={t('common.search')}
-        />
+        <Header searchPlaceholder={t('home.searchPlaceholder')} />
         <CategoriesSkeleton />
       </SafeAreaView>
     );
@@ -305,20 +318,16 @@ const Categories = () => {
     ? getLocalizedContent(selectedCategory.languages, 'name', language, selectedCategory.name)
     : '';
 
+  console.log("brands", brands)
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Header
-        isSearchInput
-        searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
-        searchPlaceholder={t('common.search')}
-      />
+      <Header searchPlaceholder={t('home.searchPlaceholder')} />
 
       <View style={styles.content}>
         {/* Left Panel: Categories */}
         <View style={styles.leftPanel}>
           <FlatList
-            data={filteredCategories}
+            data={categories}
             renderItem={renderCategoryItem}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
@@ -330,32 +339,17 @@ const Categories = () => {
         <ScrollView style={styles.rightPanel} showsVerticalScrollIndicator={false}>
           {selectedCategory && (
             <>
-              {/* Category Title */}
-              <View style={styles.categoryTitleContainer}>
+              {/* Category Title & Filter Button */}
+              <View style={styles.categoryTitleRow}>
                 <Typography variant='text' size='lg' weight='bold' style={styles.categoryTitle}>
                   {selectedCategoryName}
                 </Typography>
+                <TouchableOpacity style={styles.filterButton} onPress={() => setFilterVisible(true)}>
+                  <Feather name='filter' size={18} color={theme.colors.text.primary} />
+                </TouchableOpacity>
               </View>
 
-              {/* Brands Section */}
-              {brands.length > 0 && (
-                <View style={styles.brandsSection}>
-                  <Typography
-                    variant='text'
-                    size='md'
-                    weight='semiBold'
-                    style={styles.sectionTitle}
-                  >
-                    {t('categories.brand') || 'Thương hiệu'}
-                  </Typography>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={styles.brandsRow}>
-                      {renderAllBrandItem()}
-                      {brands.map((brand) => renderBrandItem(brand))}
-                    </View>
-                  </ScrollView>
-                </View>
-              )}
+              {/* The Brands Horizontal Scroll has been removed per user request */}
 
               {/* Products Section */}
               <View style={styles.productsSection}>
@@ -363,9 +357,9 @@ const Categories = () => {
                   <View style={[styles.center, { paddingVertical: 40 }]}>
                     <ActivityIndicator color={theme.colors.text.brand_primary} />
                   </View>
-                ) : products.length > 0 ? (
+                ) : sortedProducts.length > 0 ? (
                   <View style={styles.productsGrid}>
-                    {products.map((item) => (
+                    {sortedProducts.map((item) => (
                       <View key={item.id} style={styles.productWrapper}>
                         {renderProductItem(item)}
                       </View>
@@ -386,6 +380,92 @@ const Categories = () => {
           )}
         </ScrollView>
       </View>
+
+      {/* Filter Modal */}
+      <Modal visible={filterVisible} animationType="fade" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={{ width: 24 }} />
+              <Typography variant='text' size='lg' weight='bold'>
+                {t('common.filter') || 'Lọc'}
+              </Typography>
+              <TouchableOpacity onPress={() => setFilterVisible(false)}>
+                <Feather name='x' size={24} color={theme.colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={{ padding: 16 }}>
+              {/* Brand Filter */}
+              <View style={styles.filterSection}>
+                <Typography variant='text' size='md' weight='bold' style={styles.filterTitle}>
+                  {t('categories.brand')}
+                </Typography>
+                <View style={styles.filterChipsRow}>
+                  {renderAllBrandItem()}
+                  {brands.map((brand) => renderBrandItem(brand))}
+                </View>
+              </View>
+
+              {/* Sort Order */}
+              <View style={styles.filterSection}>
+                <Typography variant='text' size='md' weight='bold' style={styles.filterTitle}>
+                  {t('categories.sortPrice')}
+                </Typography>
+                <View style={styles.filterChipsRow}>
+                  <Pressable
+                    style={[styles.brandChip, sortOrder === 'none' && styles.brandChipSelected]}
+                    onPress={() => setSortOrder('none')}
+                  >
+                    <Typography
+                      variant='text'
+                      size='sm'
+                      weight={sortOrder === 'none' ? 'semiBold' : 'regular'}
+                      style={[styles.brandText, sortOrder === 'none' && styles.brandTextSelected]}
+                    >
+                      {t('common.default')}
+                    </Typography>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.brandChip, sortOrder === 'price_asc' && styles.brandChipSelected]}
+                    onPress={() => setSortOrder('price_asc')}
+                  >
+                    <Typography
+                      variant='text'
+                      size='sm'
+                      weight={sortOrder === 'price_asc' ? 'semiBold' : 'regular'}
+                      style={[styles.brandText, sortOrder === 'price_asc' && styles.brandTextSelected]}
+                    >
+                      {t('categories.priceLowHigh')}
+                    </Typography>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.brandChip, sortOrder === 'price_desc' && styles.brandChipSelected]}
+                    onPress={() => setSortOrder('price_desc')}
+                  >
+                    <Typography
+                      variant='text'
+                      size='sm'
+                      weight={sortOrder === 'price_desc' ? 'semiBold' : 'regular'}
+                      style={[styles.brandText, sortOrder === 'price_desc' && styles.brandTextSelected]}
+                    >
+                      {t('categories.priceHighLow')}
+                    </Typography>
+                  </Pressable>
+                </View>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity style={styles.applyButton} onPress={() => setFilterVisible(false)}>
+                <Typography variant='text' size='md' weight='bold' style={{ color: '#FFF' }}>
+                  {t('common.apply')}
+                </Typography>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -444,26 +524,76 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     categoryNameSelected: {
       color: theme.colors.text.brand_primary,
     },
-    categoryTitleContainer: {
+    categoryTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
       paddingHorizontal: 16,
       paddingTop: 16,
-      paddingBottom: 8,
+      paddingBottom: 12,
     },
     categoryTitle: {
       color: theme.colors.text.primary,
     },
-    // Brands Section
     brandsSection: {
       paddingHorizontal: 16,
-      marginBottom: 20,
-    },
-    sectionTitle: {
-      color: theme.colors.text.primary,
       marginBottom: 12,
     },
     brandsRow: {
       flexDirection: 'row',
       gap: 10,
+    },
+    filterButton: {
+      padding: 8,
+      borderRadius: 8,
+      backgroundColor: theme.colors.background.secondary,
+      borderWidth: 1,
+      borderColor: theme.colors.border.secondary,
+    },
+    // Modal Styles
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: theme.colors.background.primary,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '80%',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border.secondary,
+    },
+    filterSection: {
+      marginBottom: 24,
+    },
+    filterTitle: {
+      marginBottom: 12,
+      color: theme.colors.text.primary,
+    },
+    filterChipsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+    },
+    modalFooter: {
+      padding: 16,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border.secondary,
+      paddingBottom: 32,
+    },
+    applyButton: {
+      backgroundColor: theme.colors.background.brand_solid || '#0F172A',
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     brandChip: {
       flexDirection: 'row',

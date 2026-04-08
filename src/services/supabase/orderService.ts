@@ -14,6 +14,7 @@ export interface CheckoutForm {
   shipping_district?: string;
   shipping_ward?: string;
   shipping_note?: string;
+  delivery_time_slot?: string;
   payment_method: PaymentMethod;
   shipping_fee?: number;
   discount_amount?: number;
@@ -38,6 +39,7 @@ export interface Order {
   total_amount: number;
   shipping_address: ShippingAddress | null;
   customer_note: string | null;
+  delivery_time_slot: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -168,6 +170,7 @@ export const createOrder = async (
     total_amount: totalAmount,
     shipping_address: shippingAddress,
     customer_note: checkoutForm.shipping_note || null,
+    delivery_time_slot: checkoutForm.delivery_time_slot || null,
   };
 
   // Insert order - use type assertion for Supabase response
@@ -238,6 +241,7 @@ export const createOrder = async (
     total_amount: Number(order.total_amount),
     shipping_address: order.shipping_address,
     customer_note: order.customer_note,
+    delivery_time_slot: order.delivery_time_slot,
     created_at: order.created_at,
     updated_at: order.updated_at,
     deleted_at: order.deleted_at,
@@ -286,6 +290,7 @@ export const fetchUserOrders = async (
       total_amount: Number(order.total_amount),
       shipping_address: order.shipping_address,
       customer_note: order.customer_note,
+      delivery_time_slot: order.delivery_time_slot,
       created_at: order.created_at,
       updated_at: order.updated_at,
       deleted_at: order.deleted_at,
@@ -342,6 +347,7 @@ export const fetchOrderDetail = async (
     total_amount: Number(order.total_amount),
     shipping_address: order.shipping_address,
     customer_note: order.customer_note,
+    delivery_time_slot: order.delivery_time_slot,
     created_at: order.created_at,
     updated_at: order.updated_at,
     deleted_at: order.deleted_at,

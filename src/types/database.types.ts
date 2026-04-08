@@ -685,25 +685,30 @@ export type CompositeTypes<
     ? Database['public']['CompositeTypes'][PublicCompositeTypeNameOrOptions]
     : never;
 
-export type Product = Tables<'products'> & {
+export type Product = Omit<Tables<'products'>, 'brand'> & {
   base_price?: number;
   sale_price?: number;
   thumbnail_url?: string;
   image_urls?: string[];
   rating_average?: number;
+  brand_id?: string | null;
+  brand?: any;
 };
 
 export type ProductWithFlashSale = Product & {
   flash_sale_price?: number;
 };
 
-export type Category = Tables<'categories'>;
+export type Category = Tables<'categories'> & {
+  languages?: Json | null;
+};
 // Mock Brand type since it was missing from generated types
 export type Brand = {
   id: string;
   name: string;
   slug: string;
   logo_url: string | null;
+  languages?: Json | null;
 };
 export type Banner = Tables<'banners'>;
 export type ProductVariant = Tables<'product_variants'>;

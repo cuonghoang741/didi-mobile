@@ -18,6 +18,9 @@ export const en = {
     all: 'All',
     products: 'Products',
     user: 'User',
+    filter: 'Filter',
+    default: 'Default',
+    apply: 'Apply',
   },
   home: {
     welcome: 'Welcome',
@@ -53,6 +56,9 @@ export const en = {
     brand: 'Brand',
     productType: 'Product Type',
     emptySubcategories: 'No product types available',
+    sortPrice: 'Sort by price',
+    priceLowHigh: 'Low to high',
+    priceHighLow: 'High to low',
   },
   favourite: {
     empty: 'No favourite products yet',

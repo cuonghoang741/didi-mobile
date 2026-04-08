@@ -18,6 +18,9 @@ export const vi = {
     all: 'Tất cả',
     products: 'Sản phẩm',
     user: 'Người dùng',
+    filter: 'Lọc',
+    default: 'Mặc định',
+    apply: 'Áp dụng',
   },
   home: {
     welcome: 'Xin chào',
@@ -52,6 +55,9 @@ export const vi = {
     brand: 'Thương hiệu',
     productType: 'Loại sản phẩm',
     emptySubcategories: 'Chưa có loại sản phẩm',
+    sortPrice: 'Sắp xếp theo giá',
+    priceLowHigh: 'Từ thấp đến cao',
+    priceHighLow: 'Từ cao đến thấp',
   },
   favourite: {
     empty: 'Chưa có sản phẩm yêu thích',
