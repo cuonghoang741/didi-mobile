@@ -1,4 +1,5 @@
 import { supabase } from './client';
+import { enrichProductsWithVariantPrices } from './homeService';
 import type { Product, ProductVariant, ProductDetail, Brand } from '@/types/database.types';
 
 export interface ProductReview {
@@ -202,7 +203,7 @@ export const fetchRelatedProducts = async (
     return [];
   }
 
-  return data || [];
+  return enrichProductsWithVariantPrices(data || []);
 };
 
 /**
@@ -225,7 +226,7 @@ export const fetchProductsByIds = async (ids: string[]): Promise<Product[]> => {
     return [];
   }
 
-  return data || [];
+  return enrichProductsWithVariantPrices(data || []);
 };
 
 /**
@@ -296,7 +297,7 @@ export const searchProducts = async (
     return [];
   }
 
-  return data || [];
+  return enrichProductsWithVariantPrices(data || []);
 };
 
 /**

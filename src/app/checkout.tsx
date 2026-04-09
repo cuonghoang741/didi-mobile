@@ -252,7 +252,7 @@ const CheckoutScreen = () => {
       const form: CheckoutForm = {
         shipping_name: selectedAddress.full_name,
         shipping_phone: selectedAddress.phone,
-        shipping_email: '',
+        shipping_email: user?.email || '',
         shipping_address: selectedAddress.address_line1,
         shipping_city: selectedAddress.city || selectedAddress.province || '',
         shipping_district: selectedAddress.district || '',

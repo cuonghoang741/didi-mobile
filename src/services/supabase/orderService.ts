@@ -112,6 +112,39 @@ const notifyAdminsNewOrder = async (
 };
 
 /**
+ * Send order confirmation to customer email via Supabase Edge Function
+ */
+const notifyCustomerOrderSuccess = async (
+  orderNumber: string,
+  customerName: string,
+  customerEmail: string | undefined,
+  totalAmount: number,
+  itemsCount: number,
+): Promise<void> => {
+  if (!customerEmail) return;
+  
+  try {
+    const { data, error } = await supabase.functions.invoke('send-order-confirmation-email', {
+      body: {
+        order_number: orderNumber,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        total_amount: totalAmount,
+        items_count: itemsCount,
+      },
+    });
+
+    if (error) {
+      console.error('Error sending customer order email:', error);
+    } else {
+      console.log('Customer order email sent successfully:', data);
+    }
+  } catch (err) {
+    console.error('Failed to notify customer about order:', err);
+  }
+};
+
+/**
  * Get price from cart item (handles both product base price and variant price)
  */
 const getItemPrice = (item: CartItem): number => {
@@ -221,6 +254,15 @@ export const createOrder = async (
     order.id,
     order.order_number,
     checkoutForm.shipping_name,
+    totalAmount,
+    cartItems.length,
+  );
+
+  // Send confirmation email to customer (fire and forget)
+  notifyCustomerOrderSuccess(
+    order.order_number,
+    checkoutForm.shipping_name,
+    checkoutForm.shipping_email,
     totalAmount,
     cartItems.length,
   );
