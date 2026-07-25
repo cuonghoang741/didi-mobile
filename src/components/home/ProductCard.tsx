@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 
 import { Typography, Button } from '@/components';
-import { useTheme, useAuth } from '@/contexts';
+import { useTheme, useAuth, useLanguage } from '@/contexts';
 import { useCurrency } from '@/hooks';
 import { supabase } from '@/services/supabase';
 import type { Product, ProductWithFlashSale } from '@/types/database.types';
@@ -36,6 +36,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const theme = useTheme();
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const cardWidth = width || CARD_WIDTH;
   const cardHeight = cardWidth * 1.5;
   const styles = createStyles(theme, cardWidth, cardHeight);
@@ -62,6 +63,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
     originalPrice && originalPrice > currentPrice
       ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
       : 0;
+
+  // Out of stock when inventory is tracked and depleted
+  const isOutOfStock = product.stock_quantity != null && product.stock_quantity <= 0;
 
   // Check if product is in favorites
   useEffect(() => {
@@ -163,7 +167,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </Typography>
           </LinearGradient>
         )}
-        {hasFlashSale ? (
+        {hasFlashSale && !isOutOfStock ? (
           <LinearGradient
             colors={['#FF6B6B', '#EE5A24']}
             start={{ x: 0, y: 0 }}
@@ -182,6 +186,23 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </View>
           </LinearGradient>
         ) : null}
+
+        {/* Out of stock overlay */}
+        {isOutOfStock && (
+          <View style={styles.outOfStockOverlay}>
+            <View style={styles.outOfStockBand}>
+              <Typography
+                variant='text'
+                size='md'
+                weight='bold'
+                style={styles.outOfStockText}
+                numberOfLines={1}
+              >
+                {(t('product.outOfStock') || 'Hết hàng').toUpperCase()}
+              </Typography>
+            </View>
+          </View>
+        )}
       </View>
 
       <View style={styles.infoContainer}>
@@ -292,6 +313,22 @@ const createStyles = (theme: ReturnType<typeof useTheme>, cardWidth: number, car
     },
     flashSaleText: {
       color: '#FFFFFF',
+    },
+    outOfStockOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(255, 255, 255, 0.35)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    outOfStockBand: {
+      width: '100%',
+      backgroundColor: 'rgba(255, 255, 255, 0.85)',
+      paddingVertical: 8,
+      alignItems: 'center',
+    },
+    outOfStockText: {
+      color: '#4B5563',
+      letterSpacing: 1,
     },
     infoContainer: {
       padding: 10,

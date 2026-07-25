@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter, useNavigation } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -10,6 +10,8 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -22,6 +24,40 @@ import { useTheme, useLanguage, useAuth } from '@/contexts';
 type AuthStep = 'phone' | 'password' | 'otp' | 'set-password';
 
 const OTP_TIMER_DURATION = 60; // seconds
+
+type Country = {
+  name: string;
+  code: string; // ISO 3166-1 alpha-2
+  dialCode: string; // e.g. +84
+  flag: string; // emoji flag
+};
+
+// Common country dial codes. VN & JP first as primary markets.
+const COUNTRIES: Country[] = [
+  { name: 'Việt Nam', code: 'VN', dialCode: '+84', flag: '🇻🇳' },
+  { name: '日本 (Japan)', code: 'JP', dialCode: '+81', flag: '🇯🇵' },
+  { name: 'United States', code: 'US', dialCode: '+1', flag: '🇺🇸' },
+  { name: '한국 (Korea)', code: 'KR', dialCode: '+82', flag: '🇰🇷' },
+  { name: '中国 (China)', code: 'CN', dialCode: '+86', flag: '🇨🇳' },
+  { name: 'ประเทศไทย (Thailand)', code: 'TH', dialCode: '+66', flag: '🇹🇭' },
+  { name: 'Singapore', code: 'SG', dialCode: '+65', flag: '🇸🇬' },
+  { name: 'Malaysia', code: 'MY', dialCode: '+60', flag: '🇲🇾' },
+  { name: 'Indonesia', code: 'ID', dialCode: '+62', flag: '🇮🇩' },
+  { name: 'Philippines', code: 'PH', dialCode: '+63', flag: '🇵🇭' },
+  { name: 'Cambodia', code: 'KH', dialCode: '+855', flag: '🇰🇭' },
+  { name: 'Laos', code: 'LA', dialCode: '+856', flag: '🇱🇦' },
+  { name: 'Myanmar', code: 'MM', dialCode: '+95', flag: '🇲🇲' },
+  { name: 'India', code: 'IN', dialCode: '+91', flag: '🇮🇳' },
+  { name: 'United Kingdom', code: 'GB', dialCode: '+44', flag: '🇬🇧' },
+  { name: 'Australia', code: 'AU', dialCode: '+61', flag: '🇦🇺' },
+  { name: 'Canada', code: 'CA', dialCode: '+1', flag: '🇨🇦' },
+  { name: 'France', code: 'FR', dialCode: '+33', flag: '🇫🇷' },
+  { name: 'Germany', code: 'DE', dialCode: '+49', flag: '🇩🇪' },
+  { name: 'Taiwan', code: 'TW', dialCode: '+886', flag: '🇹🇼' },
+  { name: 'Hong Kong', code: 'HK', dialCode: '+852', flag: '🇭🇰' },
+];
+
+const DEFAULT_COUNTRY = COUNTRIES[0];
 
 const SignInScreen = () => {
   const router = useRouter();
@@ -66,6 +102,9 @@ const SignInScreen = () => {
 
   const [step, setStep] = useState<AuthStep>('phone');
   const [phone, setPhone] = useState('');
+  const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
   const [formattedPhone, setFormattedPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -92,19 +131,38 @@ const SignInScreen = () => {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const validatePhone = (phoneNumber: string) => {
-    const cleaned = phoneNumber.replace(/\D/g, '');
-    // Simple check: starts with 0 and has 10 digits
-    const regex = /^(0[3|5|7|8|9])+([0-9]{8})$/;
-    return regex.test(cleaned);
+  const filteredCountries = useMemo(() => {
+    const q = countrySearch.trim().toLowerCase();
+    if (!q) return COUNTRIES;
+    return COUNTRIES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.dialCode.includes(q) ||
+        c.code.toLowerCase().includes(q),
+    );
+  }, [countrySearch]);
+
+  const validatePhone = (phoneNumber: string, selected: Country) => {
+    // Strip everything except digits, then drop the national trunk "0" prefix.
+    let cleaned = phoneNumber.replace(/\D/g, '');
+    if (cleaned.startsWith('0')) {
+      cleaned = cleaned.substring(1);
+    }
+    if (selected.dialCode === '+84') {
+      // Vietnam: national number is 9 digits starting with 3/5/7/8/9
+      return /^[3|5|7|8|9][0-9]{8}$/.test(cleaned);
+    }
+    // Generic E.164: national number between 6 and 14 digits
+    return /^[0-9]{6,14}$/.test(cleaned);
   };
 
-  const formatPhoneNumberForApi = (phoneNumber: string) => {
-    const cleaned = phoneNumber.replace(/\D/g, '');
+  const formatPhoneNumberForApi = (phoneNumber: string, selected: Country) => {
+    let cleaned = phoneNumber.replace(/\D/g, '');
+    // Remove the national trunk prefix "0" before prepending the dial code.
     if (cleaned.startsWith('0')) {
-      return `+84${cleaned.substring(1)}`;
+      cleaned = cleaned.substring(1);
     }
-    return `+84${cleaned}`;
+    return `${selected.dialCode}${cleaned}`;
   };
 
   const handleContinue = async () => {
@@ -115,12 +173,12 @@ const SignInScreen = () => {
       return;
     }
 
-    if (!validatePhone(phone)) {
+    if (!validatePhone(phone, country)) {
       setLocalError(t('auth.signIn.invalidPhone'));
       return;
     }
 
-    const apiPhone = formatPhoneNumberForApi(phone);
+    const apiPhone = formatPhoneNumberForApi(phone, country);
     setFormattedPhone(apiPhone);
 
     // Check if phone exists
@@ -328,9 +386,23 @@ const SignInScreen = () => {
           {step === 'phone' && (
             <View style={styles.inputSection}>
               <View style={[styles.inputContainer, displayError && styles.inputErrorBorder]}>
-                <View style={styles.iconContainer}>
-                  <Feather name='phone' size={20} color={theme.colors.text.tertiary} />
-                </View>
+                <Pressable
+                  style={styles.countrySelector}
+                  onPress={() => {
+                    setCountrySearch('');
+                    setShowCountryPicker(true);
+                  }}
+                  disabled={isLoading}
+                >
+                  <Typography variant='text' size='md' style={styles.countryFlag}>
+                    {country.flag}
+                  </Typography>
+                  <Typography variant='text' size='md' style={styles.countryDialCode}>
+                    {country.dialCode}
+                  </Typography>
+                  <Feather name='chevron-down' size={16} color={theme.colors.text.tertiary} />
+                </Pressable>
+                <View style={styles.countryDivider} />
                 <TextInput
                   style={styles.input}
                   value={phone}
@@ -609,6 +681,78 @@ const SignInScreen = () => {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Country Code Picker */}
+      <Modal
+        visible={showCountryPicker}
+        animationType='slide'
+        transparent
+        onRequestClose={() => setShowCountryPicker(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowCountryPicker(false)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Typography variant='text' size='lg' weight='bold'>
+                {t('auth.signIn.selectCountry') || 'Chọn quốc gia'}
+              </Typography>
+              <Pressable onPress={() => setShowCountryPicker(false)} hitSlop={8}>
+                <Feather name='x' size={22} color={theme.colors.text.primary} />
+              </Pressable>
+            </View>
+            <View style={styles.modalSearchContainer}>
+              <Feather name='search' size={18} color={theme.colors.text.tertiary} />
+              <TextInput
+                style={styles.modalSearchInput}
+                value={countrySearch}
+                onChangeText={setCountrySearch}
+                placeholder={t('auth.signIn.searchCountry') || 'Tìm kiếm...'}
+                placeholderTextColor={theme.colors.text.tertiary}
+                autoCorrect={false}
+              />
+            </View>
+            <FlatList
+              data={filteredCountries}
+              keyExtractor={(item) => item.code + item.dialCode}
+              keyboardShouldPersistTaps='handled'
+              style={styles.countryList}
+              renderItem={({ item }) => {
+                const selected = item.code === country.code && item.dialCode === country.dialCode;
+                return (
+                  <Pressable
+                    style={styles.countryItem}
+                    onPress={() => {
+                      setCountry(item);
+                      setShowCountryPicker(false);
+                      if (displayError) setLocalError(null);
+                    }}
+                  >
+                    <Typography variant='text' size='lg' style={styles.countryItemFlag}>
+                      {item.flag}
+                    </Typography>
+                    <Typography variant='text' size='md' style={styles.countryItemName}>
+                      {item.name}
+                    </Typography>
+                    <Typography variant='text' size='md' style={styles.countryItemDial}>
+                      {item.dialCode}
+                    </Typography>
+                    {selected && (
+                      <Feather name='check' size={18} color={theme.colors.text.brand_primary} />
+                    )}
+                  </Pressable>
+                );
+              }}
+              ListEmptyComponent={
+                <View style={styles.countryEmpty}>
+                  <Typography variant='text' size='md' style={styles.timerText}>
+                    {t('auth.signIn.noCountryFound') || 'Không tìm thấy quốc gia'}
+                  </Typography>
+                </View>
+              }
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -675,6 +819,95 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     clearButton: {
       padding: 4,
+    },
+    countrySelector: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingRight: 8,
+    },
+    countryFlag: {
+      fontSize: 20,
+    },
+    countryDialCode: {
+      color: theme.colors.text.primary,
+      fontWeight: '600',
+    },
+    countryDivider: {
+      width: 1,
+      height: 24,
+      backgroundColor: theme.colors.border.secondary,
+      marginRight: 8,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'flex-end',
+    },
+    modalSheet: {
+      backgroundColor: theme.colors.background.primary,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingHorizontal: 20,
+      paddingBottom: 24,
+      maxHeight: '80%',
+    },
+    modalHandle: {
+      alignSelf: 'center',
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: theme.colors.border.tertiary,
+      marginTop: 12,
+      marginBottom: 12,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    modalSearchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      borderWidth: 1,
+      borderColor: theme.colors.border.secondary,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      height: 44,
+      marginBottom: 12,
+    },
+    modalSearchInput: {
+      flex: 1,
+      fontSize: 15,
+      color: theme.colors.text.primary,
+      height: '100%',
+    },
+    countryList: {
+      flexGrow: 0,
+    },
+    countryItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border.tertiary,
+    },
+    countryItemFlag: {
+      fontSize: 22,
+    },
+    countryItemName: {
+      flex: 1,
+      color: theme.colors.text.primary,
+    },
+    countryItemDial: {
+      color: theme.colors.text.secondary,
+    },
+    countryEmpty: {
+      paddingVertical: 32,
+      alignItems: 'center',
     },
     otpContainer: {
       marginBottom: 16,
