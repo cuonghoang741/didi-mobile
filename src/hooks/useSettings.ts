@@ -10,7 +10,11 @@ export const useSettings = () => {
   } = useQuery<AppSettings | null>({
     queryKey: ['settings'],
     queryFn: fetchAppSettings,
-    staleTime: 1000 * 60 * 60, // 1 hour
+    // Keep settings fresh so CMS changes (contact links, exchange rate, etc.)
+    // appear quickly instead of being stuck on a stale cache.
+    staleTime: 1000 * 60, // 1 minute
+    refetchOnMount: true,
+    refetchOnReconnect: true,
   });
 
   return {
